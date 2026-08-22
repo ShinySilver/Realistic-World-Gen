@@ -15,7 +15,7 @@ import rwg.util.NoiseGenerator;
 public class RealisticBiomeOceanTest extends RealisticBiomeBase {
 
     public RealisticBiomeOceanTest() {
-        super(0, RWGBiomes.baseColdPlains);
+        super(0, RWGBiomes.baseOceanTemperate);
     }
 
     @Override
@@ -24,7 +24,7 @@ public class RealisticBiomeOceanTest extends RealisticBiomeBase {
 
     @Override
     public float rNoise(NoiseGenerator perlin, CellNoise cell, int x, int y, float ocean, float border, float river) {
-        return 45f;
+        return 45f + perlin.noise2(x / 220f, y / 220f) * 4f + perlin.noise2(x / 55f, y / 55f) * 1.5f;
     }
 
     @Override

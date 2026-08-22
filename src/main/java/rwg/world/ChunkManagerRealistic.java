@@ -15,6 +15,7 @@ import gnu.trove.map.hash.TLongObjectHashMap;
 import rwg.biomes.realistic.RealisticBiomeBase;
 import rwg.support.Support;
 import rwg.util.CellNoise;
+import rwg.util.ContinentalNoise;
 import rwg.util.NoiseGenerator;
 import rwg.util.NoiseSelector;
 
@@ -27,6 +28,7 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     private CellNoise cell;
 
     private CellNoise biomecell;
+    private ContinentalNoise continents;
 
     private ArrayList<RealisticBiomeBase> biomes_snow;
     private ArrayList<RealisticBiomeBase> biomes_cold;
@@ -60,6 +62,7 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         cell = new CellNoise(seed, (short) 0);
         cell.setUseDistance(true);
         biomecell = new CellNoise(seed, (short) 0);
+        continents = new ContinentalNoise(seed ^ 0x6A09E667F3BCC909L);
 
         biomes_snow = new ArrayList<RealisticBiomeBase>();
         biomes_cold = new ArrayList<RealisticBiomeBase>();
@@ -185,6 +188,19 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         return highest;
     }
 
+    public float getContinentValue(int x, int y) {
+        return continents.getValue(x, y);
+    }
+
+    /**
+     * Converts the new continent distance field to the 0-2 range expected by the existing coast terrain
+     * implementations.
+     */
+    public float getTerrainOceanValue(int x, int y) {
+        float value = 1f + getContinentValue(x, y) / 100f;
+        return value < 0f ? 0f : value > 2f ? 2f : value;
+    }
+
     public boolean diff(float sample1, float sample2, float base) {
         if ((sample1 < base && sample2 > base) || (sample1 > base && sample2 < base)) {
             return true;
@@ -228,6 +244,28 @@ public class ChunkManagerRealistic extends WorldChunkManager {
             return output;
         }
 
+        float continent = getContinentValue(par1, par2);
+        if (continent < 0f) {
+            output = RealisticBiomeBase.ocean;
+        } else {
+            output = getLandBiomeAt(par1, par2);
+            if (continent < 24f) {
+                output = output.baseBiome.temperature < 0.15f ? RealisticBiomeBase.coastIce
+                        : RealisticBiomeBase.coastDunes;
+            }
+        }
+
+        if (biomeDataMap.size() > 4096) {
+            biomeDataMap.clear();
+        }
+
+        biomeDataMap.put(coords, output);
+        return output;
+    }
+
+    private RealisticBiomeBase getLandBiomeAt(int par1, int par2) {
+        RealisticBiomeBase output;
+
         float b = (biomecell.noise((par1 + 4000f) / 1200D, par2 / 1200D, 1D) * 0.5f) + 0.5f;
         b = b < 0f ? 0f : b >= 0.9999999f ? 0.9999999f : b;
 
@@ -269,11 +307,6 @@ public class ChunkManagerRealistic extends WorldChunkManager {
             output = biomes_hot.get((int) (h));
         }
 
-        if (biomeDataMap.size() > 4096) {
-            biomeDataMap.clear();
-        }
-
-        biomeDataMap.put(coords, output);
         return output;
 
         /*
@@ -318,7 +351,7 @@ public class ChunkManagerRealistic extends WorldChunkManager {
             return 59f;
         }
 
-        float ocean = getOceanValue(x, y);
+        float ocean = getTerrainOceanValue(x, y);
         return getBiomeDataAt(x, y, ocean).rNoise(perlin, cell, x, y, ocean, 1f, river);
     }
 
