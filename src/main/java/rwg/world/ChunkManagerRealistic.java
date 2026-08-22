@@ -28,6 +28,7 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     private CellNoise cell;
 
     private CellNoise biomecell;
+    private boolean continental;
     private ContinentalNoise continents;
 
     private ArrayList<RealisticBiomeBase> biomes_snow;
@@ -55,14 +56,21 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     }
 
     public ChunkManagerRealistic(World par1World) {
+        this(par1World, false);
+    }
+
+    public ChunkManagerRealistic(World par1World, boolean continental) {
         this();
         long seed = par1World.getSeed();
+        this.continental = continental;
 
         perlin = NoiseSelector.createNoiseGenerator(seed);
         cell = new CellNoise(seed, (short) 0);
         cell.setUseDistance(true);
         biomecell = new CellNoise(seed, (short) 0);
-        continents = new ContinentalNoise(seed ^ 0x6A09E667F3BCC909L);
+        if (continental) {
+            continents = new ContinentalNoise(seed ^ 0x6A09E667F3BCC909L);
+        }
 
         biomes_snow = new ArrayList<RealisticBiomeBase>();
         biomes_cold = new ArrayList<RealisticBiomeBase>();
@@ -156,40 +164,8 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         return data;
     }
 
-    public float getOceanValue(int x, int y) {
-        float base = -(-0f);
-        float sample1 = perlin.noise2(x / 1200f, y / 1200f) + base;
-        float sample2 = 0f, sa = 0f, highest = 0f;
-
-        if (sample1 == 0f) {
-            highest = 1f;
-        }
-
-        if (diff(sample1, sample2 = perlin.noise2((x - 100f) / 1200f, y / 1200f) + base, base)) {
-            sa = sample1 * (1 / Math.abs(sample1 - sample2));
-            highest = 1f - Math.abs(sa) > highest ? 1f - Math.abs(sa) : highest;
-        } else if (diff(sample1, sample2 = perlin.noise2((x + 100f) / 1200f, y / 1200f) + base, base)) {
-            sa = sample1 * (1 / Math.abs(sample1 - sample2));
-            highest = 1f - Math.abs(sa) > highest ? 1f - Math.abs(sa) : highest;
-        }
-
-        if (diff(sample1, sample2 = perlin.noise2(x / 1200f, (y + 100f) / 1200f) + base, base)) {
-            sa = sample1 * (1 / Math.abs(sample1 - sample2));
-            highest = 1f - Math.abs(sa) > highest ? 1f - Math.abs(sa) : highest;
-        } else if (diff(sample1, sample2 = perlin.noise2(x / 1200f, (y - 100f) / 1200f) + base, base)) {
-            sa = sample1 * (1 / Math.abs(sample1 - sample2));
-            highest = 1f - Math.abs(sa) > highest ? 1f - Math.abs(sa) : highest;
-        }
-
-        if (sample1 > 0f) {
-            highest = 2f - highest;
-        }
-
-        return highest;
-    }
-
     public float getContinentValue(int x, int y) {
-        return continents.getValue(x, y);
+        return continental ? continents.getValue(x, y) : (getLegacyOceanValue(x, y) - 1f) * 100f;
     }
 
     /**
@@ -197,46 +173,49 @@ public class ChunkManagerRealistic extends WorldChunkManager {
      * implementations.
      */
     public float getTerrainOceanValue(int x, int y) {
-        float value = 1f + getContinentValue(x, y) / 100f;
+        return continental ? getTerrainOceanValue(getContinentValue(x, y)) : getLegacyOceanValue(x, y);
+    }
+
+    public float getTerrainOceanValue(float continent) {
+        float value = 1f + continent / 100f;
         return value < 0f ? 0f : value > 2f ? 2f : value;
     }
 
-    public boolean diff(float sample1, float sample2, float base) {
-        if ((sample1 < base && sample2 > base) || (sample1 > base && sample2 < base)) {
-            return true;
+    /** @deprecated Use {@link #getTerrainOceanValue(int, int)}. */
+    @Deprecated
+    public float getOceanValue(int x, int y) {
+        return getTerrainOceanValue(x, y);
+    }
+
+    private float getLegacyOceanValue(int x, int y) {
+        float sample1 = perlin.noise2(x / 1200f, y / 1200f);
+        float sample2;
+        float highest = sample1 == 0f ? 1f : 0f;
+
+        if (diff(sample1, sample2 = perlin.noise2((x - 100f) / 1200f, y / 1200f))) {
+            highest = Math.max(highest, 1f - Math.abs(sample1 / Math.abs(sample1 - sample2)));
+        } else if (diff(sample1, sample2 = perlin.noise2((x + 100f) / 1200f, y / 1200f))) {
+            highest = Math.max(highest, 1f - Math.abs(sample1 / Math.abs(sample1 - sample2)));
         }
-        return false;
+
+        if (diff(sample1, sample2 = perlin.noise2(x / 1200f, (y + 100f) / 1200f))) {
+            highest = Math.max(highest, 1f - Math.abs(sample1 / Math.abs(sample1 - sample2)));
+        } else if (diff(sample1, sample2 = perlin.noise2(x / 1200f, (y - 100f) / 1200f))) {
+            highest = Math.max(highest, 1f - Math.abs(sample1 / Math.abs(sample1 - sample2)));
+        }
+
+        return sample1 > 0f ? 2f - highest : highest;
+    }
+
+    private boolean diff(float sample1, float sample2) {
+        return sample1 < 0f && sample2 > 0f || sample1 > 0f && sample2 < 0f;
     }
 
     public BiomeGenBase getBiomeGenAt(int par1, int par2) {
-        return getBiomeDataAt(par1, par2, getOceanValue(par1, par2)).baseBiome;
+        return getBiomeDataAt(par1, par2).baseBiome;
     }
 
     public RealisticBiomeBase getBiomeDataAt(int par1, int par2) {
-        return getBiomeDataAt(par1, par2, getOceanValue(par1, par2));
-    }
-
-    private TLongObjectHashMap<RealisticBiomeBase> biomeDataMap = new TLongObjectHashMap<RealisticBiomeBase>();
-
-    public RealisticBiomeBase getBiomeDataAt(int par1, int par2, float ocean) {
-        // return RealisticBiomeBase.woodmountains;
-
-        // return RealisticBiomeBase.hotForest; //rainForestHigh test
-
-        /*
-         * if(par1 + par2 < 0) { return RealisticBiomeBase.islandTropicalVolcano; } else { return
-         * RealisticBiomeBase.ocean; }
-         */
-
-        /*
-         * if(ocean >= 1.99f) { return RealisticBiomeBase.hotForest; } else if(ocean <= 0.01f) { return
-         * RealisticBiomeBase.ocean; } else { return RealisticBiomeBase.coastDunes; }
-         */
-
-        /*
-         * if(par1 + par2 > 0f) { return RealisticBiomeBase.savannaDunes; } else { return RealisticBiomeBase.mesa; }
-         */
-
         long coords = ChunkCoordIntPair.chunkXZ2Int(par1, par2);
         RealisticBiomeBase output = biomeDataMap.get(coords);
 
@@ -244,14 +223,18 @@ public class ChunkManagerRealistic extends WorldChunkManager {
             return output;
         }
 
-        float continent = getContinentValue(par1, par2);
-        if (continent < 0f) {
-            output = RealisticBiomeBase.ocean;
-        } else {
+        if (!continental) {
             output = getLandBiomeAt(par1, par2);
-            if (continent < 24f) {
-                output = output.baseBiome.temperature < 0.15f ? RealisticBiomeBase.coastIce
-                        : RealisticBiomeBase.coastDunes;
+        } else {
+            float continent = getContinentValue(par1, par2);
+            if (continent < 0f) {
+                output = RealisticBiomeBase.ocean;
+            } else {
+                output = getLandBiomeAt(par1, par2);
+                if (continent < 24f) {
+                    output = output.baseBiome.temperature < 0.15f ? RealisticBiomeBase.coastIce
+                            : RealisticBiomeBase.coastDunes;
+                }
             }
         }
 
@@ -262,6 +245,14 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         biomeDataMap.put(coords, output);
         return output;
     }
+
+    /** @deprecated The ocean value is derived from the continental field. */
+    @Deprecated
+    public RealisticBiomeBase getBiomeDataAt(int par1, int par2, float ocean) {
+        return getBiomeDataAt(par1, par2);
+    }
+
+    private TLongObjectHashMap<RealisticBiomeBase> biomeDataMap = new TLongObjectHashMap<RealisticBiomeBase>();
 
     private RealisticBiomeBase getLandBiomeAt(int par1, int par2) {
         RealisticBiomeBase output;
@@ -352,11 +343,11 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         }
 
         float ocean = getTerrainOceanValue(x, y);
-        return getBiomeDataAt(x, y, ocean).rNoise(perlin, cell, x, y, ocean, 1f, river);
+        return getBiomeDataAt(x, y).rNoise(perlin, cell, x, y, ocean, 1f, river);
     }
 
     public float getNoiseWithRiverOceanAt(int x, int y, float river, float ocean) {
-        return getBiomeDataAt(x, y, ocean).rNoise(perlin, cell, x, y, ocean, 1f, river);
+        return getBiomeDataAt(x, y).rNoise(perlin, cell, x, y, ocean, 1f, river);
     }
 
     public float calculateRiver(int x, int y, float st, float biomeHeight) {

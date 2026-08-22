@@ -28,7 +28,8 @@ public class RWG {
     @Instance("RWG")
     public static RWG instance;
 
-    public static final WorldTypeRealistic worldtype = (new WorldTypeRealistic("RWG"));
+    public static final WorldTypeRealistic worldtype = new WorldTypeRealistic("RWG", false);
+    public static final WorldTypeRealistic continentWorldtype = new WorldTypeRealistic("RWG_CONTINENT", true);
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {

@@ -63,7 +63,7 @@ public class RealisticBiomeIslandTropical extends RealisticBiomeBase {
                             baseX * 16,
                             baseY * 16,
                             river,
-                            cmr.getOceanValue(baseX * 16, baseY * 16)) > 110f) {
+                            cmr.getTerrainOceanValue(baseX * 16, baseY * 16)) > 110f) {
                 long i1 = mapRand.nextLong() / 2L * 2L + 1L;
                 long j1 = mapRand.nextLong() / 2L * 2L + 1L;
                 mapRand.setSeed((long) chunkX * i1 + (long) chunkY * j1 ^ world.getSeed());

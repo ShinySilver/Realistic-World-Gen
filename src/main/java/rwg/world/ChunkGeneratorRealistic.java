@@ -54,6 +54,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
 
     private final World worldObj;
     private final ChunkManagerRealistic cmr;
+    private final boolean continental;
     private final MapGenBase caves;
     private final MapGenStronghold strongholdGenerator;
     private final MapGenMineshaft mineshaftGenerator;
@@ -81,6 +82,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
     private final float[][] smallRender;
     private final float[] testHeight;
     private final float[] riverStrength;
+    private final float[] continentValues;
     private final float[] mapGenBiomes;
     private final float[] borderNoise;
 
@@ -105,9 +107,14 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
     private final WorldGenLiquids gen_liquid_lava = new WorldGenLiquids(Blocks.flowing_lava);
 
     public ChunkGeneratorRealistic(World world, long l) {
+        this(world, l, false);
+    }
+
+    public ChunkGeneratorRealistic(World world, long l, boolean continental) {
         caves = TerrainGen.getModdedMapGen(new MapGenCaves(), CAVE);
         worldObj = world;
         cmr = (ChunkManagerRealistic) worldObj.getWorldChunkManager();
+        this.continental = continental;
 
         rand = new Random(l);
         perlin = NoiseSelector.createNoiseGenerator(l);
@@ -149,6 +156,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
         smallRender = new float[625][256];
         testHeight = new float[256];
         riverStrength = new float[256];
+        continentValues = new float[256];
         mapGenBiomes = new float[258];
         borderNoise = new float[256];
         biomesForGeneration = new RealisticBiomeBase[256];
@@ -344,7 +352,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
             }
         }
 
-        float river, ocean;
+        float continent, river, ocean;
         for (i = 0; i < 16; i++) {
             for (j = 0; j < 16; j++) {
                 if (randBiome) {
@@ -353,7 +361,14 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                     bRand = bRand < 0f ? 0f : bRand > 0.99999f ? 0.99999f : bRand;
                 }
 
-                ocean = cmr.getTerrainOceanValue(x + i, y + j);
+                if (continental) {
+                    continent = cmr.getContinentValue(x + i, y + j);
+                    continentValues[i * 16 + j] = continent;
+                    ocean = cmr.getTerrainOceanValue(continent);
+                } else {
+                    continentValues[i * 16 + j] = Float.POSITIVE_INFINITY;
+                    ocean = cmr.getTerrainOceanValue(x + i, y + j);
+                }
                 l = ((int) (i + 4) * 25 + (j + 4));
 
                 testHeight[i * 16 + j] = 0f;
@@ -430,7 +445,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                 river = -riverStrength[j * 16 + i];
                 int blockX = cx * 16 + j;
                 int blockY = cy * 16 + i;
-                boolean inland = cmr.getContinentValue(blockX, blockY) >= 24f;
+                boolean inland = continentValues[j * 16 + i] >= 24f;
                 if (inland && river > 0.05f && river + (perlin.noise2(blockX / 10f, blockY / 10f) * 0.15f) > 0.8f) {
                     base[i * 16 + j] = biome.riverBiome;
                 }

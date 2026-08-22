@@ -1,5 +1,7 @@
 package rwg.util;
 
+import gnu.trove.map.hash.TLongObjectHashMap;
+
 /**
  * An infinite, deterministic field of continent sites. Each grid cell owns one jittered site. A single relaxation pass
  * pulls that site toward the average of its eight neighbours, avoiding both a rigid grid and tightly clustered sites.
@@ -16,14 +18,17 @@ public class ContinentalNoise {
     private static final double ISLAND_CHANCE = 0.5D;
     private static final double ISLAND_MIN_RADIUS = 140D;
     private static final double ISLAND_RADIUS_VARIATION = 240D;
-    private static final double LARGE_WARP_SCALE = 750D;
-    private static final double LARGE_WARP_STRENGTH = 700D;
+    private static final double MEDIUM_WARP_SCALE = 675D;
+    private static final double MEDIUM_WARP_STRENGTH = 700D;
+    private static final int SITE_CACHE_LIMIT = 16384;
 
     private final long seed;
     private final NoiseGenerator warpNoiseX;
     private final NoiseGenerator warpNoiseY;
     private final float warpOriginX;
     private final float warpOriginY;
+    private final TLongObjectHashMap<Site> continentSites = new TLongObjectHashMap<Site>();
+    private final TLongObjectHashMap<Site> islandSites = new TLongObjectHashMap<Site>();
 
     public ContinentalNoise(long seed) {
         this.seed = seed;
@@ -38,11 +43,11 @@ public class ContinentalNoise {
      */
     public float getValue(int x, int y) {
         double warpedX = x
-                + (warpNoiseX.noise2((float) (x / LARGE_WARP_SCALE), (float) (y / LARGE_WARP_SCALE)) - warpOriginX)
-                        * LARGE_WARP_STRENGTH;
+                + (warpNoiseX.noise2((float) (x / MEDIUM_WARP_SCALE), (float) (y / MEDIUM_WARP_SCALE)) - warpOriginX)
+                        * MEDIUM_WARP_STRENGTH;
         double warpedY = y
-                + (warpNoiseY.noise2((float) (x / LARGE_WARP_SCALE), (float) (y / LARGE_WARP_SCALE)) - warpOriginY)
-                        * LARGE_WARP_STRENGTH;
+                + (warpNoiseY.noise2((float) (x / MEDIUM_WARP_SCALE), (float) (y / MEDIUM_WARP_SCALE)) - warpOriginY)
+                        * MEDIUM_WARP_STRENGTH;
 
         int cellX = floor(warpedX / CELL_SIZE);
         int cellY = floor(warpedY / CELL_SIZE);
@@ -52,13 +57,11 @@ public class ContinentalNoise {
             for (int offsetY = -1; offsetY <= 1; offsetY++) {
                 int siteCellX = cellX + offsetX;
                 int siteCellY = cellY + offsetY;
-                double siteX = relaxedSite(siteCellX, siteCellY, true);
-                double siteY = relaxedSite(siteCellX, siteCellY, false);
-                double dx = warpedX - siteX;
-                double dy = warpedY - siteY;
+                Site site = getContinentSite(siteCellX, siteCellY);
+                double dx = warpedX - site.x;
+                double dy = warpedY - site.y;
                 double distance = Math.sqrt(dx * dx + dy * dy);
-                double radius = MIN_RADIUS + random01(siteCellX, siteCellY, 2) * RADIUS_VARIATION;
-                best = Math.max(best, radius - distance);
+                best = Math.max(best, site.radius - distance);
             }
         }
 
@@ -80,41 +83,66 @@ public class ContinentalNoise {
             for (int offsetY = -1; offsetY <= 1; offsetY++) {
                 int siteCellX = cellX + offsetX;
                 int siteCellY = cellY + offsetY;
-                if (random01(siteCellX, siteCellY, 3) >= ISLAND_CHANCE) {
+                Site site = getIslandSite(siteCellX, siteCellY);
+                if (!site.enabled) {
                     continue;
                 }
 
-                double siteX = initialIslandSite(siteCellX, siteCellY, true);
-                double siteY = initialIslandSite(siteCellX, siteCellY, false);
-                double dx = x - siteX;
-                double dy = y - siteY;
+                double dx = x - site.x;
+                double dy = y - site.y;
                 double distance = Math.sqrt(dx * dx + dy * dy);
-                double radius = ISLAND_MIN_RADIUS + random01(siteCellX, siteCellY, 6) * ISLAND_RADIUS_VARIATION;
-                best = Math.max(best, radius - distance);
+                best = Math.max(best, site.radius - distance);
             }
         }
 
         return best;
     }
 
-    private double initialIslandSite(int cellX, int cellY, boolean xAxis) {
-        int axis = xAxis ? 4 : 5;
-        double centre = ((xAxis ? cellX : cellY) + 0.5D) * ISLAND_CELL_SIZE;
-        return centre + (random01(cellX, cellY, axis) * 2D - 1D) * ISLAND_CELL_SIZE * ISLAND_JITTER;
-    }
+    private Site getContinentSite(int cellX, int cellY) {
+        long key = cellKey(cellX, cellY);
+        Site site = continentSites.get(key);
+        if (site != null) {
+            return site;
+        }
 
-    private double relaxedSite(int cellX, int cellY, boolean xAxis) {
-        double original = initialSite(cellX, cellY, xAxis);
-        double neighbourAverage = 0D;
+        double originalX = initialSite(cellX, cellY, true);
+        double originalY = initialSite(cellX, cellY, false);
+        double neighbourAverageX = 0D;
+        double neighbourAverageY = 0D;
 
         for (int offsetX = -1; offsetX <= 1; offsetX++) {
             for (int offsetY = -1; offsetY <= 1; offsetY++) {
-                neighbourAverage += initialSite(cellX + offsetX, cellY + offsetY, xAxis);
+                neighbourAverageX += initialSite(cellX + offsetX, cellY + offsetY, true);
+                neighbourAverageY += initialSite(cellX + offsetX, cellY + offsetY, false);
             }
         }
 
-        neighbourAverage /= 9D;
-        return original + (neighbourAverage - original) * RELAXATION;
+        neighbourAverageX /= 9D;
+        neighbourAverageY /= 9D;
+        double x = originalX + (neighbourAverageX - originalX) * RELAXATION;
+        double y = originalY + (neighbourAverageY - originalY) * RELAXATION;
+        double radius = MIN_RADIUS + random01(cellX, cellY, 2) * RADIUS_VARIATION;
+        site = new Site(x, y, radius, true);
+        cacheSite(continentSites, key, site);
+        return site;
+    }
+
+    private Site getIslandSite(int cellX, int cellY) {
+        long key = cellKey(cellX, cellY);
+        Site site = islandSites.get(key);
+        if (site != null) {
+            return site;
+        }
+
+        boolean enabled = random01(cellX, cellY, 3) < ISLAND_CHANCE;
+        double centreX = (cellX + 0.5D) * ISLAND_CELL_SIZE;
+        double centreY = (cellY + 0.5D) * ISLAND_CELL_SIZE;
+        double x = centreX + (random01(cellX, cellY, 4) * 2D - 1D) * ISLAND_CELL_SIZE * ISLAND_JITTER;
+        double y = centreY + (random01(cellX, cellY, 5) * 2D - 1D) * ISLAND_CELL_SIZE * ISLAND_JITTER;
+        double radius = ISLAND_MIN_RADIUS + random01(cellX, cellY, 6) * ISLAND_RADIUS_VARIATION;
+        site = new Site(x, y, radius, enabled);
+        cacheSite(islandSites, key, site);
+        return site;
     }
 
     private double initialSite(int cellX, int cellY, boolean xAxis) {
@@ -136,8 +164,34 @@ public class ContinentalNoise {
         return (value >>> 11) * 0x1.0p-53;
     }
 
+    private long cellKey(int cellX, int cellY) {
+        return (long) cellX & 0xffffffffL | (long) cellY << 32;
+    }
+
+    private void cacheSite(TLongObjectHashMap<Site> cache, long key, Site site) {
+        if (cache.size() >= SITE_CACHE_LIMIT) {
+            cache.clear();
+        }
+        cache.put(key, site);
+    }
+
     private int floor(double value) {
         int integer = (int) value;
         return value < integer ? integer - 1 : integer;
+    }
+
+    private static class Site {
+
+        private final double x;
+        private final double y;
+        private final double radius;
+        private final boolean enabled;
+
+        private Site(double x, double y, double radius, boolean enabled) {
+            this.x = x;
+            this.y = y;
+            this.radius = radius;
+            this.enabled = enabled;
+        }
     }
 }

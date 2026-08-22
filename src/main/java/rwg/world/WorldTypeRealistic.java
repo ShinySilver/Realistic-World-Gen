@@ -7,16 +7,19 @@ import net.minecraft.world.chunk.IChunkProvider;
 
 public class WorldTypeRealistic extends WorldType {
 
-    public WorldTypeRealistic(String name) {
+    private final boolean continents;
+
+    public WorldTypeRealistic(String name, boolean continents) {
         super(name);
+        this.continents = continents;
     }
 
     public WorldChunkManager getChunkManager(World world) {
-        return new ChunkManagerRealistic(world);
+        return new ChunkManagerRealistic(world, continents);
     }
 
     public IChunkProvider getChunkGenerator(World world, String generatorOptions) {
-        return new ChunkGeneratorRealistic(world, world.getSeed());
+        return new ChunkGeneratorRealistic(world, world.getSeed(), continents);
     }
 
     public float getCloudHeight() {
