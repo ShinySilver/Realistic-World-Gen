@@ -19,11 +19,14 @@ import rwg.world.ChunkManagerRealistic;
 /** A compact volcanic island with a broad, lava-filled summit crater. */
 public class RealisticBiomeIslandVolcano extends RealisticBiomeBase {
 
-    private static final float CRATER_RADIUS = 52f;
-    private static final float LAVA_FILL_RADIUS = 75f;
-    private static final int CRATER_FLOOR = 68;
-    private static final int LAVA_LEVEL = 76;
+    private static final float CRATER_RADIUS = 26f;
+    private static final float LAVA_FILL_RADIUS = 37.5f;
+    private static final float RIM_RADIUS = 44f;
+    private static final float OUTER_SLOPE_WIDTH = 51f;
+    private static final int CRATER_FLOOR = 65;
+    private static final int LAVA_LEVEL = 79;
     private static final int VENT_RADIUS = 5;
+    private static final int VENT_SHELL_RADIUS = 10;
     private static final int CHAMBER_CENTER_Y = 40;
     private static final int CHAMBER_RADIUS = 46;
     private static final int CHAMBER_HALF_HEIGHT = 22;
@@ -48,12 +51,12 @@ public class RealisticBiomeIslandVolcano extends RealisticBiomeBase {
         float height;
         if (distance < CRATER_RADIUS) {
             height = CRATER_FLOOR + perlin.noise2(localX / 9f, localZ / 9f) * 1.5f;
-        } else if (distance < 88f) {
-            float rim = (distance - CRATER_RADIUS) / (88f - CRATER_RADIUS);
-            height = CRATER_FLOOR + rim * 58f;
+        } else if (distance < RIM_RADIUS) {
+            float rim = (distance - CRATER_RADIUS) / (RIM_RADIUS - CRATER_RADIUS);
+            height = CRATER_FLOOR + rim * 29f;
         } else {
-            float slope = Math.max(0f, 1f - (distance - 88f) / 102f);
-            height = 61f + slope * 65f;
+            float slope = Math.max(0f, 1f - (distance - RIM_RADIUS) / OUTER_SLOPE_WIDTH);
+            height = 61f + slope * 33f;
         }
 
         return height + perlin.noise2(localX / 24f, localZ / 24f) * 2f;
@@ -119,7 +122,6 @@ public class RealisticBiomeIslandVolcano extends RealisticBiomeBase {
                 float volcanoX = ContinentalNoise.unpackVolcanoX(coordinates);
                 float volcanoZ = ContinentalNoise.unpackVolcanoY(coordinates);
                 float horizontalDistanceSquared = volcanoX * volcanoX + volcanoZ * volcanoZ;
-                boolean vent = horizontalDistanceSquared <= VENT_RADIUS * VENT_RADIUS;
 
                 for (int level = CHAMBER_CENTER_Y - outerHalfHeight; level <= CRATER_FLOOR; level++) {
                     int verticalDistance = level - CHAMBER_CENTER_Y;
@@ -129,17 +131,19 @@ public class RealisticBiomeIslandVolcano extends RealisticBiomeBase {
                             + verticalDistance * verticalDistance
                                     / (double) (CHAMBER_HALF_HEIGHT * CHAMBER_HALF_HEIGHT);
 
-                    Block block;
-                    if (innerDistance <= 1D || vent && level >= CHAMBER_CENTER_Y) {
-                        block = Blocks.lava;
-                    } else if (outerDistance <= 1D) {
-                        block = Blocks.obsidian;
-                    } else {
+                    boolean insideChamber = innerDistance <= 1D;
+                    boolean insideChamberShell = outerDistance <= 1D;
+                    boolean aboveChamberCentre = level >= CHAMBER_CENTER_Y;
+                    boolean insideVent = aboveChamberCentre && horizontalDistanceSquared <= VENT_RADIUS * VENT_RADIUS;
+                    boolean insideVentShell = aboveChamberCentre
+                            && horizontalDistanceSquared <= VENT_SHELL_RADIUS * VENT_SHELL_RADIUS;
+
+                    if (!insideChamber && !insideChamberShell && !insideVent && !insideVentShell) {
                         continue;
                     }
 
                     int index = (localZ * 16 + localX) * 256 + level;
-                    blocks[index] = block;
+                    blocks[index] = insideChamber || insideVent ? Blocks.lava : Blocks.obsidian;
                     metadata[index] = 0;
                 }
             }

@@ -21,8 +21,8 @@ public class ContinentalNoise {
     private static final double ISLAND_MIN_RADIUS = 250D;
     private static final double ISLAND_RADIUS_VARIATION = 130D;
     private static final double ORIGIN_ISLAND_RADIUS = ISLAND_MIN_RADIUS + ISLAND_RADIUS_VARIATION;
-    public static final double VOLCANO_ISLAND_RADIUS = 220D;
-    public static final double VOLCANO_RADIUS = 190D;
+    public static final double VOLCANO_ISLAND_RADIUS = 110D;
+    public static final double VOLCANO_RADIUS = 95D;
     private static final double MEDIUM_WARP_SCALE = 675D;
     private static final double MEDIUM_WARP_STRENGTH = 700D;
     private static final int SITE_CACHE_LIMIT = 16384;
