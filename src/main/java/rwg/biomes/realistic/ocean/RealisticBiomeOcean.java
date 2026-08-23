@@ -24,7 +24,9 @@ public class RealisticBiomeOcean extends RealisticBiomeBase {
 
     @Override
     public void rDecorate(World world, Random rand, int chunkX, int chunkY, NoiseGenerator perlin, CellNoise cell,
-            float strength, float river) {
+            float strength, float river) {}
+
+    public void rDecorateAfterIce(World world, Random rand, int chunkX, int chunkY, float strength) {
         if (decorateBaseBiome && strength > 0.3f) {
             baseBiome.decorate(world, rand, chunkX, chunkY);
         }

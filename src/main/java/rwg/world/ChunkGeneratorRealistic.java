@@ -41,6 +41,7 @@ import net.minecraftforge.event.terraingen.TerrainGen;
 import cpw.mods.fml.common.eventhandler.Event.Result;
 import rwg.biomes.realistic.RealisticBiomeBase;
 import rwg.biomes.realistic.ocean.RealisticBiomeIslandVolcano;
+import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
 import rwg.config.ConfigRWG;
 import rwg.deco.DecoClay;
 import rwg.support.Support;
@@ -725,13 +726,20 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
 
         RealisticBiomeBase b;
         float snow = 0f;
+        float[] deferredOceanDecorations = new float[256];
+        int decorationX = x;
+        int decorationZ = y;
         for (int bn = 0; bn < 256; bn++) {
             if (borderNoise[bn] > 0f) {
                 if (borderNoise[bn] >= 1f) {
                     borderNoise[bn] = 1f;
                 }
                 b = RealisticBiomeBase.getBiome(bn);
-                b.rDecorate(this.worldObj, this.rand, x, y, perlin, cell, borderNoise[bn], river);
+                if (b instanceof RealisticBiomeOcean) {
+                    deferredOceanDecorations[bn] = borderNoise[bn];
+                } else {
+                    b.rDecorate(this.worldObj, this.rand, x, y, perlin, cell, borderNoise[bn], river);
+                }
 
                 if (b.baseBiome.temperature < 0.15f) {
                     snow -= 0.6f * borderNoise[bn];
@@ -815,6 +823,13 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                         }
                     }
                 }
+            }
+        }
+
+        for (int bn = 0; bn < deferredOceanDecorations.length; bn++) {
+            if (deferredOceanDecorations[bn] > 0f) {
+                ((RealisticBiomeOcean) RealisticBiomeBase.getBiome(bn))
+                        .rDecorateAfterIce(worldObj, rand, decorationX, decorationZ, deferredOceanDecorations[bn]);
             }
         }
 
