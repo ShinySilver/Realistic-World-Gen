@@ -234,7 +234,7 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         } else {
             float continent = getContinentValue(par1, par2);
             if (continent < 0f) {
-                output = getOceanBiome(continent, getLandBiomeAt(par1, par2).baseBiome.temperature);
+                output = getOceanBiome(continent, getLandBiomeAt(par1, par2).baseBiome.temperature, par1, par2);
             } else
                 if (Support.volcanoIsland != null && continents.getVolcanoCoordinates(par1, par2) != Long.MIN_VALUE) {
                     output = Support.volcanoIsland;
@@ -263,11 +263,20 @@ public class ChunkManagerRealistic extends WorldChunkManager {
 
     private TLongObjectHashMap<RealisticBiomeBase> biomeDataMap = new TLongObjectHashMap<RealisticBiomeBase>();
 
-    private RealisticBiomeBase getOceanBiome(float continent, float temperature) {
+    private RealisticBiomeBase getOceanBiome(float continent, float temperature, int x, int y) {
         if (continent < -SHALLOW_OCEAN_WIDTH) {
             return Support.oceanDeep;
         }
-        return temperature < 0.8f ? Support.oceanShallowTemperate : Support.oceanShallowWarm;
+        if (temperature < 0.8f) {
+            return Support.oceanShallowKelp;
+        }
+        if (temperature >= 1f) {
+            return Support.oceanShallowHot;
+        }
+        if (perlin.noise2(x / 350f, y / 350f) > 0.18f) {
+            return Support.oceanShallowCoral;
+        }
+        return Support.oceanShallowTemperate;
     }
 
     private RealisticBiomeBase getLandBiomeAt(int par1, int par2) {

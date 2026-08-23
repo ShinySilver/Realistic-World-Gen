@@ -34,11 +34,16 @@ public class ContinentalNoise {
     private final long seed;
     private final double cellSize;
     private final double jitter;
+    private final double continentGridOffsetX;
+    private final double continentGridOffsetZ;
+    private final double continentMinRadius;
+    private final double continentRadiusVariation;
     private final double islandCellSize;
     private final double islandJitter;
     private final double islandMinRadius;
     private final double islandRadiusVariation;
     private final double originIslandRadius;
+    private final double volcanoChance;
     private final int relaxationSteps;
     private final int continentSearchRadius;
     private final int islandSearchRadius;
@@ -54,13 +59,19 @@ public class ContinentalNoise {
         this.seed = seed;
         cellSize = BASE_CELL_SIZE * ConfigRWG.continentGridScale;
         jitter = BASE_JITTER * ConfigRWG.continentOffsetMultiplier;
+        continentGridOffsetX = ConfigRWG.continentGridOffsetX;
+        continentGridOffsetZ = ConfigRWG.continentGridOffsetZ;
+        continentMinRadius = MIN_RADIUS * ConfigRWG.continentScale;
+        continentRadiusVariation = RADIUS_VARIATION * ConfigRWG.continentScale;
         islandCellSize = BASE_ISLAND_CELL_SIZE * ConfigRWG.islandGridScale;
         islandJitter = BASE_ISLAND_JITTER * ConfigRWG.islandOffsetMultiplier;
         islandMinRadius = ISLAND_MIN_RADIUS * ConfigRWG.islandScale;
         islandRadiusVariation = ISLAND_RADIUS_VARIATION * ConfigRWG.islandScale;
         originIslandRadius = ORIGIN_ISLAND_RADIUS * ConfigRWG.islandScale;
+        volcanoChance = VOLCANO_CHANCE / ConfigRWG.volcanoRarity;
         relaxationSteps = ConfigRWG.continentRelaxationSteps;
-        continentSearchRadius = Math.max(1, (int) Math.ceil(jitter + (MIN_RADIUS + RADIUS_VARIATION) / cellSize));
+        continentSearchRadius = Math
+                .max(1, (int) Math.ceil(jitter + (continentMinRadius + continentRadiusVariation) / cellSize));
         islandSearchRadius = Math
                 .max(1, (int) Math.ceil((islandMinRadius + islandRadiusVariation) / islandCellSize + islandJitter));
         for (int step = 0; step <= relaxationSteps; step++) {
@@ -90,8 +101,8 @@ public class ContinentalNoise {
     }
 
     private double getContinentalValueAt(double warpedX, double warpedY) {
-        int cellX = floor(warpedX / cellSize);
-        int cellY = floor(warpedY / cellSize);
+        int cellX = floor(warpedX / cellSize + continentGridOffsetX);
+        int cellY = floor(warpedY / cellSize + continentGridOffsetZ);
         double best = -Double.MAX_VALUE;
 
         for (int offsetX = -continentSearchRadius; offsetX <= continentSearchRadius; offsetX++) {
@@ -172,7 +183,7 @@ public class ContinentalNoise {
         }
 
         Position position = getRelaxedContinentSite(cellX, cellY, relaxationSteps);
-        double radius = MIN_RADIUS + random01(cellX, cellY, 2) * RADIUS_VARIATION;
+        double radius = continentMinRadius + random01(cellX, cellY, 2) * continentRadiusVariation;
         site = new Site(position.x, position.y, radius, true, false);
         cacheSite(continentSites, key, site);
         return site;
@@ -217,7 +228,7 @@ public class ContinentalNoise {
         }
 
         double typeRoll = random01(cellX, cellY, 3);
-        boolean volcano = typeRoll >= VOLCANO_THRESHOLD && typeRoll < VOLCANO_THRESHOLD + VOLCANO_CHANCE;
+        boolean volcano = typeRoll >= VOLCANO_THRESHOLD && typeRoll < VOLCANO_THRESHOLD + volcanoChance;
         boolean enabled = volcano || typeRoll >= VOLCANO_THRESHOLD + VOLCANO_CHANCE
                 && typeRoll < VOLCANO_THRESHOLD + VOLCANO_CHANCE + NORMAL_ISLAND_CHANCE;
         // Keep the staggered odd/odd positions reserved for the continent grid.
@@ -290,8 +301,10 @@ public class ContinentalNoise {
 
     private double initialSite(int cellX, int cellY, boolean xAxis) {
         int axis = xAxis ? 0 : 1;
-        double centre = ((xAxis ? cellX : cellY) + 0.5D) * cellSize;
-        return centre + (random01(cellX, cellY, axis) * 2D - 1D) * cellSize * jitter;
+        double gridOffset = xAxis ? continentGridOffsetX : continentGridOffsetZ;
+        double centre = ((xAxis ? cellX : cellY) + 0.5D - gridOffset) * cellSize;
+        double offset = (random01(cellX, cellY, axis) * 2D - 1D) * cellSize * jitter;
+        return centre - offset;
     }
 
     private int islandCell(double coordinate) {

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import net.minecraft.world.biome.BiomeGenBase;
 
 import cpw.mods.fml.common.Loader;
+import rwg.api.RWGBiomes;
 import rwg.biomes.realistic.RealisticBiomeBase;
 import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
 
@@ -17,8 +18,10 @@ public class Support {
     public static ArrayList<RealisticBiomeBase> biomes_small;
     public static ArrayList<RealisticBiomeBase> biomes_test;
     public static RealisticBiomeBase volcanoIsland;
+    public static RealisticBiomeBase oceanShallowKelp;
     public static RealisticBiomeBase oceanShallowTemperate;
-    public static RealisticBiomeBase oceanShallowWarm;
+    public static RealisticBiomeBase oceanShallowCoral;
+    public static RealisticBiomeBase oceanShallowHot;
     public static RealisticBiomeBase oceanDeep;
 
     public enum BiomeCategory {
@@ -38,8 +41,10 @@ public class Support {
         biomes_small = new ArrayList<RealisticBiomeBase>();
         biomes_test = new ArrayList<RealisticBiomeBase>();
         volcanoIsland = null;
-        oceanShallowTemperate = new RealisticBiomeOcean(BiomeGenBase.ocean, true, false);
-        oceanShallowWarm = new RealisticBiomeOcean(BiomeGenBase.ocean, true, false);
+        oceanShallowKelp = new RealisticBiomeOcean(BiomeGenBase.ocean, true, false);
+        oceanShallowTemperate = new RealisticBiomeOcean(RWGBiomes.baseOceanTemperate, true, false);
+        oceanShallowCoral = oceanShallowTemperate;
+        oceanShallowHot = new RealisticBiomeOcean(RWGBiomes.baseOceanHot, true, false);
         oceanDeep = new RealisticBiomeOcean(BiomeGenBase.deepOcean, false, false);
 
         if (Loader.isModLoaded("BiomesOPlenty")) {
