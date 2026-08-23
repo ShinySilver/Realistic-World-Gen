@@ -142,7 +142,7 @@ public class RealisticBiomeIslandVolcano extends RealisticBiomeBase {
                         continue;
                     }
 
-                    int index = (localZ * 16 + localX) * 256 + level;
+                    int index = (localX * 16 + localZ) * 256 + level;
                     blocks[index] = insideChamber || insideVent ? Blocks.lava : Blocks.obsidian;
                     metadata[index] = 0;
                 }
