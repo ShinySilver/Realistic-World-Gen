@@ -21,6 +21,8 @@ import rwg.util.NoiseSelector;
 
 public class ChunkManagerRealistic extends WorldChunkManager {
 
+    private static final float SHALLOW_OCEAN_WIDTH = 300f;
+
     private BiomeCache biomeCache;
     private List biomesToSpawnIn;
 
@@ -232,7 +234,7 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         } else {
             float continent = getContinentValue(par1, par2);
             if (continent < 0f) {
-                output = RealisticBiomeBase.ocean;
+                output = getOceanBiome(continent, getLandBiomeAt(par1, par2).baseBiome.temperature);
             } else
                 if (Support.volcanoIsland != null && continents.getVolcanoCoordinates(par1, par2) != Long.MIN_VALUE) {
                     output = Support.volcanoIsland;
@@ -260,6 +262,13 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     }
 
     private TLongObjectHashMap<RealisticBiomeBase> biomeDataMap = new TLongObjectHashMap<RealisticBiomeBase>();
+
+    private RealisticBiomeBase getOceanBiome(float continent, float temperature) {
+        if (continent < -SHALLOW_OCEAN_WIDTH) {
+            return Support.oceanDeep;
+        }
+        return temperature < 0.8f ? Support.oceanShallowTemperate : Support.oceanShallowWarm;
+    }
 
     private RealisticBiomeBase getLandBiomeAt(int par1, int par2) {
         RealisticBiomeBase output;

@@ -6,6 +6,7 @@ import biomesoplenty.api.content.BOPCBiomes;
 import biomesoplenty.api.content.BOPCBlocks;
 import rwg.api.RWGBiomes;
 import rwg.biomes.realistic.ocean.RealisticBiomeIslandVolcano;
+import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
 import rwg.support.Support.BiomeCategory;
 import rwg.support.edit.EditBase;
 import rwg.support.edit.EditRiverOasis;
@@ -31,6 +32,13 @@ import rwg.terrain.TerrainSwampRiver;
 public class SupportBOP {
 
     public static void init() {
+        if (BOPCBiomes.kelpForest != null) {
+            Support.oceanShallowTemperate = new RealisticBiomeOcean(BOPCBiomes.kelpForest, true, true);
+        }
+        if (BOPCBiomes.coralReef != null) {
+            Support.oceanShallowWarm = new RealisticBiomeOcean(BOPCBiomes.coralReef, true, true);
+        }
+
         // VOLCANO ISLAND
         Support.volcanoIsland = new RealisticBiomeIslandVolcano(
                 BOPCBiomes.volcano,

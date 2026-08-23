@@ -6,6 +6,8 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 
 public class ConfigRWG {
 
+    private static final String CONTINENTAL_CATEGORY = "Continental RWG";
+
     public static Configuration config;
     public static int[] biomeIDs = new int[25];
 
@@ -17,6 +19,12 @@ public class ConfigRWG {
     public static boolean generateUndergroundLakes = true;
     public static boolean generateUndergroundLavaLakes = true;
     public static boolean generateLargeThaumcraftBiomes = false;
+    public static float continentGridScale = 1f;
+    public static float islandScale = 1f;
+    public static float islandGridScale = 1f;
+    public static float continentOffsetMultiplier = 1f;
+    public static float islandOffsetMultiplier = 1f;
+    public static int continentRelaxationSteps = 1;
 
     public static void init(FMLPreInitializationEvent event) {
         config = new Configuration(event.getSuggestedConfigurationFile());
@@ -63,6 +71,50 @@ public class ConfigRWG {
             generateLargeThaumcraftBiomes = config
                     .getBoolean("Generate large Thaumcraft biomes", "Settings", false, "");
 
+            String worldgenWarning = "Changing this after creating a world causes borders between old and new chunks.";
+            continentGridScale = config.getFloat(
+                    "Continent Grid Scale",
+                    CONTINENTAL_CATEGORY,
+                    1f,
+                    0.25f,
+                    4f,
+                    "Multiplier for the distance between continent grid sites. " + worldgenWarning);
+            islandScale = config.getFloat(
+                    "Island Scale",
+                    CONTINENTAL_CATEGORY,
+                    1f,
+                    0.25f,
+                    4f,
+                    "Multiplier for normal island radii. Volcano dimensions are unaffected. " + worldgenWarning);
+            islandGridScale = config.getFloat(
+                    "Island Grid Scale",
+                    CONTINENTAL_CATEGORY,
+                    1f,
+                    0.25f,
+                    4f,
+                    "Multiplier for the distance between island grid sites. " + worldgenWarning);
+            continentOffsetMultiplier = config.getFloat(
+                    "Continent Offset Multiplier",
+                    CONTINENTAL_CATEGORY,
+                    1f,
+                    0f,
+                    4f,
+                    "Multiplier for continent-site displacement from grid centres. " + worldgenWarning);
+            islandOffsetMultiplier = config.getFloat(
+                    "Island Offset Multiplier",
+                    CONTINENTAL_CATEGORY,
+                    1f,
+                    0f,
+                    4f,
+                    "Multiplier for island-site displacement from grid points. " + worldgenWarning);
+            continentRelaxationSteps = config.getInt(
+                    "Continent Relaxation Steps",
+                    CONTINENTAL_CATEGORY,
+                    1,
+                    0,
+                    8,
+                    "Number of neighbour-averaging passes applied to continent sites. " + worldgenWarning);
+
         } catch (Exception e) {
             for (int c = 0; c < biomeIDs.length; c++) {
                 biomeIDs[c] = 200 + c;
@@ -75,6 +127,11 @@ public class ConfigRWG {
     }
 
     private static void renameOldProperties() {
+        config.moveProperty("Continental World", "Continent Grid Scale", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Island Scale", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Island Grid Scale", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Continent Offset Multiplier", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Island Offset Multiplier", CONTINENTAL_CATEGORY);
         config.renameProperty("biome ids", "00 rwg_riverIce", "00 Ice River");
         config.renameProperty("biome ids", "01 rwg_riverCold", "01 Cold River");
         config.renameProperty("biome ids", "02 rwg_riverTemperate", "02 Temperate River");

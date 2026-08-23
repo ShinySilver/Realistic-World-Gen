@@ -2,8 +2,11 @@ package rwg.support;
 
 import java.util.ArrayList;
 
+import net.minecraft.world.biome.BiomeGenBase;
+
 import cpw.mods.fml.common.Loader;
 import rwg.biomes.realistic.RealisticBiomeBase;
+import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
 
 public class Support {
 
@@ -14,6 +17,9 @@ public class Support {
     public static ArrayList<RealisticBiomeBase> biomes_small;
     public static ArrayList<RealisticBiomeBase> biomes_test;
     public static RealisticBiomeBase volcanoIsland;
+    public static RealisticBiomeBase oceanShallowTemperate;
+    public static RealisticBiomeBase oceanShallowWarm;
+    public static RealisticBiomeBase oceanDeep;
 
     public enum BiomeCategory {
         SNOW,
@@ -32,6 +38,9 @@ public class Support {
         biomes_small = new ArrayList<RealisticBiomeBase>();
         biomes_test = new ArrayList<RealisticBiomeBase>();
         volcanoIsland = null;
+        oceanShallowTemperate = new RealisticBiomeOcean(BiomeGenBase.ocean, true, false);
+        oceanShallowWarm = new RealisticBiomeOcean(BiomeGenBase.ocean, true, false);
+        oceanDeep = new RealisticBiomeOcean(BiomeGenBase.deepOcean, false, false);
 
         if (Loader.isModLoaded("BiomesOPlenty")) {
             SupportBOP.init();
