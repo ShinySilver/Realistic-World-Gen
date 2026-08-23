@@ -3,7 +3,9 @@ package rwg.support;
 import net.minecraft.init.Blocks;
 
 import biomesoplenty.api.content.BOPCBiomes;
+import biomesoplenty.api.content.BOPCBlocks;
 import rwg.api.RWGBiomes;
+import rwg.biomes.realistic.ocean.RealisticBiomeIslandVolcano;
 import rwg.support.Support.BiomeCategory;
 import rwg.support.edit.EditBase;
 import rwg.support.edit.EditRiverOasis;
@@ -29,6 +31,12 @@ import rwg.terrain.TerrainSwampRiver;
 public class SupportBOP {
 
     public static void init() {
+        // VOLCANO ISLAND
+        Support.volcanoIsland = new RealisticBiomeIslandVolcano(
+                BOPCBiomes.volcano,
+                BOPCBlocks.ash,
+                BOPCBlocks.ashStone);
+
         // ALPS
         /*
          * Support.biomes_snow.add( new RealisticBiomeSupport( BOPCBiomes.alps, new TerrainMountainRiver(), new

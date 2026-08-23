@@ -168,6 +168,10 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         return continental ? continents.getValue(x, y) : (getLegacyOceanValue(x, y) - 1f) * 100f;
     }
 
+    public long getVolcanoCoordinates(int x, int y) {
+        return continental ? continents.getVolcanoCoordinates(x, y) : Long.MIN_VALUE;
+    }
+
     /**
      * Converts the new continent distance field to the 0-2 range expected by the existing coast terrain
      * implementations.
@@ -229,13 +233,16 @@ public class ChunkManagerRealistic extends WorldChunkManager {
             float continent = getContinentValue(par1, par2);
             if (continent < 0f) {
                 output = RealisticBiomeBase.ocean;
-            } else {
-                output = getLandBiomeAt(par1, par2);
-                if (continent < 24f) {
-                    output = output.baseBiome.temperature < 0.15f ? RealisticBiomeBase.coastIce
-                            : RealisticBiomeBase.coastDunes;
+            } else
+                if (Support.volcanoIsland != null && continents.getVolcanoCoordinates(par1, par2) != Long.MIN_VALUE) {
+                    output = Support.volcanoIsland;
+                } else {
+                    output = getLandBiomeAt(par1, par2);
+                    if (continent < 24f) {
+                        output = output.baseBiome.temperature < 0.15f ? RealisticBiomeBase.coastIce
+                                : RealisticBiomeBase.coastDunes;
+                    }
                 }
-            }
         }
 
         if (biomeDataMap.size() > 4096) {
@@ -364,11 +371,29 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     }
 
     public float getRiverStrength(int x, int y) {
-        return cell.border(
+        float strength = cell.border(
                 (x + (perlin.noise1(y / 240f) * 220f)) / 1250D,
                 (y + (perlin.noise1(x / 240f) * 220f)) / 1250D,
                 50D / 300D,
                 1f);
+        if (!continental) {
+            return strength;
+        }
+
+        long coordinates = continents.getVolcanoVicinityCoordinates(x, y);
+        if (coordinates == Long.MIN_VALUE) {
+            return strength;
+        }
+        float localX = ContinentalNoise.unpackVolcanoX(coordinates);
+        float localY = ContinentalNoise.unpackVolcanoY(coordinates);
+        float distance = (float) Math.sqrt(localX * localX + localY * localY);
+        if (distance <= ContinentalNoise.VOLCANO_RADIUS) {
+            return Math.max(0f, strength);
+        }
+
+        float blend = (float) ((distance - ContinentalNoise.VOLCANO_RADIUS)
+                / (ContinentalNoise.VOLCANO_ISLAND_RADIUS - ContinentalNoise.VOLCANO_RADIUS));
+        return strength < 0f ? strength * blend : strength;
     }
 
     public boolean isBorderlessAt(int x, int y) {

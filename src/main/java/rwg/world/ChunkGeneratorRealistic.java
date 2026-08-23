@@ -40,10 +40,13 @@ import net.minecraftforge.event.terraingen.TerrainGen;
 
 import cpw.mods.fml.common.eventhandler.Event.Result;
 import rwg.biomes.realistic.RealisticBiomeBase;
+import rwg.biomes.realistic.ocean.RealisticBiomeIslandVolcano;
 import rwg.config.ConfigRWG;
 import rwg.deco.DecoClay;
+import rwg.support.Support;
 import rwg.util.CanyonColor;
 import rwg.util.CellNoise;
+import rwg.util.ContinentalNoise;
 import rwg.util.NoiseGenerator;
 import rwg.util.NoiseSelector;
 
@@ -201,6 +204,10 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
         strongholdGenerator.func_151539_a(this, this.worldObj, cx, cy, chunkBlocks);
         if (ConfigRWG.generateVillages) {
             villageGenerator.func_151539_a(this, this.worldObj, cx, cy, chunkBlocks);
+        }
+        if (continental && Support.volcanoIsland instanceof RealisticBiomeIslandVolcano) {
+            ((RealisticBiomeIslandVolcano) Support.volcanoIsland)
+                    .generateMagmaChamber(chunkBlocks, chunkMetadata, cx, cy, cmr);
         }
 
         Chunk chunk = new Chunk(this.worldObj, chunkBlocks, chunkMetadata, cx, cy);
@@ -396,12 +403,22 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                             mapGenBiomes[k] = smallRender[312][k];
                         }
 
-                        testHeight[i * 16 + j] += cmr.calculateRiver(
-                                x + i,
-                                y + j,
-                                river,
-                                RealisticBiomeBase.getBiome(k)
-                                        .rNoise(perlin, cell, x + i, y + j, ocean, smallRender[l][k], river + 1f))
+                        RealisticBiomeBase noiseBiome = RealisticBiomeBase.getBiome(k);
+                        float biomeHeight;
+                        if (noiseBiome instanceof RealisticBiomeIslandVolcano) {
+                            long coordinates = cmr.getVolcanoCoordinates(x + i, y + j);
+                            biomeHeight = coordinates == Long.MIN_VALUE
+                                    ? noiseBiome
+                                            .rNoise(perlin, cell, x + i, y + j, ocean, smallRender[l][k], river + 1f)
+                                    : ((RealisticBiomeIslandVolcano) noiseBiome).rNoiseAt(
+                                            perlin,
+                                            ContinentalNoise.unpackVolcanoX(coordinates),
+                                            ContinentalNoise.unpackVolcanoY(coordinates));
+                        } else {
+                            biomeHeight = noiseBiome
+                                    .rNoise(perlin, cell, x + i, y + j, ocean, smallRender[l][k], river + 1f);
+                        }
+                        testHeight[i * 16 + j] += cmr.calculateRiver(x + i, y + j, river, biomeHeight)
                                 * smallRender[l][k];
                     }
                 }
@@ -452,21 +469,60 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
 
                 depth = -1;
 
-                biome.rReplace(
-                        blocks,
-                        metadata,
-                        blockX,
-                        blockY,
-                        i,
-                        j,
-                        depth,
-                        worldObj,
-                        rand,
-                        perlin,
-                        cell,
-                        n,
-                        river,
-                        base);
+                if (biome instanceof RealisticBiomeIslandVolcano) {
+                    long coordinates = cmr.getVolcanoCoordinates(blockX, blockY);
+                    if (coordinates != Long.MIN_VALUE) {
+                        ((RealisticBiomeIslandVolcano) biome).rReplaceAt(
+                                blocks,
+                                metadata,
+                                blockX,
+                                blockY,
+                                i,
+                                j,
+                                depth,
+                                worldObj,
+                                rand,
+                                perlin,
+                                cell,
+                                n,
+                                river,
+                                base,
+                                ContinentalNoise.unpackVolcanoX(coordinates),
+                                ContinentalNoise.unpackVolcanoY(coordinates));
+                    } else {
+                        biome.rReplace(
+                                blocks,
+                                metadata,
+                                blockX,
+                                blockY,
+                                i,
+                                j,
+                                depth,
+                                worldObj,
+                                rand,
+                                perlin,
+                                cell,
+                                n,
+                                river,
+                                base);
+                    }
+                } else {
+                    biome.rReplace(
+                            blocks,
+                            metadata,
+                            blockX,
+                            blockY,
+                            i,
+                            j,
+                            depth,
+                            worldObj,
+                            rand,
+                            perlin,
+                            cell,
+                            n,
+                            river,
+                            base);
+                }
 
                 blocks[(j * 16 + i) * 256] = Blocks.bedrock;
                 blocks[(j * 16 + i) * 256 + rand.nextInt(2)] = Blocks.bedrock;

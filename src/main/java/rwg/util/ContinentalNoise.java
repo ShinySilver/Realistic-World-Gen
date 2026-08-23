@@ -14,10 +14,15 @@ public class ContinentalNoise {
     private static final double MIN_RADIUS = 1120D;
     private static final double RADIUS_VARIATION = 360D;
     private static final double ISLAND_CELL_SIZE = CELL_SIZE;
-    private static final double ISLAND_JITTER = 0.08D;
-    private static final double ISLAND_CHANCE = 0.5D;
-    private static final double ISLAND_MIN_RADIUS = 140D;
-    private static final double ISLAND_RADIUS_VARIATION = 240D;
+    private static final double ISLAND_JITTER = 0.10D;
+    private static final double VOLCANO_THRESHOLD = 0.20D;
+    private static final double VOLCANO_CHANCE = 0.10D;
+    private static final double NORMAL_ISLAND_CHANCE = 0.55D;
+    private static final double ISLAND_MIN_RADIUS = 250D;
+    private static final double ISLAND_RADIUS_VARIATION = 130D;
+    private static final double ORIGIN_ISLAND_RADIUS = ISLAND_MIN_RADIUS + ISLAND_RADIUS_VARIATION;
+    public static final double VOLCANO_ISLAND_RADIUS = 220D;
+    public static final double VOLCANO_RADIUS = 190D;
     private static final double MEDIUM_WARP_SCALE = 675D;
     private static final double MEDIUM_WARP_STRENGTH = 700D;
     private static final int SITE_CACHE_LIMIT = 16384;
@@ -66,17 +71,18 @@ public class ContinentalNoise {
         }
 
         best = Math.max(best, getIslandValue(warpedX, warpedY));
+        best = Math.max(best, getVolcanoIslandValue(x, y));
         return (float) Math.max(best, getOriginIslandValue(warpedX, warpedY));
     }
 
     private double getOriginIslandValue(double x, double y) {
         double distance = Math.sqrt(x * x + y * y);
-        return ISLAND_MIN_RADIUS + ISLAND_RADIUS_VARIATION - distance;
+        return ORIGIN_ISLAND_RADIUS - distance;
     }
 
     private double getIslandValue(double x, double y) {
-        int cellX = floor(x / ISLAND_CELL_SIZE);
-        int cellY = floor(y / ISLAND_CELL_SIZE);
+        int cellX = islandCell(x);
+        int cellY = islandCell(y);
         double best = -Double.MAX_VALUE;
 
         for (int offsetX = -1; offsetX <= 1; offsetX++) {
@@ -84,7 +90,7 @@ public class ContinentalNoise {
                 int siteCellX = cellX + offsetX;
                 int siteCellY = cellY + offsetY;
                 Site site = getIslandSite(siteCellX, siteCellY);
-                if (!site.enabled) {
+                if (!site.enabled || site.volcano) {
                     continue;
                 }
 
@@ -92,6 +98,26 @@ public class ContinentalNoise {
                 double dy = y - site.y;
                 double distance = Math.sqrt(dx * dx + dy * dy);
                 best = Math.max(best, site.radius - distance);
+            }
+        }
+
+        return best;
+    }
+
+    private double getVolcanoIslandValue(double x, double y) {
+        int cellX = islandCell(x);
+        int cellY = islandCell(y);
+        double best = -Double.MAX_VALUE;
+
+        for (int offsetX = -1; offsetX <= 1; offsetX++) {
+            for (int offsetY = -1; offsetY <= 1; offsetY++) {
+                Site site = getIslandSite(cellX + offsetX, cellY + offsetY);
+                if (!site.volcano) {
+                    continue;
+                }
+                double dx = x - site.x;
+                double dy = y - site.y;
+                best = Math.max(best, site.radius - Math.sqrt(dx * dx + dy * dy));
             }
         }
 
@@ -122,7 +148,7 @@ public class ContinentalNoise {
         double x = originalX + (neighbourAverageX - originalX) * RELAXATION;
         double y = originalY + (neighbourAverageY - originalY) * RELAXATION;
         double radius = MIN_RADIUS + random01(cellX, cellY, 2) * RADIUS_VARIATION;
-        site = new Site(x, y, radius, true);
+        site = new Site(x, y, radius, true, false);
         cacheSite(continentSites, key, site);
         return site;
     }
@@ -134,21 +160,80 @@ public class ContinentalNoise {
             return site;
         }
 
-        boolean enabled = random01(cellX, cellY, 3) < ISLAND_CHANCE;
-        double centreX = (cellX + 0.5D) * ISLAND_CELL_SIZE;
-        double centreY = (cellY + 0.5D) * ISLAND_CELL_SIZE;
+        double typeRoll = random01(cellX, cellY, 3);
+        boolean volcano = typeRoll >= VOLCANO_THRESHOLD && typeRoll < VOLCANO_THRESHOLD + VOLCANO_CHANCE;
+        boolean enabled = volcano || typeRoll >= VOLCANO_THRESHOLD + VOLCANO_CHANCE
+                && typeRoll < VOLCANO_THRESHOLD + VOLCANO_CHANCE + NORMAL_ISLAND_CHANCE;
+        if (cellX == 0 && cellY == 0) {
+            volcano = false;
+            enabled = false;
+        }
+        double centreX = cellX * ISLAND_CELL_SIZE;
+        double centreY = cellY * ISLAND_CELL_SIZE;
         double x = centreX + (random01(cellX, cellY, 4) * 2D - 1D) * ISLAND_CELL_SIZE * ISLAND_JITTER;
         double y = centreY + (random01(cellX, cellY, 5) * 2D - 1D) * ISLAND_CELL_SIZE * ISLAND_JITTER;
-        double radius = ISLAND_MIN_RADIUS + random01(cellX, cellY, 6) * ISLAND_RADIUS_VARIATION;
-        site = new Site(x, y, radius, enabled);
+        double radius = volcano ? VOLCANO_ISLAND_RADIUS
+                : ISLAND_MIN_RADIUS + random01(cellX, cellY, 6) * ISLAND_RADIUS_VARIATION;
+        site = new Site(x, y, radius, enabled, volcano);
         cacheSite(islandSites, key, site);
         return site;
+    }
+
+    /** Returns packed coordinates relative to an unwarped volcano site, or {@link Long#MIN_VALUE}. */
+    public long getVolcanoCoordinates(int x, int y) {
+        return getVolcanoCoordinates(x, y, VOLCANO_RADIUS);
+    }
+
+    public long getVolcanoVicinityCoordinates(int x, int y) {
+        return getVolcanoCoordinates(x, y, VOLCANO_ISLAND_RADIUS);
+    }
+
+    private long getVolcanoCoordinates(int x, int y, double radius) {
+        int cellX = islandCell(x);
+        int cellY = islandCell(y);
+        Site bestSite = null;
+        double bestValue = -Double.MAX_VALUE;
+
+        for (int offsetX = -1; offsetX <= 1; offsetX++) {
+            for (int offsetY = -1; offsetY <= 1; offsetY++) {
+                Site site = getIslandSite(cellX + offsetX, cellY + offsetY);
+                if (!site.volcano) {
+                    continue;
+                }
+                double dx = x - site.x;
+                double dy = y - site.y;
+                double value = radius - Math.sqrt(dx * dx + dy * dy);
+                if (value >= 0D && value > bestValue) {
+                    bestValue = value;
+                    bestSite = site;
+                }
+            }
+        }
+
+        if (bestSite == null) {
+            return Long.MIN_VALUE;
+        }
+        int localX = Float.floatToRawIntBits((float) (x - bestSite.x));
+        int localY = Float.floatToRawIntBits((float) (y - bestSite.y));
+        return (long) localX << 32 | (long) localY & 0xffffffffL;
+    }
+
+    public static float unpackVolcanoX(long coordinates) {
+        return Float.intBitsToFloat((int) (coordinates >>> 32));
+    }
+
+    public static float unpackVolcanoY(long coordinates) {
+        return Float.intBitsToFloat((int) coordinates);
     }
 
     private double initialSite(int cellX, int cellY, boolean xAxis) {
         int axis = xAxis ? 0 : 1;
         double centre = ((xAxis ? cellX : cellY) + 0.5D) * CELL_SIZE;
         return centre + (random01(cellX, cellY, axis) * 2D - 1D) * CELL_SIZE * JITTER;
+    }
+
+    private int islandCell(double coordinate) {
+        return floor((coordinate + ISLAND_CELL_SIZE * 0.5D) / ISLAND_CELL_SIZE);
     }
 
     private double random01(int cellX, int cellY, int salt) {
@@ -186,12 +271,14 @@ public class ContinentalNoise {
         private final double y;
         private final double radius;
         private final boolean enabled;
+        private final boolean volcano;
 
-        private Site(double x, double y, double radius, boolean enabled) {
+        private Site(double x, double y, double radius, boolean enabled, boolean volcano) {
             this.x = x;
             this.y = y;
             this.radius = radius;
             this.enabled = enabled;
+            this.volcano = volcano;
         }
     }
 }

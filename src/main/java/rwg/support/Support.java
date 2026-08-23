@@ -13,6 +13,7 @@ public class Support {
     public static ArrayList<RealisticBiomeBase> biomes_wet;
     public static ArrayList<RealisticBiomeBase> biomes_small;
     public static ArrayList<RealisticBiomeBase> biomes_test;
+    public static RealisticBiomeBase volcanoIsland;
 
     public enum BiomeCategory {
         SNOW,
@@ -30,6 +31,7 @@ public class Support {
         biomes_wet = new ArrayList<RealisticBiomeBase>();
         biomes_small = new ArrayList<RealisticBiomeBase>();
         biomes_test = new ArrayList<RealisticBiomeBase>();
+        volcanoIsland = null;
 
         if (Loader.isModLoaded("BiomesOPlenty")) {
             SupportBOP.init();
