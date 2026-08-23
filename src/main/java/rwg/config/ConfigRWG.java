@@ -19,15 +19,15 @@ public class ConfigRWG {
     public static boolean generateUndergroundLakes = true;
     public static boolean generateUndergroundLavaLakes = true;
     public static boolean generateLargeThaumcraftBiomes = false;
-    public static float continentScale = 1f;
-    public static float continentGridScale = 1f;
-    public static float continentGridOffsetX = 0f;
-    public static float continentGridOffsetZ = 0f;
+    public static float continentScale = 1.5f;
+    public static float continentGridScale = 1.5f;
+    public static float continentGridOffsetX = -1.5f;
+    public static float continentGridOffsetZ = -0.5f;
     public static float islandScale = 1f;
-    public static float islandGridScale = 1f;
-    public static float continentOffsetMultiplier = 1f;
-    public static float islandOffsetMultiplier = 1f;
-    public static float volcanoRarity = 1f;
+    public static float islandGridScale = 1.5f;
+    public static float continentOffsetMultiplier = 6f;
+    public static float islandOffsetMultiplier = 4f;
+    public static float volcanoRarity = 0.75f;
     public static int continentRelaxationSteps = 1;
 
     public static void init(FMLPreInitializationEvent event) {
@@ -79,28 +79,28 @@ public class ConfigRWG {
             continentScale = config.getFloat(
                     "Continent Scale",
                     CONTINENTAL_CATEGORY,
-                    1f,
+                    1.5f,
                     0.25f,
                     10f,
                     "Multiplier for continent radii. " + worldgenWarning);
             continentGridScale = config.getFloat(
                     "Continent Grid Scale",
                     CONTINENTAL_CATEGORY,
-                    1f,
+                    1.5f,
                     0.25f,
                     10f,
                     "Multiplier for the distance between continent grid sites. " + worldgenWarning);
             continentGridOffsetX = config.getFloat(
                     "Continent Grid Offset X",
                     CONTINENTAL_CATEGORY,
-                    0f,
+                    -1.5f,
                     -2f,
                     2f,
                     "East-west phase offset measured in continent grid cells. " + worldgenWarning);
             continentGridOffsetZ = config.getFloat(
                     "Continent Grid Offset Z",
                     CONTINENTAL_CATEGORY,
-                    0f,
+                    -0.5f,
                     -2f,
                     2f,
                     "North-south phase offset measured in continent grid cells. " + worldgenWarning);
@@ -114,28 +114,28 @@ public class ConfigRWG {
             islandGridScale = config.getFloat(
                     "Island Grid Scale",
                     CONTINENTAL_CATEGORY,
-                    1f,
+                    1.5f,
                     0.25f,
                     10f,
                     "Multiplier for the distance between island grid sites. " + worldgenWarning);
             continentOffsetMultiplier = config.getFloat(
                     "Continent Offset Multiplier",
                     CONTINENTAL_CATEGORY,
-                    1f,
+                    6f,
                     0f,
                     10f,
                     "Multiplier for continent-site displacement from grid centres. " + worldgenWarning);
             islandOffsetMultiplier = config.getFloat(
                     "Island Offset Multiplier",
                     CONTINENTAL_CATEGORY,
-                    1f,
+                    4f,
                     0f,
                     10f,
                     "Multiplier for island-site displacement from grid points. " + worldgenWarning);
             volcanoRarity = config.getFloat(
                     "Volcano Rarity",
                     CONTINENTAL_CATEGORY,
-                    1f,
+                    0.75f,
                     0.5f,
                     10f,
                     "Higher values make volcano islands less common. " + worldgenWarning);
