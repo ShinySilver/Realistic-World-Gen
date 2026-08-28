@@ -4,11 +4,11 @@ plugins {
     id 'com.gtnewhorizons.gtnhconvention'
 }
 
-tasks.register('continentDebug', JavaExec) {
+tasks.register('previewTool', JavaExec) {
     group = 'verification'
     description = 'Opens the offline RWG_CONTINENT debug map'
     dependsOn testClasses
     classpath = sourceSets.test.runtimeClasspath
-    mainClass = 'rwg.world.RWGContinentDebugTest'
+    mainClass = 'rwg.world.RWGPreviewTool'
     maxHeapSize = '1g'
 }

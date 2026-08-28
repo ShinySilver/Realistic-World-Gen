@@ -55,7 +55,7 @@ import rwg.support.SupportEBXL;
 import rwg.support.RealisticBiomeSupport;
 
 /** Manual visual test: {@code ./gradlew continentDebug}. */
-public final class RWGContinentDebugTest {
+public final class RWGPreviewTool {
 
     private static final int SIZE = 16000;
     private static final int BLOCKS_PER_PIXEL = 8;
