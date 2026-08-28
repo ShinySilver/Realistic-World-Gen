@@ -115,9 +115,18 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
     }
 
     public ChunkGeneratorRealistic(World world, long l, boolean continental) {
-        caves = TerrainGen.getModdedMapGen(new MapGenCaves(), CAVE);
+        this(world, (ChunkManagerRealistic) world.getWorldChunkManager(), l, continental, true);
+    }
+
+    public ChunkGeneratorRealistic(ChunkManagerRealistic manager, long seed, boolean continental) {
+        this(null, manager, seed, continental, false);
+    }
+
+    private ChunkGeneratorRealistic(World world, ChunkManagerRealistic manager, long l, boolean continental,
+            boolean mapFeatures) {
+        caves = mapFeatures ? TerrainGen.getModdedMapGen(new MapGenCaves(), CAVE) : null;
         worldObj = world;
-        cmr = (ChunkManagerRealistic) worldObj.getWorldChunkManager();
+        cmr = manager;
         this.continental = continental;
 
         rand = new Random(l);
@@ -131,9 +140,14 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
         Map<String, String> m = new HashMap<>();
         m.put("size", "0");
         m.put("distance", "24");
-        villageGenerator = (MapGenVillage) TerrainGen.getModdedMapGen(new MapGenVillage(m), VILLAGE);
-        strongholdGenerator = (MapGenStronghold) TerrainGen.getModdedMapGen(new MapGenStronghold(), STRONGHOLD);
-        mineshaftGenerator = (MapGenMineshaft) TerrainGen.getModdedMapGen(new MapGenMineshaft(), MINESHAFT);
+        villageGenerator = mapFeatures ? (MapGenVillage) TerrainGen.getModdedMapGen(new MapGenVillage(m), VILLAGE)
+                : null;
+        strongholdGenerator = mapFeatures
+                ? (MapGenStronghold) TerrainGen.getModdedMapGen(new MapGenStronghold(), STRONGHOLD)
+                : null;
+        mineshaftGenerator = mapFeatures
+                ? (MapGenMineshaft) TerrainGen.getModdedMapGen(new MapGenMineshaft(), MINESHAFT)
+                : null;
 
         CanyonColor.init(l);
 
@@ -360,7 +374,19 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
             }
         }
 
-        float continent, river, ocean;
+        float abyss00 = 0f, abyss10 = 0f, abyss01 = 0f, abyss11 = 0f;
+        if (continental) {
+            float corner = cmr.getContinentValue(x, y);
+            abyss00 = cmr.getAbyssalBasinStrength(x, y, corner);
+            corner = cmr.getContinentValue(x + 16, y);
+            abyss10 = cmr.getAbyssalBasinStrength(x + 16, y, corner);
+            corner = cmr.getContinentValue(x, y + 16);
+            abyss01 = cmr.getAbyssalBasinStrength(x, y + 16, corner);
+            corner = cmr.getContinentValue(x + 16, y + 16);
+            abyss11 = cmr.getAbyssalBasinStrength(x + 16, y + 16, corner);
+        }
+
+        float continent, river, ocean, abyssalBasin;
         for (i = 0; i < 16; i++) {
             for (j = 0; j < 16; j++) {
                 if (randBiome) {
@@ -373,9 +399,14 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                     continent = cmr.getContinentValue(x + i, y + j);
                     continentValues[i * 16 + j] = continent;
                     ocean = cmr.getTerrainOceanValue(continent);
+                    float top = abyss00 + (abyss10 - abyss00) * i / 16f;
+                    float bottom = abyss01 + (abyss11 - abyss01) * i / 16f;
+                    abyssalBasin = top + (bottom - top) * j / 16f;
                 } else {
+                    continent = Float.POSITIVE_INFINITY;
                     continentValues[i * 16 + j] = Float.POSITIVE_INFINITY;
                     ocean = cmr.getTerrainOceanValue(x + i, y + j);
+                    abyssalBasin = 0f;
                 }
                 l = ((int) (i + 4) * 25 + (j + 4));
 
@@ -416,8 +447,16 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                                             ContinentalNoise.unpackVolcanoX(coordinates),
                                             ContinentalNoise.unpackVolcanoY(coordinates));
                         } else {
-                            biomeHeight = noiseBiome
-                                    .rNoise(perlin, cell, x + i, y + j, ocean, smallRender[l][k], river + 1f);
+                            biomeHeight = noiseBiome.rNoise(
+                                    perlin,
+                                    cell,
+                                    x + i,
+                                    y + j,
+                                    ocean,
+                                    smallRender[l][k],
+                                    river + 1f,
+                                    continent,
+                                    abyssalBasin);
                         }
                         testHeight[i * 16 + j] += cmr.calculateRiver(x + i, y + j, river, biomeHeight)
                                 * smallRender[l][k];

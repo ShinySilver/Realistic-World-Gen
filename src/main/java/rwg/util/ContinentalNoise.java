@@ -25,6 +25,13 @@ public class ContinentalNoise {
     private final double warpStrength;
     private final double offsetX;
     private final double offsetY;
+    private final ThreadLocal<double[]> oceanSamples = new ThreadLocal<double[]>() {
+
+        @Override
+        protected double[] initialValue() {
+            return new double[12];
+        }
+    };
     private final ThreadLocal<double[]> samples = new ThreadLocal<double[]>() {
 
         @Override
@@ -79,6 +86,40 @@ public class ContinentalNoise {
         double distanceFromCentre = sample[0];
         double continent = width - distanceFromCentre;
         return (float) Math.max(continent, islands.getValue(warpedX + offsetX, warpedY + offsetY));
+    }
+
+    /** Strength of broad abyssal basins along the deep-ocean divide between two continents. */
+    public float getAbyssalBasinStrength(int x, int y, float continent) {
+        if (continent > -450f) return 0f;
+        double[] sample = oceanSamples.get();
+        warp(x, y, sample);
+        points.sampleTwo(sample[10] + offsetX, sample[11] + offsetY, sample);
+        if (Double.isInfinite(sample[5])) return 0f;
+        double first = continentField(sample[0], (int) sample[1], (int) sample[2]);
+        double second = continentField(sample[5], (int) sample[6], (int) sample[7]);
+        float divide = 1f - smoothstep(40f, 240f, (float) Math.abs(first - second));
+        float offshore = smoothstep(450f, 900f, -continent);
+        float selector = smoothstep(.05f, .45f, warpX.noise2(x / 1800f, y / 1800f));
+        return divide * offshore * selector;
+    }
+
+    private double continentField(double distance, int cellX, int cellY) {
+        double width = minimumContinentWidth + random01(cellX, cellY, 0) * continentWidthRange;
+        return Math.min(voronoiRadius, width) - distance;
+    }
+
+    private void warp(int x, int y, double[] output) {
+        double noiseX = x / warpScale;
+        double noiseY = y / warpScale;
+        output[10] = x + warpX.noise2((float) noiseX, (float) noiseY) * warpStrength
+                + warpX.noise2((float) (noiseX * 2D), (float) (noiseY * 2D)) * warpStrength;
+        output[11] = y + warpY.noise2((float) noiseX, (float) noiseY) * warpStrength
+                + warpY.noise2((float) (noiseX * 2D), (float) (noiseY * 2D)) * warpStrength;
+    }
+
+    private static float smoothstep(float edge0, float edge1, float value) {
+        float t = Math.max(0f, Math.min(1f, (value - edge0) / (edge1 - edge0)));
+        return t * t * (3f - 2f * t);
     }
 
     /** Islands, including volcano islands, are disabled. */

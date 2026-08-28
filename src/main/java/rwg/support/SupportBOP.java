@@ -33,10 +33,12 @@ public class SupportBOP {
 
     public static void init() {
         if (BOPCBiomes.kelpForest != null) {
-            Support.oceanShallowKelp = new RealisticBiomeOcean(BOPCBiomes.kelpForest, true, true);
+            Support.oceanShallowKelp =
+                    new RealisticBiomeOcean(BOPCBiomes.kelpForest, true, true, "RealisticBiomeOceanKelpForest");
         }
         if (BOPCBiomes.coralReef != null) {
-            Support.oceanShallowCoral = new RealisticBiomeOcean(BOPCBiomes.coralReef, true, true);
+            Support.oceanShallowCoral =
+                    new RealisticBiomeOcean(BOPCBiomes.coralReef, true, true, "RealisticBiomeOceanCoralReef");
         }
         // VOLCANO ISLAND
         Support.volcanoIsland = new RealisticBiomeIslandVolcano(

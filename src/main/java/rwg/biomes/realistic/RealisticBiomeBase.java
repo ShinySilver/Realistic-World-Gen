@@ -192,6 +192,11 @@ public class RealisticBiomeBase {
         return 63f;
     }
 
+    public float rNoise(NoiseGenerator perlin, CellNoise cell, int x, int y, float ocean, float border, float river,
+            float continent, float abyssalBasin) {
+        return rNoise(perlin, cell, x, y, ocean, border, river);
+    }
+
     public void rReplace(Block[] blocks, byte[] metadata, int i, int j, int x, int y, int depth, World world,
             Random rand, NoiseGenerator perlin, CellNoise cell, float[] noise, float river, BiomeGenBase[] base) {
         Block b;

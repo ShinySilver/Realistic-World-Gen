@@ -69,6 +69,38 @@ public class PoissonPointNoise {
         }
     }
 
+    /** Output contains the nearest point in slots 0-4 and the second-nearest point in slots 5-9. */
+    public void sampleTwo(double x, double z, double[] output) {
+        int queryCellX = floor(x / cellSize);
+        int queryCellZ = floor(z / cellSize);
+        Candidate first = null, second = null;
+        double firstSquared = Double.POSITIVE_INFINITY, secondSquared = Double.POSITIVE_INFINITY;
+        for (Candidate candidate : region(queryCellX, queryCellZ)) {
+            double dx = candidate.x - x;
+            double dz = candidate.z - z;
+            double distanceSquared = dx * dx + dz * dz;
+            if (distanceSquared < firstSquared) {
+                second = first;
+                secondSquared = firstSquared;
+                first = candidate;
+                firstSquared = distanceSquared;
+            } else if (distanceSquared < secondSquared) {
+                second = candidate;
+                secondSquared = distanceSquared;
+            }
+        }
+        writeSample(output, 0, first, firstSquared);
+        writeSample(output, 5, second, secondSquared);
+    }
+
+    private static void writeSample(double[] output, int offset, Candidate candidate, double distanceSquared) {
+        output[offset] = Math.sqrt(distanceSquared);
+        output[offset + 1] = candidate == null ? 0 : candidate.cellX;
+        output[offset + 2] = candidate == null ? 0 : candidate.cellZ;
+        output[offset + 3] = candidate == null ? 0 : candidate.x;
+        output[offset + 4] = candidate == null ? 0 : candidate.z;
+    }
+
     public double getMinimumDistance() {
         return minimumDistance;
     }

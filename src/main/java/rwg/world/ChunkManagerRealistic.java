@@ -1,6 +1,8 @@
 package rwg.world;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
 
@@ -12,6 +14,7 @@ import net.minecraft.world.biome.BiomeGenBase;
 import net.minecraft.world.biome.WorldChunkManager;
 
 import gnu.trove.map.hash.TLongObjectHashMap;
+import gnu.trove.map.hash.TLongFloatHashMap;
 import rwg.biomes.realistic.RealisticBiomeBase;
 import rwg.support.Support;
 import rwg.util.CellNoise;
@@ -30,8 +33,11 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     private CellNoise cell;
 
     private CellNoise biomecell;
+    private float climateWidth = 1200f;
+    private float biomeWidth = 450f;
     private boolean continental;
     private ContinentalNoise continents;
+    private final TLongFloatHashMap abyssalBasinCache = new TLongFloatHashMap();
 
     private ArrayList<RealisticBiomeBase> biomes_snow;
     private ArrayList<RealisticBiomeBase> biomes_cold;
@@ -62,9 +68,18 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     }
 
     public ChunkManagerRealistic(World par1World, boolean continental) {
+        this(par1World.getSeed(), continental);
+    }
+
+    public ChunkManagerRealistic(long seed, boolean continental) {
+        this(seed, continental, 1200f, 450f);
+    }
+
+    public ChunkManagerRealistic(long seed, boolean continental, float climateWidth, float biomeWidth) {
         this();
-        long seed = par1World.getSeed();
         this.continental = continental;
+        this.climateWidth = climateWidth;
+        this.biomeWidth = biomeWidth;
 
         perlin = NoiseSelector.createNoiseGenerator(seed);
         cell = new CellNoise(seed, (short) 0);
@@ -170,6 +185,66 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         return continental ? continents.getValue(x, y) : (getLegacyOceanValue(x, y) - 1f) * 100f;
     }
 
+    List<RealisticBiomeBase> getConfiguredBiomes() {
+        ArrayList<RealisticBiomeBase> result = new ArrayList<RealisticBiomeBase>();
+        result.addAll(biomes_snow);
+        result.addAll(biomes_cold);
+        result.addAll(biomes_hot);
+        result.addAll(biomes_wet);
+        result.addAll(biomes_small);
+        result.addAll(biomes_test);
+        result.add(RealisticBiomeBase.coastIce);
+        result.add(RealisticBiomeBase.coastDunes);
+        result.add(Support.oceanShallowSnow);
+        result.add(Support.oceanShallowCold);
+        result.add(Support.oceanShallowKelp);
+        result.add(Support.oceanShallowTemperate);
+        result.add(Support.oceanShallowCoral);
+        result.add(Support.oceanShallowHot);
+        result.add(Support.oceanShallowWet);
+        result.add(Support.oceanDeep);
+        result.add(Support.oceanDeepSnow);
+        result.add(Support.oceanDeepCold);
+        result.add(Support.oceanDeepHot);
+        result.add(Support.oceanDeepWet);
+        if (Support.volcanoIsland != null) result.add(Support.volcanoIsland);
+        return new ArrayList<RealisticBiomeBase>(new LinkedHashSet<RealisticBiomeBase>(result));
+    }
+
+    int[] getConfiguredBiomeCategories() {
+        int[] categories = new int[256];
+        Arrays.fill(categories, 3);
+        setCategory(categories, biomes_snow, 1);
+        setCategory(categories, biomes_cold, 2);
+        setCategory(categories, biomes_hot, 3);
+        setCategory(categories, biomes_wet, 4);
+        setCategory(categories, biomes_small, 5);
+        setCategory(categories, RealisticBiomeBase.coastIce, 1);
+        setCategory(categories, RealisticBiomeBase.coastDunes, 3);
+        setCategory(categories, Support.volcanoIsland, 5);
+        setCategory(categories, Support.oceanShallowSnow, 0);
+        setCategory(categories, Support.oceanShallowCold, 0);
+        setCategory(categories, Support.oceanShallowKelp, 0);
+        setCategory(categories, Support.oceanShallowTemperate, 0);
+        setCategory(categories, Support.oceanShallowCoral, 0);
+        setCategory(categories, Support.oceanShallowHot, 0);
+        setCategory(categories, Support.oceanShallowWet, 0);
+        setCategory(categories, Support.oceanDeep, 0);
+        setCategory(categories, Support.oceanDeepSnow, 0);
+        setCategory(categories, Support.oceanDeepCold, 0);
+        setCategory(categories, Support.oceanDeepHot, 0);
+        setCategory(categories, Support.oceanDeepWet, 0);
+        return categories;
+    }
+
+    private static void setCategory(int[] categories, List<RealisticBiomeBase> biomes, int category) {
+        for (RealisticBiomeBase biome : biomes) setCategory(categories, biome, category);
+    }
+
+    private static void setCategory(int[] categories, RealisticBiomeBase biome, int category) {
+        if (biome != null) categories[biome.biomeID] = category;
+    }
+
     public long getVolcanoCoordinates(int x, int y) {
         return continental ? continents.getVolcanoCoordinates(x, y) : Long.MIN_VALUE;
     }
@@ -185,6 +260,34 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     public float getTerrainOceanValue(float continent) {
         float value = 1f + continent / 100f;
         return value < 0f ? 0f : value > 2f ? 2f : value;
+    }
+
+    public float getAbyssalBasinStrength(int x, int y, float continent) {
+        if (!continental || continent > -450f) return 0f;
+        int gridX = floorGrid(x), gridY = floorGrid(y);
+        float fractionX = (x - gridX * 32) / 32f;
+        float fractionY = (y - gridY * 32) / 32f;
+        float top = lerp(getAbyssalGrid(gridX, gridY), getAbyssalGrid(gridX + 1, gridY), fractionX);
+        float bottom = lerp(getAbyssalGrid(gridX, gridY + 1), getAbyssalGrid(gridX + 1, gridY + 1), fractionX);
+        return lerp(top, bottom, fractionY);
+    }
+
+    private float getAbyssalGrid(int gridX, int gridY) {
+        long key = ChunkCoordIntPair.chunkXZ2Int(gridX, gridY);
+        if (abyssalBasinCache.containsKey(key)) return abyssalBasinCache.get(key);
+        int x = gridX * 32, y = gridY * 32;
+        float value = continents.getAbyssalBasinStrength(x, y, continents.getValue(x, y));
+        if (abyssalBasinCache.size() > 32768) abyssalBasinCache.clear();
+        abyssalBasinCache.put(key, value);
+        return value;
+    }
+
+    private static int floorGrid(int value) {
+        return value >= 0 ? value / 32 : (value - 31) / 32;
+    }
+
+    private static float lerp(float first, float second, float amount) {
+        return first + (second - first) * amount;
     }
 
     /** @deprecated Use {@link #getTerrainOceanValue(int, int)}. */
@@ -234,7 +337,7 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         } else {
             float continent = getContinentValue(par1, par2);
             if (continent < 0f) {
-                output = getOceanBiome(continent, getLandBiomeAt(par1, par2).baseBiome.temperature, par1, par2);
+                output = getOceanBiome(continent, getClimateAt(par1, par2), par1, par2);
             } else
                 if (Support.volcanoIsland != null && continents.getVolcanoCoordinates(par1, par2) != Long.MIN_VALUE) {
                     output = Support.volcanoIsland;
@@ -263,67 +366,53 @@ public class ChunkManagerRealistic extends WorldChunkManager {
 
     private TLongObjectHashMap<RealisticBiomeBase> biomeDataMap = new TLongObjectHashMap<RealisticBiomeBase>();
 
-    private RealisticBiomeBase getOceanBiome(float continent, float temperature, int x, int y) {
+    private RealisticBiomeBase getOceanBiome(float continent, int climate, int x, int y) {
         if (continent < -SHALLOW_OCEAN_WIDTH) {
-            return Support.oceanDeep;
+            return new RealisticBiomeBase[] {
+                    null, Support.oceanDeepSnow, Support.oceanDeepCold, Support.oceanDeepHot, Support.oceanDeepWet
+            }[climate];
         }
-        if (temperature < 0.8f) {
-            return Support.oceanShallowKelp;
-        }
-        if (temperature >= 1f) {
-            return Support.oceanShallowHot;
-        }
-        if (perlin.noise2(x / 350f, y / 350f) > 0.18f) {
+        float patch = perlin.noise2(x / 180f, y / 180f) * .7f + perlin.noise2(x / 55f, y / 55f) * .3f;
+        if ((climate == 1 || climate == 2) && continent < -90f && patch > 0f) return Support.oceanShallowKelp;
+        if ((climate == 3 || climate == 4) && continent < -20f && continent > -150f && patch > .07f) {
             return Support.oceanShallowCoral;
         }
-        return Support.oceanShallowTemperate;
+        return new RealisticBiomeBase[] {
+                null, Support.oceanShallowSnow, Support.oceanShallowCold, Support.oceanShallowHot,
+                Support.oceanShallowWet
+        }[climate];
+    }
+
+    private int getClimateAt(int x, int y) {
+        float climate = (biomecell.noise((x + 4000f) / climateWidth, y / climateWidth, 1D) * .5f) + .5f;
+        if (wetEnabled) return climate < .25f ? 1 : climate < .5f ? 2 : climate < .75f ? 3 : 4;
+        return climate < .33f ? 1 : climate < .66f ? 2 : 3;
+    }
+
+    private RealisticBiomeBase selectBiome(List<RealisticBiomeBase> biomes, int length, int x, int y) {
+        float value = (biomecell.noise(x / biomeWidth, y / biomeWidth, 1D) * .5f) + .5f;
+        value = value < 0f ? 0f : value >= .9999999f ? .9999999f : value;
+        return biomes.get((int) (value * length));
     }
 
     private RealisticBiomeBase getLandBiomeAt(int par1, int par2) {
-        RealisticBiomeBase output;
-
-        float b = (biomecell.noise((par1 + 4000f) / 1200D, par2 / 1200D, 1D) * 0.5f) + 0.5f;
-        b = b < 0f ? 0f : b >= 0.9999999f ? 0.9999999f : b;
-
         float s = smallEnabled ? (biomecell.noise(par1 / 140D, par2 / 140D, 1D) * 0.5f) + 0.5f : 0f;
         if (smallEnabled && s > 0.975f) {
             float h = (s - 0.975f) * 40f;
             h = h < 0f ? 0f : h >= 0.9999999f ? 0.9999999f : h;
             h *= biomes_smallLength;
-            output = biomes_small.get((int) (h));
-        } else if ((wetEnabled && b < 0.25f) || (!wetEnabled && b < 0.33f)) {
-            float h = (biomecell.noise(par1 / 450D, par2 / 450D, 1D) * 0.5f) + 0.5f;
-            h = h < 0f ? 0f : h >= 0.9999999f ? 0.9999999f : h;
-
-            h *= biomes_snowLength;
-            output = biomes_snow.get((int) (h));
-        } else if ((wetEnabled && b < 0.50f) || (!wetEnabled && b < 0.66f)) {
-            float h = (biomecell.noise(par1 / 450D, par2 / 450D, 1D) * 0.5f) + 0.5f;
-            h = h < 0f ? 0f : h >= 0.9999999f ? 0.9999999f : h;
-
-            h *= biomes_coldLength;
-            output = biomes_cold.get((int) (h));
-        } else if ((wetEnabled && b < 0.75f) || (!wetEnabled && b < 1f)) {
-            float h = (biomecell.noise(par1 / 450D, par2 / 450D, 1D) * 0.5f) + 0.5f;
-            h = h < 0f ? 0f : h >= 0.9999999f ? 0.9999999f : h;
-
-            h *= biomes_hotLength;
-            output = biomes_hot.get((int) (h));
-        } else if (wetEnabled) {
-            float h = (biomecell.noise(par1 / 450D, par2 / 450D, 1D) * 0.5f) + 0.5f;
-            h = h < 0f ? 0f : h >= 0.9999999f ? 0.9999999f : h;
-
-            h *= biomes_wetLength;
-            output = biomes_wet.get((int) (h));
-        } else {
-            float h = (biomecell.noise(par1 / 450D, par2 / 450D, 1D) * 0.5f) + 0.5f;
-            h = h < 0f ? 0f : h >= 0.9999999f ? 0.9999999f : h;
-
-            h *= biomes_hotLength;
-            output = biomes_hot.get((int) (h));
+            return biomes_small.get((int) h);
         }
-
-        return output;
+        switch (getClimateAt(par1, par2)) {
+            case 1:
+                return selectBiome(biomes_snow, biomes_snowLength, par1, par2);
+            case 2:
+                return selectBiome(biomes_cold, biomes_coldLength, par1, par2);
+            case 4:
+                return selectBiome(biomes_wet, biomes_wetLength, par1, par2);
+            default:
+                return selectBiome(biomes_hot, biomes_hotLength, par1, par2);
+        }
 
         /*
          * if(par1 + par2 < 0) { return RealisticBiomeBase.landTaigaFields; } else { return

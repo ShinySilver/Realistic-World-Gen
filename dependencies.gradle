@@ -5,7 +5,7 @@ dependencies {
     compile("com.github.GTNewHorizons:NotEnoughItems:2.8.68-GTNH:dev")
 
     devOnlyNonPublishable rfg.deobf('curse.maven:biomes-o-plenty-220318:2499612')
-    compileOnly('curse.maven:extrabiomesxl-60041:2273301')
+    devOnlyNonPublishable rfg.deobf('curse.maven:extrabiomesxl-60041:2273301')
 
     runtimeOnlyNonPublishable('com.github.GTNewHorizons:Climate-Control:0.10.0-GTNH:dev')
     devOnlyNonPublishable('com.github.GTNewHorizons:CodeChickenCore:1.4.10:dev')

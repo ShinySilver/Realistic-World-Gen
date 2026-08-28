@@ -3,3 +3,12 @@
 plugins {
     id 'com.gtnewhorizons.gtnhconvention'
 }
+
+tasks.register('continentDebug', JavaExec) {
+    group = 'verification'
+    description = 'Opens the offline RWG_CONTINENT debug map'
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'rwg.world.RWGContinentDebugTest'
+    maxHeapSize = '1g'
+}
