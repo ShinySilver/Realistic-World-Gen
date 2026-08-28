@@ -166,7 +166,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
         biomesForGeneration = new RealisticBiomeBase[256];
     }
 
-    public Chunk provideChunk(int cx, int cy) {
+    public synchronized Chunk provideChunk(int cx, int cy) {
         rand.setSeed((long) cx * 0x4f9939f508L + (long) cy * 0x1ef1565bd5L);
         Arrays.fill(chunkBlocks, null);
         Arrays.fill(chunkMetadata, (byte) 0);

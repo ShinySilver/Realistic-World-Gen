@@ -19,16 +19,13 @@ public class ConfigRWG {
     public static boolean generateUndergroundLakes = true;
     public static boolean generateUndergroundLavaLakes = true;
     public static boolean generateLargeThaumcraftBiomes = false;
-    public static float continentScale = 1.5f;
-    public static float continentGridScale = 1.5f;
-    public static float continentGridOffsetX = -1.5f;
-    public static float continentGridOffsetZ = -0.5f;
-    public static float islandScale = 1f;
-    public static float islandGridScale = 1.5f;
-    public static float continentOffsetMultiplier = 6f;
-    public static float islandOffsetMultiplier = 4f;
-    public static float volcanoRarity = 0.75f;
-    public static int continentRelaxationSteps = 1;
+    public static float minimumContinentWidth = 400f;
+    public static float maximumContinentWidth = 600f;
+    public static float averageOceanWidth = 100f;
+    public static float minimumOceanWidth = 50f;
+    public static float minimumIslandWidth = 150f;
+    public static float maximumIslandWidth = 300f;
+    public static float islandPlacementChance = 0.75f;
 
     public static void init(FMLPreInitializationEvent event) {
         config = new Configuration(event.getSuggestedConfigurationFile());
@@ -76,77 +73,56 @@ public class ConfigRWG {
                     .getBoolean("Generate large Thaumcraft biomes", "Settings", false, "");
 
             String worldgenWarning = "Changing this after creating a world causes borders between old and new chunks.";
-            continentScale = config.getFloat(
-                    "Continent Scale",
+            minimumContinentWidth = config.getFloat(
+                    "Minimum Continent Width",
                     CONTINENTAL_CATEGORY,
-                    1.5f,
-                    0.25f,
-                    10f,
-                    "Multiplier for continent radii. " + worldgenWarning);
-            continentGridScale = config.getFloat(
-                    "Continent Grid Scale",
-                    CONTINENTAL_CATEGORY,
-                    1.5f,
-                    0.25f,
-                    10f,
-                    "Multiplier for the distance between continent grid sites. " + worldgenWarning);
-            continentGridOffsetX = config.getFloat(
-                    "Continent Grid Offset X",
-                    CONTINENTAL_CATEGORY,
-                    -1.5f,
-                    -2f,
-                    2f,
-                    "East-west phase offset measured in continent grid cells. " + worldgenWarning);
-            continentGridOffsetZ = config.getFloat(
-                    "Continent Grid Offset Z",
-                    CONTINENTAL_CATEGORY,
-                    -0.5f,
-                    -2f,
-                    2f,
-                    "North-south phase offset measured in continent grid cells. " + worldgenWarning);
-            islandScale = config.getFloat(
-                    "Island Scale",
-                    CONTINENTAL_CATEGORY,
+                    400f,
                     1f,
-                    0.25f,
-                    10f,
-                    "Multiplier for normal island radii. Volcano dimensions are unaffected. " + worldgenWarning);
-            islandGridScale = config.getFloat(
-                    "Island Grid Scale",
+                    100000f,
+                    "Minimum distance in blocks from a Voronoi centre to its coast. " + worldgenWarning);
+            maximumContinentWidth = config.getFloat(
+                    "Maximum Continent Width",
                     CONTINENTAL_CATEGORY,
-                    1.5f,
-                    0.25f,
-                    10f,
-                    "Multiplier for the distance between island grid sites. " + worldgenWarning);
-            continentOffsetMultiplier = config.getFloat(
-                    "Continent Offset Multiplier",
+                    600f,
+                    1f,
+                    100000f,
+                    "Maximum distance in blocks from a Voronoi centre to its coast. " + worldgenWarning);
+            averageOceanWidth = config.getFloat(
+                    "Average Ocean Width",
                     CONTINENTAL_CATEGORY,
-                    6f,
+                    100f,
+                    1f,
+                    100000f,
+                    "Average ocean band width in blocks; continent plus ocean width sets the Voronoi radius. "
+                            + worldgenWarning);
+            minimumOceanWidth = config.getFloat(
+                    "Minimum Ocean Width",
+                    CONTINENTAL_CATEGORY,
+                    50f,
                     0f,
-                    10f,
-                    "Multiplier for continent-site displacement from grid centres. " + worldgenWarning);
-            islandOffsetMultiplier = config.getFloat(
-                    "Island Offset Multiplier",
+                    100000f,
+                    "Minimum total water gap in blocks between two maximum-sized continents. " + worldgenWarning);
+            minimumIslandWidth = config.getFloat(
+                    "Minimum Island Width",
                     CONTINENTAL_CATEGORY,
-                    4f,
-                    0f,
-                    10f,
-                    "Multiplier for island-site displacement from grid points. " + worldgenWarning);
-            volcanoRarity = config.getFloat(
-                    "Volcano Rarity",
+                    150f,
+                    1f,
+                    100000f,
+                    "Minimum distance in blocks from an island seed to its coast. " + worldgenWarning);
+            maximumIslandWidth = config.getFloat(
+                    "Maximum Island Width",
+                    CONTINENTAL_CATEGORY,
+                    300f,
+                    1f,
+                    100000f,
+                    "Maximum distance in blocks from an island seed to its coast. " + worldgenWarning);
+            islandPlacementChance = config.getFloat(
+                    "Island Placement Chance",
                     CONTINENTAL_CATEGORY,
                     0.75f,
-                    0.5f,
-                    10f,
-                    "Higher values make volcano islands less common. " + worldgenWarning);
-            continentRelaxationSteps = config.getInt(
-                    "Continent Relaxation Steps",
-                    CONTINENTAL_CATEGORY,
-                    1,
-                    0,
-                    8,
-                    "Number of neighbour-averaging passes applied to continent sites. " + worldgenWarning);
-
+                    0f,
+                    1f,
+                    "Chance to retain an island after valid island seeds have been identified. " + worldgenWarning);
         } catch (Exception e) {
             for (int c = 0; c < biomeIDs.length; c++) {
                 biomeIDs[c] = 200 + c;
@@ -159,14 +135,15 @@ public class ConfigRWG {
     }
 
     private static void renameOldProperties() {
-        config.moveProperty("Continental World", "Continent Scale", CONTINENTAL_CATEGORY);
-        config.moveProperty("Continental World", "Continent Grid Scale", CONTINENTAL_CATEGORY);
-        config.moveProperty("Continental World", "Continent Grid Offset X", CONTINENTAL_CATEGORY);
-        config.moveProperty("Continental World", "Continent Grid Offset Z", CONTINENTAL_CATEGORY);
-        config.moveProperty("Continental World", "Island Scale", CONTINENTAL_CATEGORY);
-        config.moveProperty("Continental World", "Island Grid Scale", CONTINENTAL_CATEGORY);
-        config.moveProperty("Continental World", "Continent Offset Multiplier", CONTINENTAL_CATEGORY);
-        config.moveProperty("Continental World", "Island Offset Multiplier", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Minimum Continent Width", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Maximum Continent Width", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Average Ocean Width", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Minimum Ocean Width", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Minimum Island Width", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Maximum Island Width", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Island Placement Chance", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Large Ocean Chance", CONTINENTAL_CATEGORY);
+        config.getCategory(CONTINENTAL_CATEGORY).remove("Large Ocean Chance");
         config.renameProperty("biome ids", "00 rwg_riverIce", "00 Ice River");
         config.renameProperty("biome ids", "01 rwg_riverCold", "01 Cold River");
         config.renameProperty("biome ids", "02 rwg_riverTemperate", "02 Temperate River");
