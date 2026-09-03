@@ -7,7 +7,9 @@ import biomesoplenty.api.content.BOPCBlocks;
 import rwg.api.RWGBiomes;
 import rwg.biomes.realistic.ocean.RealisticBiomeIslandVolcano;
 import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
+import rwg.biomes.realistic.support.RealisticBiomeFungiCanyonIsland;
 import rwg.support.Support.BiomeCategory;
+import rwg.support.Support.BiomePlacement;
 import rwg.support.edit.EditBase;
 import rwg.support.edit.EditRiverOasis;
 import rwg.surface.SurfaceBase;
@@ -33,12 +35,18 @@ public class SupportBOP {
 
     public static void init() {
         if (BOPCBiomes.kelpForest != null) {
-            Support.oceanShallowKelp =
-                    new RealisticBiomeOcean(BOPCBiomes.kelpForest, true, true, "RealisticBiomeOceanKelpForest");
+            Support.oceanShallowKelp = new RealisticBiomeOcean(
+                    BOPCBiomes.kelpForest,
+                    true,
+                    true,
+                    "RealisticBiomeOceanKelpForest");
         }
         if (BOPCBiomes.coralReef != null) {
-            Support.oceanShallowCoral =
-                    new RealisticBiomeOcean(BOPCBiomes.coralReef, true, true, "RealisticBiomeOceanCoralReef");
+            Support.oceanShallowCoral = new RealisticBiomeOcean(
+                    BOPCBiomes.coralReef,
+                    true,
+                    true,
+                    "RealisticBiomeOceanCoralReef");
         }
         // VOLCANO ISLAND
         Support.volcanoIsland = new RealisticBiomeIslandVolcano(
@@ -117,7 +125,8 @@ public class SupportBOP {
                                 130f,
                                 50f,
                                 1.5f)),
-                BiomeCategory.COLD);
+                BiomeCategory.SNOW,
+                BiomePlacement.HOT_BORDER);
 
         // BRUSHLAND
         Support.addBiome(
@@ -171,7 +180,8 @@ public class SupportBOP {
                                 Blocks.cobblestone,
                                 26f,
                                 0.35f)),
-                BiomeCategory.HOT);
+                BiomeCategory.HOT,
+                BiomePlacement.COLD_BORDER);
 
         // CHERRYBLOSSOM GROVE
         Support.addBiome(
@@ -266,6 +276,20 @@ public class SupportBOP {
                                 Blocks.cobblestone)),
                 BiomeCategory.HOT);
 
+        // EUCALYPTUS FOREST
+        Support.addBiome(
+                new RealisticBiomeSupport(
+                        BOPCBiomes.eucalyptusForest,
+                        RWGBiomes.baseRiverWet,
+                        new TerrainSwampMountain(135f, 300f),
+                        new SurfaceMountainStone(
+                                BOPCBiomes.eucalyptusForest.topBlock,
+                                BOPCBiomes.eucalyptusForest.fillerBlock,
+                                false,
+                                null,
+                                0.95f)),
+                BiomeCategory.WET);
+
         // FEN
         Support.addBiome(
                 new RealisticBiomeSupport(
@@ -280,11 +304,18 @@ public class SupportBOP {
                 BiomeCategory.HOT);
 
         // FLOWER FIELD
-        /*
-         * Support.biomes_hot.add( new RealisticBiomeSupport( BOPCBiomes.flowerField, new TerrainGrasslandHills(40f,
-         * 180f, 13f, 100f, 28f, 260f, 70f), new SurfaceGrassland(BOPCBiomes.flowerField.topBlock,
-         * BOPCBiomes.flowerField.fillerBlock, Blocks.stone, Blocks.cobblestone) ) );
-         */
+        Support.addBiome(
+                new RealisticBiomeSupport(
+                        BOPCBiomes.flowerField,
+                        RWGBiomes.baseRiverTemperate,
+                        new TerrainMarsh(),
+                        new SurfaceGrassland(
+                                BOPCBiomes.flowerField.topBlock,
+                                BOPCBiomes.flowerField.fillerBlock,
+                                Blocks.stone,
+                                Blocks.cobblestone)).setDisplayName("Flower Field"),
+                BiomeCategory.COLD,
+                BiomePlacement.SMALL);
 
         // FROST FOREST
         Support.addBiome(
@@ -312,6 +343,11 @@ public class SupportBOP {
                                 null,
                                 0.95f)),
                 BiomeCategory.WET);
+        Support.addBiome(
+                new RealisticBiomeFungiCanyonIsland(BOPCBiomes.fungiForest, BOPCBiomes.marsh)
+                        .setDisplayName("Jungle Mesa Island"),
+                BiomeCategory.WET,
+                BiomePlacement.LARGE_ISLAND);
 
         // GARDEN
         Support.addBiome(
@@ -399,7 +435,34 @@ public class SupportBOP {
                                 false,
                                 null,
                                 0.95f)),
-                BiomeCategory.HOT);
+                BiomeCategory.COLD,
+                BiomePlacement.HOT_BORDER);
+        Support.addBiome(
+                new RealisticBiomeSupport(
+                        BOPCBiomes.jadeCliffs,
+                        RWGBiomes.baseRiverHot,
+                        new TerrainHilly(230f, 120f, 0f),
+                        new SurfaceMountainStone(
+                                BOPCBiomes.jadeCliffs.topBlock,
+                                BOPCBiomes.jadeCliffs.fillerBlock,
+                                false,
+                                null,
+                                0.95f)).setDisplayName("Jade Cliffs"),
+                BiomeCategory.COLD);
+
+        // LAND OF LAKES MARSH
+        Support.addBiome(
+                new RealisticBiomeSupport(
+                        BOPCBiomes.landOfLakesMarsh,
+                        RWGBiomes.baseRiverWet,
+                        new TerrainGrasslandHills(90f, 180f, 13f, 100f, 38f, 260f, 71f),
+                        new SurfaceGrassland(
+                                BOPCBiomes.landOfLakesMarsh.topBlock,
+                                BOPCBiomes.landOfLakesMarsh.fillerBlock,
+                                Blocks.stone,
+                                Blocks.cobblestone)),
+                BiomeCategory.HOT,
+                BiomePlacement.HOT_BORDER);
 
         // LAVENDER FIELDS
         Support.addBiome(
@@ -414,7 +477,6 @@ public class SupportBOP {
                                 null,
                                 1.2f)),
                 BiomeCategory.COLD);
-
         // LUSH DESERT
         Support.addBiome(
                 new RealisticBiomeSupport(
@@ -461,6 +523,19 @@ public class SupportBOP {
          * );
          */
 
+        // MANGROVE
+        Support.addBiome(
+                new RealisticBiomeSupport(
+                        BOPCBiomes.mangrove,
+                        RWGBiomes.baseRiverWet,
+                        new TerrainSwampRiver(),
+                        new SurfaceGrassland(
+                                BOPCBiomes.mangrove.topBlock,
+                                BOPCBiomes.mangrove.fillerBlock,
+                                Blocks.stone,
+                                Blocks.cobblestone)),
+                BiomeCategory.WET);
+
         // MEADOW
         Support.addBiome(
                 new RealisticBiomeSupport(
@@ -473,7 +548,8 @@ public class SupportBOP {
                                 false,
                                 null,
                                 1.2f)),
-                BiomeCategory.COLD);
+                BiomeCategory.COLD,
+                BiomePlacement.COLD_BORDER);
 
         // MOOR
         /*
@@ -496,19 +572,6 @@ public class SupportBOP {
                                 0.75f)),
                 BiomeCategory.HOT);
 
-        // MYSTIC GROVE
-        Support.addBiome(
-                new RealisticBiomeSupport(
-                        BOPCBiomes.mysticGrove,
-                        RWGBiomes.baseRiverWet,
-                        new TerrainHighland(0f, 140f, 68f, 200f),
-                        new SurfaceGrassland(
-                                BOPCBiomes.mysticGrove.topBlock,
-                                BOPCBiomes.mysticGrove.fillerBlock,
-                                Blocks.stone,
-                                Blocks.cobblestone)),
-                BiomeCategory.WET);
-
         // OMINOUS WOODS
         /*
          * Support.biomes_cold.add( new RealisticBiomeSupport( BOPCBiomes.ominousWoods, new TerrainHighland(0f, 140f,
@@ -516,12 +579,9 @@ public class SupportBOP {
          * Blocks.stone, Blocks.cobblestone) ) );
          */
 
+        // ORCHARD
+
         // ORIGIN VALLEY
-        /*
-         * Support.biomes_cold.add( new RealisticBiomeSupport( BOPCBiomes.originValley, new TerrainHighland(10f, 80f,
-         * 68f, 200f), new SurfaceGrassland(BOPCBiomes.originValley.topBlock, BOPCBiomes.originValley.fillerBlock,
-         * Blocks.stone, Blocks.cobblestone) ) );
-         */
 
         // OUTBACK
         Support.addBiome(
@@ -563,7 +623,8 @@ public class SupportBOP {
                                 false,
                                 null,
                                 1.3f)),
-                BiomeCategory.WET);
+                BiomeCategory.WET,
+                BiomePlacement.COLD_BORDER);
 
         // REDWOOD FOREST
         Support.addBiome(
@@ -681,6 +742,20 @@ public class SupportBOP {
                         new SurfaceGrassland(
                                 BOPCBiomes.tropicalRainforest.topBlock,
                                 BOPCBiomes.tropicalRainforest.fillerBlock,
+                                Blocks.stone,
+                                Blocks.cobblestone)),
+                BiomeCategory.WET,
+                BiomePlacement.COLD_BORDER);
+
+        // TROPICS
+        Support.addBiome(
+                new RealisticBiomeSupport(
+                        BOPCBiomes.tropics,
+                        RWGBiomes.baseRiverWet,
+                        new TerrainMarsh(),
+                        new SurfaceGrassland(
+                                BOPCBiomes.tropics.topBlock,
+                                BOPCBiomes.tropics.fillerBlock,
                                 Blocks.stone,
                                 Blocks.cobblestone)),
                 BiomeCategory.WET);

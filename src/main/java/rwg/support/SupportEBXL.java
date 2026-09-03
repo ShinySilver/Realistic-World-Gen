@@ -5,6 +5,7 @@ import net.minecraft.init.Blocks;
 import extrabiomes.api.BiomeManager;
 import rwg.api.RWGBiomes;
 import rwg.support.Support.BiomeCategory;
+import rwg.support.Support.BiomePlacement;
 import rwg.support.edit.EditBase;
 import rwg.support.edit.EditRiverOasis;
 import rwg.surface.SurfaceBase;
@@ -310,7 +311,8 @@ public class SupportEBXL {
                                     BiomeManager.rainforest.get().fillerBlock,
                                     Blocks.stone,
                                     Blocks.cobblestone)),
-                    BiomeCategory.WET);
+                    BiomeCategory.WET,
+                    BiomePlacement.COLD_BORDER);
         }
 
         // REDWOOD FOREST

@@ -12,7 +12,8 @@ import rwg.terrain.TerrainSmallSupport;
 
 public class SupportTC {
     /*
-     * THAUMCRAFT BIOMES 118: "Tainted Land" 119: "Magical Forest"
+     * Resolve by name because Thaumcraft biome IDs are pack-configurable. GTNH currently assigns Eerie 190, Eldritch
+     * Lands 191, Magical Forest 192, and Tainted Land 193.
      */
 
     public static void init() {
@@ -20,7 +21,7 @@ public class SupportTC {
 
         for (int i = 0; i < 256; i++) {
             if (b[i] != null) {
-                if (b[i].biomeName == "Tainted Land") {
+                if ("Tainted Land".equals(b[i].biomeName)) {
                     Support.addBiome(
                             new RealisticBiomeSupport(
                                     b[i],
@@ -34,7 +35,7 @@ public class SupportTC {
                             BiomeCategory.SMALL);
                 }
 
-                if (b[i].biomeName == "Magical Forest") {
+                if ("Magical Forest".equals(b[i].biomeName)) {
                     if (ConfigRWG.generateLargeThaumcraftBiomes) {
                         Support.addBiome(
                                 new RealisticBiomeSupport(

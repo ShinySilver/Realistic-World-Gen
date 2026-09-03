@@ -82,10 +82,13 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
     private final float[][] mix4Src = new float[4][];
 
     private final int[] biomeData;
+    private final int[] activeBiomeIds;
+    private final boolean[] activeBiomeFlags;
     private final float[][] hugeRender;
     private final float[][] smallRender;
     private final float[] testHeight;
     private final float[] riverStrength;
+    private final float[] riverSample;
     private final float[] continentValues;
     private final float[] mapGenBiomes;
     private final float[] borderNoise;
@@ -170,10 +173,13 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
 
         baseBiomesList = new BiomeGenBase[256];
         biomeData = new int[sampleArraySize * sampleArraySize];
+        activeBiomeIds = new int[256];
+        activeBiomeFlags = new boolean[256];
         hugeRender = new float[81][256];
         smallRender = new float[625][256];
         testHeight = new float[256];
         riverStrength = new float[256];
+        riverSample = new float[4];
         continentValues = new float[256];
         mapGenBiomes = new float[258];
         borderNoise = new float[256];
@@ -261,20 +267,28 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
 
     public float[] getNewNoise(ChunkManagerRealistic cmr, int x, int y, RealisticBiomeBase biomes[]) {
         int i, j, k, l, m, n, p;
+        int activeBiomeCount = 0;
+        Arrays.fill(activeBiomeFlags, false);
 
         for (i = -sampleSize; i < sampleSize + 5; i++) {
             for (j = -sampleSize; j < sampleSize + 5; j++) {
-                biomeData[(i + sampleSize) * sampleArraySize + (j + sampleSize)] = cmr
-                        .getBiomeDataAt(x + ((i * 8) - 8), y + ((j * 8) - 8)).biomeID;
+                int biomeID = cmr.getBiomeDataAt(x + ((i * 8) - 8), y + ((j * 8) - 8)).biomeID;
+                biomeData[(i + sampleSize) * sampleArraySize + (j + sampleSize)] = biomeID;
+                activeBiomeFlags[biomeID] = true;
             }
+        }
+        // Preserve the old ascending biome-ID traversal order for deterministic selection and float accumulation.
+        for (i = 0; i < activeBiomeFlags.length; i++) {
+            if (activeBiomeFlags[i]) activeBiomeIds[activeBiomeCount++] = i;
         }
 
         for (i = -1; i < 4; i++) {
             for (j = -1; j < 4; j++) {
-                Arrays.fill(hugeRender[(i * 2 + 2) * 9 + (j * 2 + 2)], 0f);
+                float[] weights = hugeRender[(i * 2 + 2) * 9 + (j * 2 + 2)];
+                clearActiveBiomes(weights, activeBiomeIds, activeBiomeCount);
                 for (k = -parabolicSize; k <= parabolicSize; k++) {
                     for (l = -parabolicSize; l <= parabolicSize; l++) {
-                        hugeRender[(i * 2 + 2) * 9 + (j * 2 + 2)][biomeData[(i + k + sampleSize + 1) * sampleArraySize
+                        weights[biomeData[(i + k + sampleSize + 1) * sampleArraySize
                                 + (j + l + sampleSize + 1)]] += parabolicField[k + parabolicSize
                                         + (l + parabolicSize) * parabolicArraySize];
                     }
@@ -284,9 +298,10 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
 
         // MAIN BIOME CHECK
         RealisticBiomeBase b = null;
-        for (i = 0; i < 256; i++) {
-            if (hugeRender[4 * 9 + 4][i] > 0.95f) {
-                b = RealisticBiomeBase.getBiome(i);
+        for (i = 0; i < activeBiomeCount; i++) {
+            int biomeID = activeBiomeIds[i];
+            if (hugeRender[4 * 9 + 4][biomeID] > 0.95f) {
+                b = RealisticBiomeBase.getBiome(biomeID);
             }
         }
 
@@ -297,7 +312,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                 mix4Src[1] = hugeRender[(i * 2 + 2) * 9 + (j * 2)];
                 mix4Src[2] = hugeRender[(i * 2) * 9 + (j * 2 + 2)];
                 mix4Src[3] = hugeRender[(i * 2 + 2) * 9 + (j * 2 + 2)];
-                mix4(mix4Src, hugeRender[(i * 2 + 1) * 9 + (j * 2 + 1)]);
+                mix4(mix4Src, hugeRender[(i * 2 + 1) * 9 + (j * 2 + 1)], activeBiomeIds, activeBiomeCount);
             }
         }
 
@@ -309,9 +324,13 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                     mix4Src[1] = hugeRender[(i + 1) * 9 + (j)];
                     mix4Src[2] = hugeRender[(i + 1) * 9 + (j + 2)];
                     mix4Src[3] = hugeRender[(i + 2) * 9 + (j + 1)];
-                    mix4(mix4Src, smallRender[(i * 4) * 25 + (j * 4)]);
+                    mix4(mix4Src, smallRender[(i * 4) * 25 + (j * 4)], activeBiomeIds, activeBiomeCount);
                 } else {
-                    System.arraycopy(hugeRender[(i + 1) * 9 + (j + 1)], 0, smallRender[(i * 4) * 25 + (j * 4)], 0, 256);
+                    copyActiveBiomes(
+                            hugeRender[(i + 1) * 9 + (j + 1)],
+                            smallRender[(i * 4) * 25 + (j * 4)],
+                            activeBiomeIds,
+                            activeBiomeCount);
                 }
             }
         }
@@ -323,7 +342,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                 mix4Src[1] = smallRender[(i * 4 + 4) * 25 + (j * 4)];
                 mix4Src[2] = smallRender[(i * 4) * 25 + (j * 4 + 4)];
                 mix4Src[3] = smallRender[(i * 4 + 4) * 25 + (j * 4 + 4)];
-                mix4(mix4Src, smallRender[(i * 4 + 2) * 25 + (j * 4 + 2)]);
+                mix4(mix4Src, smallRender[(i * 4 + 2) * 25 + (j * 4 + 2)], activeBiomeIds, activeBiomeCount);
             }
         }
 
@@ -335,7 +354,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                     mix4Src[1] = smallRender[(i * 2 + 2) * 25 + (j * 2)];
                     mix4Src[2] = smallRender[(i * 2 + 2) * 25 + (j * 2 + 4)];
                     mix4Src[3] = smallRender[(i * 2 + 4) * 25 + (j * 2 + 2)];
-                    mix4(mix4Src, smallRender[(i * 2 + 2) * 25 + (j * 2 + 2)]);
+                    mix4(mix4Src, smallRender[(i * 2 + 2) * 25 + (j * 2 + 2)], activeBiomeIds, activeBiomeCount);
                 }
             }
         }
@@ -347,7 +366,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                 mix4Src[1] = smallRender[(i * 2 + 4) * 25 + (j * 2 + 2)];
                 mix4Src[2] = smallRender[(i * 2 + 2) * 25 + (j * 2 + 4)];
                 mix4Src[3] = smallRender[(i * 2 + 4) * 25 + (j * 2 + 4)];
-                mix4(mix4Src, smallRender[(i * 2 + 3) * 25 + (j * 2 + 3)]);
+                mix4(mix4Src, smallRender[(i * 2 + 3) * 25 + (j * 2 + 3)], activeBiomeIds, activeBiomeCount);
             }
         }
 
@@ -359,7 +378,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                     mix4Src[1] = smallRender[(i + 4) * 25 + (j + 3)];
                     mix4Src[2] = smallRender[(i + 4) * 25 + (j + 5)];
                     mix4Src[3] = smallRender[(i + 5) * 25 + (j + 4)];
-                    mix4(mix4Src, smallRender[(i + 4) * 25 + (j + 4)]);
+                    mix4(mix4Src, smallRender[(i + 4) * 25 + (j + 4)], activeBiomeIds, activeBiomeCount);
                 }
             }
         }
@@ -374,19 +393,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
             }
         }
 
-        float abyss00 = 0f, abyss10 = 0f, abyss01 = 0f, abyss11 = 0f;
-        if (continental) {
-            float corner = cmr.getContinentValue(x, y);
-            abyss00 = cmr.getAbyssalBasinStrength(x, y, corner);
-            corner = cmr.getContinentValue(x + 16, y);
-            abyss10 = cmr.getAbyssalBasinStrength(x + 16, y, corner);
-            corner = cmr.getContinentValue(x, y + 16);
-            abyss01 = cmr.getAbyssalBasinStrength(x, y + 16, corner);
-            corner = cmr.getContinentValue(x + 16, y + 16);
-            abyss11 = cmr.getAbyssalBasinStrength(x + 16, y + 16, corner);
-        }
-
-        float continent, river, ocean, abyssalBasin;
+        float continent, river, ocean;
         for (i = 0; i < 16; i++) {
             for (j = 0; j < 16; j++) {
                 if (randBiome) {
@@ -399,20 +406,16 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                     continent = cmr.getContinentValue(x + i, y + j);
                     continentValues[i * 16 + j] = continent;
                     ocean = cmr.getTerrainOceanValue(continent);
-                    float top = abyss00 + (abyss10 - abyss00) * i / 16f;
-                    float bottom = abyss01 + (abyss11 - abyss01) * i / 16f;
-                    abyssalBasin = top + (bottom - top) * j / 16f;
                 } else {
                     continent = Float.POSITIVE_INFINITY;
                     continentValues[i * 16 + j] = Float.POSITIVE_INFINITY;
                     ocean = cmr.getTerrainOceanValue(x + i, y + j);
-                    abyssalBasin = 0f;
                 }
                 l = ((int) (i + 4) * 25 + (j + 4));
 
                 testHeight[i * 16 + j] = 0f;
 
-                river = cmr.getRiverStrength(x + i, y + j);
+                river = cmr.getRiverStrength(x + i, y + j, riverSample);
                 riverStrength[i * 16 + j] = river;
 
                 if (l == 312) {
@@ -420,7 +423,8 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                     mapGenBiomes[257] = river;
                 }
 
-                for (k = 0; k < 256; k++) {
+                for (int activeBiomeIndex = 0; activeBiomeIndex < activeBiomeCount; activeBiomeIndex++) {
+                    k = activeBiomeIds[activeBiomeIndex];
                     if (smallRender[l][k] > 0f) {
                         if (randBiome && bCount <= 1f) // 3f)
                         {
@@ -438,14 +442,19 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                         RealisticBiomeBase noiseBiome = RealisticBiomeBase.getBiome(k);
                         float biomeHeight;
                         if (noiseBiome instanceof RealisticBiomeIslandVolcano) {
-                            long coordinates = cmr.getVolcanoCoordinates(x + i, y + j);
+                            // Biome smoothing carries some volcano weight beyond its physical 95-block footprint.
+                            // Keep local volcano coordinates throughout that transition ring so the cone blends back
+                            // into the actual island terrain instead of the volcano's fixed-height fallback.
+                            long coordinates = cmr.getVolcanoVicinityCoordinates(x + i, y + j);
                             biomeHeight = coordinates == Long.MIN_VALUE
                                     ? noiseBiome
                                             .rNoise(perlin, cell, x + i, y + j, ocean, smallRender[l][k], river + 1f)
                                     : ((RealisticBiomeIslandVolcano) noiseBiome).rNoiseAt(
                                             perlin,
                                             ContinentalNoise.unpackVolcanoX(coordinates),
-                                            ContinentalNoise.unpackVolcanoY(coordinates));
+                                            ContinentalNoise.unpackVolcanoY(coordinates),
+                                            cmr.getVolcanoBaseHeight(x + i, y + j),
+                                            cmr.getVolcanoUnderlyingHeight(x + i, y + j));
                         } else {
                             biomeHeight = noiseBiome.rNoise(
                                     perlin,
@@ -455,10 +464,9 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                                     ocean,
                                     smallRender[l][k],
                                     river + 1f,
-                                    continent,
-                                    abyssalBasin);
+                                    continent);
                         }
-                        testHeight[i * 16 + j] += cmr.calculateRiver(x + i, y + j, river, biomeHeight)
+                        testHeight[i * 16 + j] += cmr.calculateRiver(x + i, y + j, river, biomeHeight, riverSample)
                                 * smallRender[l][k];
                     }
                 }
@@ -468,15 +476,25 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
         return testHeight;
     }
 
-    public void mix4(float[][] ingredients, float[] result) {
-        Arrays.fill(result, 0f);
-        int i, j;
-        for (i = 0; i < 256; i++) {
-            for (j = 0; j < 4; j++) {
-                if (ingredients[j][i] > 0f) {
-                    result[i] += ingredients[j][i] / 4f;
-                }
-            }
+    private static void clearActiveBiomes(float[] weights, int[] activeBiomeIds, int activeBiomeCount) {
+        for (int i = 0; i < activeBiomeCount; i++) weights[activeBiomeIds[i]] = 0f;
+    }
+
+    private static void copyActiveBiomes(float[] source, float[] result, int[] activeBiomeIds, int activeBiomeCount) {
+        for (int i = 0; i < activeBiomeCount; i++) {
+            int biomeID = activeBiomeIds[i];
+            result[biomeID] = source[biomeID];
+        }
+    }
+
+    private static void mix4(float[][] ingredients, float[] result, int[] activeBiomeIds, int activeBiomeCount) {
+        float[] first = ingredients[0];
+        float[] second = ingredients[1];
+        float[] third = ingredients[2];
+        float[] fourth = ingredients[3];
+        for (int i = 0; i < activeBiomeCount; i++) {
+            int biomeID = activeBiomeIds[i];
+            result[biomeID] = (first[biomeID] + second[biomeID] + third[biomeID] + fourth[biomeID]) * 0.25f;
         }
     }
 
@@ -512,25 +530,57 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                 if (biome instanceof RealisticBiomeIslandVolcano) {
                     long coordinates = cmr.getVolcanoCoordinates(blockX, blockY);
                     if (coordinates != Long.MIN_VALUE) {
-                        ((RealisticBiomeIslandVolcano) biome).rReplaceAt(
-                                blocks,
-                                metadata,
-                                blockX,
-                                blockY,
-                                i,
-                                j,
-                                depth,
-                                worldObj,
-                                rand,
-                                perlin,
-                                cell,
-                                n,
-                                river,
-                                base,
-                                ContinentalNoise.unpackVolcanoX(coordinates),
-                                ContinentalNoise.unpackVolcanoY(coordinates));
+                        RealisticBiomeBase underlyingBiome = cmr.getVolcanoUnderlyingBiome(blockX, blockY);
+                        float underlyingHeight = cmr.getVolcanoUnderlyingHeight(blockX, blockY);
+                        float localX = ContinentalNoise.unpackVolcanoX(coordinates);
+                        float localZ = ContinentalNoise.unpackVolcanoY(coordinates);
+                        float baseHeight = cmr.getVolcanoBaseHeight(blockX, blockY);
+                        float volcanoHeight = ((RealisticBiomeIslandVolcano) biome)
+                                .rNoiseAt(perlin, localX, localZ, baseHeight, underlyingHeight);
+                        if (volcanoHeight > underlyingHeight || underlyingBiome == null) {
+                            ((RealisticBiomeIslandVolcano) biome).rReplaceAt(
+                                    blocks,
+                                    metadata,
+                                    blockX,
+                                    blockY,
+                                    i,
+                                    j,
+                                    depth,
+                                    worldObj,
+                                    rand,
+                                    perlin,
+                                    cell,
+                                    n,
+                                    river,
+                                    base,
+                                    localX,
+                                    localZ,
+                                    baseHeight,
+                                    underlyingHeight);
+                        } else {
+                            base[i * 16 + j] = underlyingBiome.baseBiome;
+                            underlyingBiome.rReplace(
+                                    blocks,
+                                    metadata,
+                                    blockX,
+                                    blockY,
+                                    i,
+                                    j,
+                                    depth,
+                                    worldObj,
+                                    rand,
+                                    perlin,
+                                    cell,
+                                    n,
+                                    river,
+                                    base);
+                        }
                     } else {
-                        biome.rReplace(
+                        RealisticBiomeBase actualBiome = cmr.getBiomeDataAt(blockX, blockY);
+                        if (actualBiome == biome) actualBiome = cmr.getVolcanoUnderlyingBiome(blockX, blockY);
+                        if (actualBiome == null) actualBiome = biome;
+                        base[i * 16 + j] = actualBiome.baseBiome;
+                        actualBiome.rReplace(
                                 blocks,
                                 metadata,
                                 blockX,
@@ -838,26 +888,32 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
 
             for (int sn1 = 0; sn1 < 16; ++sn1) {
                 for (int sn2 = 0; sn2 < 16; ++sn2) {
+                    int snowX = sn1 + x;
+                    int snowZ = sn2 + y;
+                    // The blended chunk score may be cold because of a nearby snowy biome. Never let that score paint
+                    // the offset 16x16 population area across an actually warm biome such as a jungle.
+                    if (worldObj.getBiomeGenForCoords(snowX, snowZ).temperature >= 0.15f) continue;
+
                     if (snow < -0.59f) {
                         s = -1f;
                     } else {
-                        s = perlin.noise2((sn1 + x) / 3f, (sn2 + y) / 3f) + snow;
+                        s = perlin.noise2(snowX / 3f, snowZ / 3f) + snow;
                     }
 
                     if (s < 0f) {
-                        int sn3 = worldObj.getPrecipitationHeight(x + sn1, y + sn2);
-                        b1 = worldObj.getBlock(sn1 + x, sn3, sn2 + y);
-                        b2 = worldObj.getBlock(sn1 + x, sn3 - 1, sn2 + y);
+                        int sn3 = worldObj.getPrecipitationHeight(snowX, snowZ);
+                        b1 = worldObj.getBlock(snowX, sn3, snowZ);
+                        b2 = worldObj.getBlock(snowX, sn3 - 1, snowZ);
 
                         if (b2 == Blocks.water || b2 == Blocks.flowing_water) {
-                            worldObj.setBlock(sn1 + x, sn3 - 1, sn2 + y, Blocks.ice, 0, 2);
+                            worldObj.setBlock(snowX, sn3 - 1, snowZ, Blocks.ice, 0, 2);
                         }
 
-                        if (Blocks.snow_layer.canPlaceBlockAt(worldObj, sn1 + x, sn3, sn2 + y) && b2 != Blocks.ice
+                        if (Blocks.snow_layer.canPlaceBlockAt(worldObj, snowX, sn3, snowZ) && b2 != Blocks.ice
                                 && b2 != Blocks.water
                                 && sn3 > 62) {
                             if (b1 != Blocks.snow_layer && b2 != Blocks.packed_ice) {
-                                worldObj.setBlock(sn1 + x, sn3, sn2 + y, Blocks.snow_layer, 0, 2);
+                                worldObj.setBlock(snowX, sn3, snowZ, Blocks.snow_layer, 0, 2);
                             }
                         }
                     }

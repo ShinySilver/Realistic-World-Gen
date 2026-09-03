@@ -59,20 +59,8 @@ public class RealisticBiomeOcean extends RealisticBiomeBase {
 
     @Override
     public float rNoise(NoiseGenerator perlin, CellNoise cell, int x, int y, float ocean, float border, float river,
-            float continent, float abyssalBasin) {
-        float offshore = Math.max(0f, -continent);
-        float depth = 4f + smoothstep(0f, 300f, offshore) * 9f
-                + smoothstep(300f, 800f, offshore) * 14f
-                + smoothstep(800f, 1600f, offshore) * 8f;
-        float roughness = smoothstep(40f, 500f, offshore);
-        float floor = 63f - depth + perlin.noise2(x / 520f, y / 520f) * (1.5f + roughness * 2.5f)
-                + perlin.noise2(x / 115f, y / 115f) * (1f + roughness * 1.5f);
-        return Math.max(7f, floor - abyssalBasin * 18f);
-    }
-
-    private static float smoothstep(float edge0, float edge1, float value) {
-        float t = Math.max(0f, Math.min(1f, (value - edge0) / (edge1 - edge0)));
-        return t * t * (3f - 2f * t);
+            float continent) {
+        return rNoise(perlin, cell, x, y, ocean, border, river);
     }
 
     @Override

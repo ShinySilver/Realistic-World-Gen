@@ -37,10 +37,6 @@ public class CellNoise {
         this.distanceMethod = distanceMethod;
     }
 
-    private double distance(double xDist, double zDist) {
-        return Math.sqrt(xDist * xDist + zDist * zDist);
-    }
-
     private double getDistance2D(double xDist, double zDist) {
         switch (distanceMethod) {
             case 0:
@@ -127,6 +123,41 @@ public class CellNoise {
                 .valueNoise2D((int) (Math.floor(xCandidate)), (int) (Math.floor(zCandidate)), seed));
     }
 
+    /** Output: nearest distance/value followed by second-nearest distance/value. */
+    public void sampleTwo2D(double x, double z, double frequency, double[] output) {
+        x *= frequency;
+        z *= frequency;
+        int xInt = x > 0D ? (int) x : (int) x - 1;
+        int zInt = z > 0D ? (int) z : (int) z - 1;
+        double firstDistanceSquared = Double.POSITIVE_INFINITY;
+        double secondDistanceSquared = Double.POSITIVE_INFINITY;
+        double firstValue = 0D;
+        double secondValue = 0D;
+        for (int zCur = zInt - 2; zCur <= zInt + 2; zCur++) {
+            for (int xCur = xInt - 2; xCur <= xInt + 2; xCur++) {
+                double xPos = xCur + valueNoise2D(xCur, zCur, seed);
+                double zPos = zCur + valueNoise2D(xCur, zCur, seedOffset);
+                double xDistance = xPos - x;
+                double zDistance = zPos - z;
+                double distanceSquared = xDistance * xDistance + zDistance * zDistance;
+                double value = valueNoise2D((int) Math.floor(xPos), (int) Math.floor(zPos), seed);
+                if (distanceSquared < firstDistanceSquared) {
+                    secondDistanceSquared = firstDistanceSquared;
+                    secondValue = firstValue;
+                    firstDistanceSquared = distanceSquared;
+                    firstValue = value;
+                } else if (distanceSquared < secondDistanceSquared) {
+                    secondDistanceSquared = distanceSquared;
+                    secondValue = value;
+                }
+            }
+        }
+        output[0] = Math.sqrt(firstDistanceSquared);
+        output[1] = firstValue;
+        output[2] = Math.sqrt(secondDistanceSquared);
+        output[3] = secondValue;
+    }
+
     public float border2(double x, double z, double width, float depth) {
         x *= 1D;
         z *= 1D;
@@ -149,7 +180,7 @@ public class CellNoise {
                 zPos = zCur + valueNoise2D(xCur, zCur, seedOffset);
                 xDist = xPos - x;
                 zDist = zPos - z;
-                dist = distance(xPos - x, zPos - z);
+                dist = xDist * xDist + zDist * zDist;
 
                 if (dist < dCandidate) {
                     dNeighbour = dCandidate;
@@ -167,7 +198,11 @@ public class CellNoise {
             }
         }
 
-        double diff = distance(xCandidate - xNeighbour, zCandidate - zNeighbour);
+        dCandidate = Math.sqrt(dCandidate);
+        dNeighbour = Math.sqrt(dNeighbour);
+        double diff = Math.sqrt(
+                (xCandidate - xNeighbour) * (xCandidate - xNeighbour)
+                        + (zCandidate - zNeighbour) * (zCandidate - zNeighbour));
         double total = (dCandidate + dNeighbour) / diff;
 
         dCandidate = dCandidate / total;
@@ -188,13 +223,9 @@ public class CellNoise {
         int xInt = (x > .0 ? (int) x : (int) x - 1);
         int zInt = (z > .0 ? (int) z : (int) z - 1);
 
+        boolean squaredEuclidean = distanceMethod == 0;
         double dCandidate = 32000000.0;
-        double xCandidate = 0;
-        double zCandidate = 0;
-
         double dNeighbour = 32000000.0;
-        double xNeighbour = 0;
-        double zNeighbour = 0;
 
         for (int zCur = zInt - 2; zCur <= zInt + 2; zCur++) {
             for (int xCur = xInt - 2; xCur <= xInt + 2; xCur++) {
@@ -204,23 +235,22 @@ public class CellNoise {
                 double xDist = xPos - x;
                 double zDist = zPos - z;
                 // double dist = xDist * xDist + zDist * zDist;
-                double dist = getDistance2D(xPos - x, zPos - z);
+                double dist = squaredEuclidean ? xDist * xDist + zDist * zDist : getDistance2D(xDist, zDist);
 
                 if (dist < dCandidate) {
                     dNeighbour = dCandidate;
                     dCandidate = dist;
-
-                    /*
-                     * dNeighbour = dCandidate; xNeighbour = xCandidate; zNeighbour = zCandidate; dCandidate = dist;
-                     * xCandidate = xPos; zCandidate = zPos;
-                     */
                 } else if (dist < dNeighbour) {
                     dNeighbour = dist;
                 }
             }
         }
 
-        // double c = getDistance2D(xNeighbour - x, zNeighbour - z) - getDistance2D(xCandidate - x, zCandidate - z);
+        if (squaredEuclidean) {
+            dCandidate = Math.sqrt(dCandidate) / SQRT_2;
+            dNeighbour = Math.sqrt(dNeighbour) / SQRT_2;
+        }
+
         double c = dNeighbour - dCandidate;
         if (c < width) {
             return (((float) (c / width)) - 1f) * depth;

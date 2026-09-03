@@ -1,15 +1,21 @@
 package rwg.config;
 
+import java.io.File;
+import java.lang.reflect.Field;
+
 import net.minecraftforge.common.config.Configuration;
 
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import cpw.mods.fml.relauncher.FMLInjectionData;
 
 public class ConfigRWG {
 
     private static final String CONTINENTAL_CATEGORY = "Continental RWG";
+    private static final int[] DEFAULT_BIOME_IDS = { 200, 202, 205, 207, 209, 211, 213, 214, 216, 218, 237, 223, 224,
+            225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 240 };
 
     public static Configuration config;
-    public static int[] biomeIDs = new int[25];
+    public static int[] biomeIDs = new int[26];
 
     public static boolean generateEmeralds = true;
     public static boolean enableCobblestoneBoulders = true;
@@ -19,48 +25,64 @@ public class ConfigRWG {
     public static boolean generateUndergroundLakes = true;
     public static boolean generateUndergroundLavaLakes = true;
     public static boolean generateLargeThaumcraftBiomes = false;
-    public static float minimumContinentWidth = 400f;
-    public static float maximumContinentWidth = 600f;
+    public static float minimumContinentWidth = 2700f;
+    public static float maximumContinentWidth = 2700f;
     public static float averageOceanWidth = 100f;
     public static float minimumOceanWidth = 50f;
-    public static float minimumIslandWidth = 150f;
-    public static float maximumIslandWidth = 300f;
-    public static float islandPlacementChance = 0.75f;
+    public static float minimumIslandWidth = 300f;
+    public static float maximumIslandWidth = 600f;
+    public static float islandPlacementChance = 0.30f;
+    public static float largeIslandVolcanoChance = 0.15f;
+    public static float averageContinentVolcanoCount = 0.25f;
+    public static int landmassOffsetX = 0;
+    public static int landmassOffsetZ = 0;
+    public static int biomeOffsetX = 0;
+    public static int biomeOffsetZ = 0;
 
     public static void init(FMLPreInitializationEvent event) {
-        config = new Configuration(event.getSuggestedConfigurationFile());
+        init(event.getSuggestedConfigurationFile());
+    }
+
+    public static void init(File file) {
+        ensureForgeConfigEnvironment(file);
+        config = new Configuration(file);
         for (int c = 0; c < biomeIDs.length; c++) {
-            biomeIDs[c] = 200 + c;
+            biomeIDs[c] = DEFAULT_BIOME_IDS[c];
         }
 
         try {
             config.load();
             renameOldProperties();
-            biomeIDs[0] = config.get("biome ids", "00 Ice River", 200, "Ice River").getInt();
-            biomeIDs[1] = config.get("biome ids", "01 Cold River", 201, "Cold River").getInt();
-            biomeIDs[2] = config.get("biome ids", "02 Temperate River", 202, "Temperate River").getInt();
-            biomeIDs[3] = config.get("biome ids", "03 Hot River", 203, "Hot River").getInt();
-            biomeIDs[4] = config.get("biome ids", "04 Wet River", 204, "Wet River").getInt();
-            biomeIDs[5] = config.get("biome ids", "05 River Oasis", 205, "River Oasis").getInt();
-            biomeIDs[6] = config.get("biome ids", "06 Ice Ocean", 206, "Ice Ocean").getInt();
-            biomeIDs[7] = config.get("biome ids", "07 Cold Ocean", 207, "Cold Ocean").getInt();
-            biomeIDs[8] = config.get("biome ids", "08 Temperate Ocean", 208, "Temperate Ocean").getInt();
-            biomeIDs[9] = config.get("biome ids", "09 Hot Ocean", 209, "Hot Ocean").getInt();
-            biomeIDs[10] = config.get("biome ids", "10 Wet Ocean", 210, "Wet Ocean").getInt();
-            biomeIDs[11] = config.get("biome ids", "11 Ocean Oasis", 211, "Ocean Oasis").getInt();
-            biomeIDs[12] = config.get("biome ids", "12 Snow Desert", 212, "Snow Desert").getInt();
-            biomeIDs[13] = config.get("biome ids", "13 Snow Forest", 213, "Snow Forest").getInt();
-            biomeIDs[14] = config.get("biome ids", "14 Cold Plains", 214, "Cold Plains").getInt();
-            biomeIDs[15] = config.get("biome ids", "15 Cold Forest", 215, "Cold Forest").getInt();
-            biomeIDs[16] = config.get("biome ids", "16 Hot Plains", 216, "Hot Plains").getInt();
-            biomeIDs[17] = config.get("biome ids", "17 Hot Forest", 217, "Hot Forest").getInt();
-            biomeIDs[18] = config.get("biome ids", "18 Hot Desert", 218, "Hot Desert").getInt();
-            biomeIDs[19] = config.get("biome ids", "19 Plains (RWG)", 219, "Plains").getInt();
-            biomeIDs[20] = config.get("biome ids", "20 Tropical Island", 220, "Tropical Island").getInt();
-            biomeIDs[21] = config.get("biome ids", "21 Redwood", 221, "Redwood").getInt();
-            biomeIDs[22] = config.get("biome ids", "22 Jungle (RWG)", 222, "Jungle").getInt();
-            biomeIDs[23] = config.get("biome ids", "23 Oasis", 223, "Oasis").getInt();
-            biomeIDs[24] = config.get("biome ids", "24 Temperate Forest", 224, "Temperate Forest").getInt();
+            biomeIDs[0] = config.get("biome ids", "00 Ice River", DEFAULT_BIOME_IDS[0], "Ice River").getInt();
+            biomeIDs[1] = config.get("biome ids", "01 Cold River", DEFAULT_BIOME_IDS[1], "Cold River").getInt();
+            biomeIDs[2] = config.get("biome ids", "02 Temperate River", DEFAULT_BIOME_IDS[2], "Temperate River")
+                    .getInt();
+            biomeIDs[3] = config.get("biome ids", "03 Hot River", DEFAULT_BIOME_IDS[3], "Hot River").getInt();
+            biomeIDs[4] = config.get("biome ids", "04 Wet River", DEFAULT_BIOME_IDS[4], "Wet River").getInt();
+            biomeIDs[5] = config.get("biome ids", "05 River Oasis", DEFAULT_BIOME_IDS[5], "River Oasis").getInt();
+            biomeIDs[6] = config.get("biome ids", "06 Ice Ocean", DEFAULT_BIOME_IDS[6], "Ice Ocean").getInt();
+            biomeIDs[7] = config.get("biome ids", "07 Cold Ocean", DEFAULT_BIOME_IDS[7], "Cold Ocean").getInt();
+            biomeIDs[8] = config.get("biome ids", "08 Temperate Ocean", DEFAULT_BIOME_IDS[8], "Temperate Ocean")
+                    .getInt();
+            biomeIDs[9] = config.get("biome ids", "09 Hot Ocean", DEFAULT_BIOME_IDS[9], "Hot Ocean").getInt();
+            biomeIDs[10] = config.get("biome ids", "10 Wet Ocean", DEFAULT_BIOME_IDS[10], "Wet Ocean").getInt();
+            biomeIDs[11] = config.get("biome ids", "11 Ocean Oasis", DEFAULT_BIOME_IDS[11], "Ocean Oasis").getInt();
+            biomeIDs[12] = config.get("biome ids", "12 Snow Desert", DEFAULT_BIOME_IDS[12], "Snow Desert").getInt();
+            biomeIDs[13] = config.get("biome ids", "13 Snow Forest", DEFAULT_BIOME_IDS[13], "Snow Forest").getInt();
+            biomeIDs[14] = config.get("biome ids", "14 Cold Plains", DEFAULT_BIOME_IDS[14], "Cold Plains").getInt();
+            biomeIDs[15] = config.get("biome ids", "15 Cold Forest", DEFAULT_BIOME_IDS[15], "Cold Forest").getInt();
+            biomeIDs[16] = config.get("biome ids", "16 Hot Plains", DEFAULT_BIOME_IDS[16], "Hot Plains").getInt();
+            biomeIDs[17] = config.get("biome ids", "17 Hot Forest", DEFAULT_BIOME_IDS[17], "Hot Forest").getInt();
+            biomeIDs[18] = config.get("biome ids", "18 Hot Desert", DEFAULT_BIOME_IDS[18], "Hot Desert").getInt();
+            biomeIDs[19] = config.get("biome ids", "19 Plains (RWG)", DEFAULT_BIOME_IDS[19], "Plains").getInt();
+            biomeIDs[20] = config.get("biome ids", "20 Tropical Island", DEFAULT_BIOME_IDS[20], "Tropical Island")
+                    .getInt();
+            biomeIDs[21] = config.get("biome ids", "21 Redwood", DEFAULT_BIOME_IDS[21], "Redwood").getInt();
+            biomeIDs[22] = config.get("biome ids", "22 Jungle (RWG)", DEFAULT_BIOME_IDS[22], "Jungle").getInt();
+            biomeIDs[23] = config.get("biome ids", "23 Oasis", DEFAULT_BIOME_IDS[23], "Oasis").getInt();
+            biomeIDs[24] = config.get("biome ids", "24 Temperate Forest", DEFAULT_BIOME_IDS[24], "Temperate Forest")
+                    .getInt();
+            biomeIDs[25] = config.get("biome ids", "25 Jungle Mesa", DEFAULT_BIOME_IDS[25], "Jungle Mesa").getInt();
 
             generateEmeralds = config.getBoolean("Generate Emeralds", "Settings", true, "");
             enableCobblestoneBoulders = config.getBoolean("Enable Cobblestone Boulders", "Settings", true, "");
@@ -76,14 +98,14 @@ public class ConfigRWG {
             minimumContinentWidth = config.getFloat(
                     "Minimum Continent Width",
                     CONTINENTAL_CATEGORY,
-                    400f,
+                    2700f,
                     1f,
                     100000f,
                     "Minimum distance in blocks from a Voronoi centre to its coast. " + worldgenWarning);
             maximumContinentWidth = config.getFloat(
                     "Maximum Continent Width",
                     CONTINENTAL_CATEGORY,
-                    600f,
+                    2700f,
                     1f,
                     100000f,
                     "Maximum distance in blocks from a Voronoi centre to its coast. " + worldgenWarning);
@@ -105,32 +127,106 @@ public class ConfigRWG {
             minimumIslandWidth = config.getFloat(
                     "Minimum Island Width",
                     CONTINENTAL_CATEGORY,
-                    150f,
+                    300f,
                     1f,
                     100000f,
                     "Minimum distance in blocks from an island seed to its coast. " + worldgenWarning);
             maximumIslandWidth = config.getFloat(
                     "Maximum Island Width",
                     CONTINENTAL_CATEGORY,
-                    300f,
+                    600f,
                     1f,
                     100000f,
                     "Maximum distance in blocks from an island seed to its coast. " + worldgenWarning);
             islandPlacementChance = config.getFloat(
                     "Island Placement Chance",
                     CONTINENTAL_CATEGORY,
-                    0.75f,
+                    0.30f,
                     0f,
                     1f,
                     "Chance to retain an island after valid island seeds have been identified. " + worldgenWarning);
+            largeIslandVolcanoChance = config.getFloat(
+                    "Large Island Volcano Chance",
+                    CONTINENTAL_CATEGORY,
+                    0.15f,
+                    0f,
+                    1f,
+                    "Chance for a large island to contain a volcano. " + worldgenWarning);
+            averageContinentVolcanoCount = config.getFloat(
+                    "Average Volcano Count Per Continent",
+                    CONTINENTAL_CATEGORY,
+                    0.25f,
+                    0f,
+                    100f,
+                    "Approximate average number of volcanoes per continent. Candidate probability is corrected for "
+                            + "the configured continental land fraction. "
+                            + worldgenWarning);
+            String expertCategory = "Expert / Worldgen Migration";
+            config.setCategoryComment(
+                    expertCategory,
+                    "EXPERT ONLY! With the same seed, coordinates, and biome, RWG produces the same terrain shape. "
+                            + "New world-generation versions can move continents and biomes, so these offsets let you "
+                            + "place an existing base inside the appropriate biome and on land again. After aligning the "
+                            + "new map with runPreview, Server Utilities can restore claimed chunks from backup into the "
+                            + "surrounding terrain more seamlessly. Finalize these values before generating new chunks.");
+            String offsetWarning = "Expert migration setting. Change only before generating new chunks. Positive values "
+                    + "sample the generator at larger coordinates, moving the corresponding map features toward negative "
+                    + "coordinates.";
+            landmassOffsetX = config.getInt(
+                    "Landmass Placement Offset X",
+                    expertCategory,
+                    0,
+                    -30000000,
+                    30000000,
+                    "Offsets continent and island placement without moving biome terrain noise. " + offsetWarning);
+            landmassOffsetZ = config.getInt(
+                    "Landmass Placement Offset Z",
+                    expertCategory,
+                    0,
+                    -30000000,
+                    30000000,
+                    "Offsets continent and island placement without moving biome terrain noise. " + offsetWarning);
+            biomeOffsetX = config.getInt(
+                    "Biome Placement Offset X",
+                    expertCategory,
+                    0,
+                    -30000000,
+                    30000000,
+                    "Offsets climate and biome selection without moving the selected biome's terrain noise. "
+                            + offsetWarning);
+            biomeOffsetZ = config.getInt(
+                    "Biome Placement Offset Z",
+                    expertCategory,
+                    0,
+                    -30000000,
+                    30000000,
+                    "Offsets climate and biome selection without moving the selected biome's terrain noise. "
+                            + offsetWarning);
         } catch (Exception e) {
             for (int c = 0; c < biomeIDs.length; c++) {
-                biomeIDs[c] = 200 + c;
+                biomeIDs[c] = DEFAULT_BIOME_IDS[c];
             }
         } finally {
             if (config.hasChanged()) {
                 config.save();
             }
+        }
+    }
+
+    private static void ensureForgeConfigEnvironment(File configFile) {
+        if (FMLInjectionData.data()[6] != null) return;
+        File configDirectory = configFile.getAbsoluteFile().getParentFile();
+        File minecraftDirectory = configDirectory != null && "config".equals(configDirectory.getName())
+                ? configDirectory.getParentFile()
+                : new File(System.getProperty("user.dir"));
+        try {
+            Field minecraftHome = FMLInjectionData.class.getDeclaredField("minecraftHome");
+            minecraftHome.setAccessible(true);
+            minecraftHome.set(null, minecraftDirectory);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException(
+                    "Could not initialize Forge configuration for the offline preview",
+                    exception);
         }
     }
 
@@ -142,6 +238,8 @@ public class ConfigRWG {
         config.moveProperty("Continental World", "Minimum Island Width", CONTINENTAL_CATEGORY);
         config.moveProperty("Continental World", "Maximum Island Width", CONTINENTAL_CATEGORY);
         config.moveProperty("Continental World", "Island Placement Chance", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Large Island Volcano Chance", CONTINENTAL_CATEGORY);
+        config.moveProperty("Continental World", "Average Volcano Count Per Continent", CONTINENTAL_CATEGORY);
         config.moveProperty("Continental World", "Large Ocean Chance", CONTINENTAL_CATEGORY);
         config.getCategory(CONTINENTAL_CATEGORY).remove("Large Ocean Chance");
         config.renameProperty("biome ids", "00 rwg_riverIce", "00 Ice River");

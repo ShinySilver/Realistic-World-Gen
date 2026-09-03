@@ -9,15 +9,23 @@ import rwg.config.ConfigRWG;
  */
 public class ContinentalNoise {
 
-    /** Retained for callers which describe volcano exclusion zones. Islands are currently disabled. */
-    public static final double VOLCANO_ISLAND_RADIUS = 110D;
-    public static final double VOLCANO_RADIUS = 95D;
+    /** Outer radius used for volcano blending and exclusion zones. */
+    public static final double VOLCANO_ISLAND_RADIUS = 135D;
+    public static final double VOLCANO_RADIUS = 110D;
+    private static final int POISSON_ROUNDS = 8;
+    private static final double WARP_SCALE = 3600D;
+    private static final double WARP_STRENGTH = 1800D;
+    private static final long CONTINENT_VOLCANO_SEED_SALT = 0x082EFA98EC4E6C89L;
 
     private final long seed;
     private final PoissonPointNoise points;
     private final IslandPointNoise islands;
+    private final ContinentVolcanoNoise continentVolcanoes;
     private final double minimumContinentWidth;
     private final double continentWidthRange;
+    private final double maximumIslandWidth;
+    private final double minimumIslandWidth;
+    private final double islandWidthRange;
     private final double voronoiRadius;
     private final NoiseGenerator warpX;
     private final NoiseGenerator warpY;
@@ -25,13 +33,6 @@ public class ContinentalNoise {
     private final double warpStrength;
     private final double offsetX;
     private final double offsetY;
-    private final ThreadLocal<double[]> oceanSamples = new ThreadLocal<double[]>() {
-
-        @Override
-        protected double[] initialValue() {
-            return new double[12];
-        }
-    };
     private final ThreadLocal<double[]> samples = new ThreadLocal<double[]>() {
 
         @Override
@@ -39,20 +40,51 @@ public class ContinentalNoise {
             return new double[5];
         }
     };
+    private final ThreadLocal<LandformSample> landformSamples = new ThreadLocal<LandformSample>() {
+
+        @Override
+        protected LandformSample initialValue() {
+            return new LandformSample();
+        }
+    };
+    private final ThreadLocal<double[]> islandCenterSamples = new ThreadLocal<double[]>() {
+
+        @Override
+        protected double[] initialValue() {
+            return new double[] { Double.NaN, Double.NaN, 0D, 0D };
+        }
+    };
+    private final ThreadLocal<double[]> continentVolcanoSamples = new ThreadLocal<double[]>() {
+
+        @Override
+        protected double[] initialValue() {
+            return new double[6];
+        }
+    };
+    private final ThreadLocal<double[]> volcanoCenterSamples = new ThreadLocal<double[]>() {
+
+        @Override
+        protected double[] initialValue() {
+            return new double[] { Double.NaN, Double.NaN, 0D, 0D };
+        }
+    };
 
     public ContinentalNoise(long seed) {
         this.seed = seed;
         minimumContinentWidth = Math.min(ConfigRWG.minimumContinentWidth, ConfigRWG.maximumContinentWidth);
         double maximumContinentWidth = Math.max(ConfigRWG.minimumContinentWidth, ConfigRWG.maximumContinentWidth);
+        minimumIslandWidth = Math.min(ConfigRWG.minimumIslandWidth, ConfigRWG.maximumIslandWidth);
+        maximumIslandWidth = Math.max(ConfigRWG.minimumIslandWidth, ConfigRWG.maximumIslandWidth);
+        islandWidthRange = maximumIslandWidth - minimumIslandWidth;
         continentWidthRange = maximumContinentWidth - minimumContinentWidth;
         double averageContinentWidth = (minimumContinentWidth + maximumContinentWidth) * 0.5D;
         voronoiRadius = averageContinentWidth + ConfigRWG.averageOceanWidth;
-        warpScale = averageContinentWidth * 2D;
-        warpStrength = averageContinentWidth;
+        warpScale = WARP_SCALE;
+        warpStrength = WARP_STRENGTH;
         warpX = new PerlinNoise(seed ^ 0x243F6A8885A308D3L);
         warpY = new PerlinNoise(seed ^ 0x13198A2E03707344L);
         // Prevent the largest two continents from overlapping; later rounds fill the remaining holes.
-        points = new PoissonPointNoise(seed, maximumContinentWidth * 2D + ConfigRWG.minimumOceanWidth, 6);
+        points = new PoissonPointNoise(seed, maximumContinentWidth * 2D + ConfigRWG.minimumOceanWidth, POISSON_ROUNDS);
         islands = new IslandPointNoise(
                 seed ^ 0xA4093822299F31D0L,
                 points,
@@ -61,6 +93,15 @@ public class ContinentalNoise {
                 ConfigRWG.maximumIslandWidth,
                 ConfigRWG.minimumOceanWidth,
                 ConfigRWG.islandPlacementChance);
+        continentVolcanoes = new ContinentVolcanoNoise(
+                seed,
+                seed ^ CONTINENT_VOLCANO_SEED_SALT,
+                points,
+                minimumContinentWidth,
+                maximumContinentWidth,
+                voronoiRadius,
+                ConfigRWG.averageContinentVolcanoCount,
+                VOLCANO_ISLAND_RADIUS);
 
         double[] origin = new double[5];
         points.sample(0D, 0D, origin);
@@ -70,6 +111,65 @@ public class ContinentalNoise {
 
     /** Returns distance from the shore in blocks: positive on land and negative at sea. */
     public float getValue(int x, int y) {
+        return sampleLandform(x, y).value;
+    }
+
+    /** True when this land coordinate belongs to the smaller island field rather than a continent. */
+    public boolean isIsland(int x, int y) {
+        return sampleLandform(x, y).island;
+    }
+
+    /** Returns 0/1/2 for a small/medium/large island, or -1 when the coordinate is not on an island. */
+    public int getIslandSizeTier(int x, int y) {
+        LandformSample sample = sampleLandform(x, y);
+        if (!sample.island) return -1;
+        double fraction = islandWidthRange == 0D ? 0D : (sample.islandWidth - minimumIslandWidth) / islandWidthRange;
+        return fraction < 1D / 3D ? 0 : fraction < 2D / 3D ? 1 : 2;
+    }
+
+    /** Returns the winning island seed coordinates, packed as two signed integers. */
+    public long getIslandSeedCoordinates(int x, int y) {
+        LandformSample sample = sampleLandform(x, y);
+        if (!sample.island) return Long.MIN_VALUE;
+        return (long) sample.islandSeedX << 32 | sample.islandSeedZ & 0xffffffffL;
+    }
+
+    /** Returns the approximate physical centre of the winning island after inverting the coastline warp. */
+    public long getIslandCenterCoordinates(int x, int y) {
+        LandformSample sample = sampleLandform(x, y);
+        if (!sample.island) return Long.MIN_VALUE;
+        double[] center = getIslandCenter(sample.islandSeedX, sample.islandSeedZ);
+        return (long) Math.round(center[2]) << 32 | Math.round(center[3]) & 0xffffffffL;
+    }
+
+    private double[] getIslandCenter(int seedX, int seedZ) {
+        double[] center = islandCenterSamples.get();
+        if (center[0] == seedX && center[1] == seedZ) return center;
+        double centerX = seedX - offsetX;
+        double centerZ = seedZ - offsetY;
+        for (int iteration = 0; iteration < 12; iteration++) {
+            double noiseX = centerX / warpScale;
+            double noiseZ = centerZ / warpScale;
+            double warpedX = centerX + warpX.noise2((float) noiseX, (float) noiseZ) * warpStrength
+                    + warpX.noise2((float) (noiseX * 2D), (float) (noiseZ * 2D)) * warpStrength
+                    + offsetX;
+            double warpedZ = centerZ + warpY.noise2((float) noiseX, (float) noiseZ) * warpStrength
+                    + warpY.noise2((float) (noiseX * 2D), (float) (noiseZ * 2D)) * warpStrength
+                    + offsetY;
+            centerX -= (warpedX - seedX) * .5D;
+            centerZ -= (warpedZ - seedZ) * .5D;
+        }
+        center[0] = seedX;
+        center[1] = seedZ;
+        center[2] = centerX;
+        center[3] = centerZ;
+        return center;
+    }
+
+    private LandformSample sampleLandform(int x, int y) {
+        LandformSample result = landformSamples.get();
+        if (result.valid && result.x == x && result.y == y) return result;
+
         double[] sample = samples.get();
         double noiseX = x / warpScale;
         double noiseY = y / warpScale;
@@ -78,29 +178,69 @@ public class ContinentalNoise {
         double warpedY = y + warpY.noise2((float) noiseX, (float) noiseY) * warpStrength
                 + warpY.noise2((float) (noiseX * 2D), (float) (noiseY * 2D)) * warpStrength;
         points.sample(warpedX + offsetX, warpedY + offsetY, sample);
-        int cellX = (int) sample[1];
-        int cellY = (int) sample[2];
+        double continent = continentField(sample[0], (int) sample[1], (int) sample[2]);
 
-        double width = minimumContinentWidth + random01(cellX, cellY, 0) * continentWidthRange;
-        width = Math.min(voronoiRadius, width);
-        double distanceFromCentre = sample[0];
-        double continent = width - distanceFromCentre;
-        return (float) Math.max(continent, islands.getValue(warpedX + offsetX, warpedY + offsetY));
-    }
+        result.x = x;
+        result.y = y;
+        result.valid = true;
+        result.island = false;
+        result.islandWidth = 0D;
+        result.islandSeedX = 0;
+        result.islandSeedZ = 0;
+        result.islandLocalX = 0f;
+        result.islandLocalZ = 0f;
+        result.volcano = false;
+        result.volcanoIsland = false;
+        result.volcanoKey = Long.MIN_VALUE;
+        result.volcanoCenterX = 0D;
+        result.volcanoCenterZ = 0D;
+        if (continent >= 0D && ConfigRWG.averageContinentVolcanoCount > 0f) {
+            double[] volcano = continentVolcanoSamples.get();
+            continentVolcanoes.sample(warpedX + offsetX, warpedY + offsetY, volcano);
+            if (Double.isFinite(volcano[0])) {
+                double[] center = getVolcanoCenter(volcano[1], volcano[2]);
+                double localX = x - center[2];
+                double localZ = y - center[3];
+                if (localX * localX + localZ * localZ <= VOLCANO_ISLAND_RADIUS * VOLCANO_ISLAND_RADIUS) {
+                    result.volcano = true;
+                    result.volcanoKey = ContinentVolcanoNoise.candidateKey(
+                            seed ^ CONTINENT_VOLCANO_SEED_SALT,
+                            (int) volcano[3],
+                            (int) volcano[4],
+                            (int) volcano[5]);
+                    result.volcanoCenterX = center[2];
+                    result.volcanoCenterZ = center[3];
+                    result.islandLocalX = (float) localX;
+                    result.islandLocalZ = (float) localZ;
+                }
+            }
+        }
+        if (continent >= maximumIslandWidth) {
+            result.value = (float) continent;
+            return result;
+        }
 
-    /** Strength of broad abyssal basins along the deep-ocean divide between two continents. */
-    public float getAbyssalBasinStrength(int x, int y, float continent) {
-        if (continent > -450f) return 0f;
-        double[] sample = oceanSamples.get();
-        warp(x, y, sample);
-        points.sampleTwo(sample[10] + offsetX, sample[11] + offsetY, sample);
-        if (Double.isInfinite(sample[5])) return 0f;
-        double first = continentField(sample[0], (int) sample[1], (int) sample[2]);
-        double second = continentField(sample[5], (int) sample[6], (int) sample[7]);
-        float divide = 1f - smoothstep(40f, 240f, (float) Math.abs(first - second));
-        float offshore = smoothstep(450f, 900f, -continent);
-        float selector = smoothstep(.05f, .45f, warpX.noise2(x / 1800f, y / 1800f));
-        return divide * offshore * selector;
+        islands.sample(warpedX + offsetX, warpedY + offsetY, sample);
+        double island = sample[0];
+        result.value = (float) Math.max(continent, island);
+        result.island = island >= 0D && island > continent;
+        if (result.island) {
+            result.islandWidth = sample[1];
+            result.islandSeedX = (int) Math.round(sample[2]);
+            result.islandSeedZ = (int) Math.round(sample[3]);
+            double[] center = getIslandCenter(result.islandSeedX, result.islandSeedZ);
+            result.islandLocalX = (float) (x - center[2]);
+            result.islandLocalZ = (float) (y - center[3]);
+            result.volcano = getIslandSizeTier(result.islandWidth) == 2
+                    && random01(result.islandSeedX, result.islandSeedZ, 17) < ConfigRWG.largeIslandVolcanoChance;
+            if (result.volcano) {
+                result.volcanoIsland = true;
+                result.volcanoKey = (long) result.islandSeedX << 32 | result.islandSeedZ & 0xffffffffL;
+                result.volcanoCenterX = center[2];
+                result.volcanoCenterZ = center[3];
+            }
+        }
+        return result;
     }
 
     private double continentField(double distance, int cellX, int cellY) {
@@ -108,28 +248,26 @@ public class ContinentalNoise {
         return Math.min(voronoiRadius, width) - distance;
     }
 
-    private void warp(int x, int y, double[] output) {
-        double noiseX = x / warpScale;
-        double noiseY = y / warpScale;
-        output[10] = x + warpX.noise2((float) noiseX, (float) noiseY) * warpStrength
-                + warpX.noise2((float) (noiseX * 2D), (float) (noiseY * 2D)) * warpStrength;
-        output[11] = y + warpY.noise2((float) noiseX, (float) noiseY) * warpStrength
-                + warpY.noise2((float) (noiseX * 2D), (float) (noiseY * 2D)) * warpStrength;
+    private int getIslandSizeTier(double width) {
+        double fraction = islandWidthRange == 0D ? 0D : (width - minimumIslandWidth) / islandWidthRange;
+        return fraction < 1D / 3D ? 0 : fraction < 2D / 3D ? 1 : 2;
     }
 
-    private static float smoothstep(float edge0, float edge1, float value) {
-        float t = Math.max(0f, Math.min(1f, (value - edge0) / (edge1 - edge0)));
-        return t * t * (3f - 2f * t);
-    }
-
-    /** Islands, including volcano islands, are disabled. */
     public long getVolcanoCoordinates(int x, int y) {
-        return Long.MIN_VALUE;
+        return getVolcanoCoordinates(x, y, VOLCANO_RADIUS);
     }
 
-    /** Islands, including volcano islands, are disabled. */
     public long getVolcanoVicinityCoordinates(int x, int y) {
-        return Long.MIN_VALUE;
+        return getVolcanoCoordinates(x, y, VOLCANO_ISLAND_RADIUS);
+    }
+
+    private long getVolcanoCoordinates(int x, int y, double radius) {
+        LandformSample sample = sampleLandform(x, y);
+        if (!sample.volcano || sample.islandLocalX * sample.islandLocalX + sample.islandLocalZ * sample.islandLocalZ
+                > radius * radius)
+            return Long.MIN_VALUE;
+        return (long) Float.floatToRawIntBits(sample.islandLocalX) << 32
+                | Float.floatToRawIntBits(sample.islandLocalZ) & 0xffffffffL;
     }
 
     public static float unpackVolcanoX(long coordinates) {
@@ -138,6 +276,45 @@ public class ContinentalNoise {
 
     public static float unpackVolcanoY(long coordinates) {
         return Float.intBitsToFloat((int) coordinates);
+    }
+
+    public long getVolcanoSeedKey(int x, int y) {
+        return sampleLandform(x, y).volcanoKey;
+    }
+
+    public boolean isIslandVolcano(int x, int y) {
+        LandformSample sample = sampleLandform(x, y);
+        return sample.volcano && sample.volcanoIsland;
+    }
+
+    public long getVolcanoCenterCoordinates(int x, int y) {
+        LandformSample sample = sampleLandform(x, y);
+        if (!sample.volcano) return Long.MIN_VALUE;
+        return (long) Math.round(sample.volcanoCenterX) << 32 | Math.round(sample.volcanoCenterZ) & 0xffffffffL;
+    }
+
+    private double[] getVolcanoCenter(double seedX, double seedZ) {
+        double[] center = volcanoCenterSamples.get();
+        if (center[0] == seedX && center[1] == seedZ) return center;
+        double centerX = seedX - offsetX;
+        double centerZ = seedZ - offsetY;
+        for (int iteration = 0; iteration < 12; iteration++) {
+            double noiseX = centerX / warpScale;
+            double noiseZ = centerZ / warpScale;
+            double warpedX = centerX + warpX.noise2((float) noiseX, (float) noiseZ) * warpStrength
+                    + warpX.noise2((float) (noiseX * 2D), (float) (noiseZ * 2D)) * warpStrength
+                    + offsetX;
+            double warpedZ = centerZ + warpY.noise2((float) noiseX, (float) noiseZ) * warpStrength
+                    + warpY.noise2((float) (noiseX * 2D), (float) (noiseZ * 2D)) * warpStrength
+                    + offsetY;
+            centerX -= (warpedX - seedX) * .5D;
+            centerZ -= (warpedZ - seedZ) * .5D;
+        }
+        center[0] = seedX;
+        center[1] = seedZ;
+        center[2] = centerX;
+        center[3] = centerZ;
+        return center;
     }
 
     private double random01(int cellX, int cellY, int salt) {
@@ -151,5 +328,24 @@ public class ContinentalNoise {
         value *= 0xc4ceb9fe1a85ec53L;
         value ^= value >>> 33;
         return (value >>> 11) * 0x1.0p-53;
+    }
+
+    private static final class LandformSample {
+
+        private int x;
+        private int y;
+        private boolean valid;
+        private float value;
+        private boolean island;
+        private double islandWidth;
+        private int islandSeedX;
+        private int islandSeedZ;
+        private float islandLocalX;
+        private float islandLocalZ;
+        private boolean volcano;
+        private boolean volcanoIsland;
+        private long volcanoKey;
+        private double volcanoCenterX;
+        private double volcanoCenterZ;
     }
 }

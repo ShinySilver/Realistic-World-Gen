@@ -22,7 +22,7 @@ import rwg.handlers.LoginHandler;
 import rwg.support.Support;
 import rwg.world.WorldTypeRealistic;
 
-@Mod(modid = "RWG", name = "RealisticWorldGen", version = "GRADLETOKEN_VERSION", acceptableRemoteVersions = "*")
+@Mod(modid = "RWG", name = "RealisticWorldGen", version = Tags.VERSION, acceptableRemoteVersions = "*")
 public class RWG {
 
     @Instance("RWG")
@@ -49,6 +49,7 @@ public class RWG {
 
     @EventHandler
     public void postInit(FMLPostInitializationEvent event) {
+        BaseBiomes.validateRegistrations();
         Support.init();
     }
 

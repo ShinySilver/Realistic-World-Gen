@@ -1,5 +1,8 @@
 package rwg.util;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import gnu.trove.map.hash.TLongObjectHashMap;
 
 /** Selects deterministic island seeds from the unused darts in the continent Poisson field. */
@@ -18,6 +21,7 @@ final class IslandPointNoise {
     private final int islandSearchCells;
     private final int neighbourCells;
     private final TLongObjectHashMap<IslandCandidate[]> candidates = new TLongObjectHashMap<IslandCandidate[]>();
+    private final TLongObjectHashMap<IslandCandidate[]> regions = new TLongObjectHashMap<IslandCandidate[]>();
     private final double[] point = new double[2];
     private final double[] nearestContinent = new double[5];
 
@@ -35,24 +39,54 @@ final class IslandPointNoise {
         neighbourCells = (int) Math.ceil((maximumIslandWidth * 2D + minimumOceanWidth) / continents.getCellSize()) + 1;
     }
 
-    synchronized double getValue(double x, double z) {
+    /** Output: winning island field value, radius, seed X, and seed Z. */
+    synchronized void sample(double x, double z, double[] output) {
         int cellX = floor(x / continents.getCellSize());
         int cellZ = floor(z / continents.getCellSize());
         double best = -Double.MAX_VALUE;
+        double bestWidth = 0D;
+        double bestX = 0D;
+        double bestZ = 0D;
+        for (IslandCandidate candidate : region(cellX, cellZ)) {
+            double dx = x - candidate.x;
+            double dz = z - candidate.z;
+            double distanceSquared = dx * dx + dz * dz;
+            if (best != -Double.MAX_VALUE) {
+                double improvementRadius = candidate.width - best;
+                if (improvementRadius <= 0D || distanceSquared >= improvementRadius * improvementRadius) continue;
+            }
+            double value = candidate.width - Math.sqrt(distanceSquared);
+            if (value > best) {
+                best = value;
+                bestWidth = candidate.width;
+                bestX = candidate.x;
+                bestZ = candidate.z;
+            }
+        }
+        output[0] = best;
+        output[1] = bestWidth;
+        output[2] = bestX;
+        output[3] = bestZ;
+    }
+
+    private IslandCandidate[] region(int cellX, int cellZ) {
+        long key = cellKey(cellX, cellZ);
+        IslandCandidate[] cached = regions.get(key);
+        if (cached != null) return cached;
+        if (regions.size() >= CACHE_LIMIT) regions.clear();
+
+        List<IslandCandidate> placed = new ArrayList<IslandCandidate>();
         for (int offsetZ = -islandSearchCells; offsetZ <= islandSearchCells; offsetZ++) {
             for (int offsetX = -islandSearchCells; offsetX <= islandSearchCells; offsetX++) {
                 for (int round = 0; round < continents.getRounds(); round++) {
                     IslandCandidate candidate = candidate(cellX + offsetX, cellZ + offsetZ, round);
-                    if (!isPlaced(candidate)) {
-                        continue;
-                    }
-                    double dx = x - candidate.x;
-                    double dz = z - candidate.z;
-                    best = Math.max(best, candidate.width - Math.sqrt(dx * dx + dz * dz));
+                    if (isPlaced(candidate)) placed.add(candidate);
                 }
             }
         }
-        return best;
+        IslandCandidate[] result = placed.toArray(new IslandCandidate[placed.size()]);
+        regions.put(key, result);
+        return result;
     }
 
     private boolean isPlaced(IslandCandidate candidate) {

@@ -1,5 +1,6 @@
 package rwg.biomes.base;
 
+import net.minecraft.world.biome.BiomeGenBase;
 import net.minecraftforge.common.BiomeDictionary;
 import net.minecraftforge.common.BiomeDictionary.Type;
 
@@ -7,6 +8,8 @@ import rwg.api.RWGBiomes;
 import rwg.config.ConfigRWG;
 
 public class BaseBiomes {
+
+    private static final BiomeGenBase[] RWG_BIOMES = new BiomeGenBase[ConfigRWG.biomeIDs.length];
 
     public static void load() {
         RWGBiomes.baseRiverIce = new BaseBiomeRiver(ConfigRWG.biomeIDs[0], 0, "Ice River");
@@ -36,6 +39,22 @@ public class BaseBiomes {
         RWGBiomes.baseJungle = new BaseBiomeJungle(ConfigRWG.biomeIDs[22], "Jungle (RWG)");
         RWGBiomes.baseOasis = new BaseBiomeRiver(ConfigRWG.biomeIDs[23], 5, "Oasis");
         RWGBiomes.baseTemperateForest = new BaseBiomeTemperateForest(ConfigRWG.biomeIDs[24], "Temperate Forest");
+        RWGBiomes.baseJungleMesa = new BaseBiomeJungleMesa(ConfigRWG.biomeIDs[25], "Jungle Mesa");
+
+        System.arraycopy(
+                new BiomeGenBase[] { RWGBiomes.baseRiverIce, RWGBiomes.baseRiverCold, RWGBiomes.baseRiverTemperate,
+                        RWGBiomes.baseRiverHot, RWGBiomes.baseRiverWet, RWGBiomes.baseRiverOasis,
+                        RWGBiomes.baseOceanIce, RWGBiomes.baseOceanCold, RWGBiomes.baseOceanTemperate,
+                        RWGBiomes.baseOceanHot, RWGBiomes.baseOceanWet, RWGBiomes.baseOceanOasis,
+                        RWGBiomes.baseSnowDesert, RWGBiomes.baseSnowForest, RWGBiomes.baseColdPlains,
+                        RWGBiomes.baseColdForest, RWGBiomes.baseHotPlains, RWGBiomes.baseHotForest,
+                        RWGBiomes.baseHotDesert, RWGBiomes.basePlains, RWGBiomes.baseTropicalIsland,
+                        RWGBiomes.baseRedwood, RWGBiomes.baseJungle, RWGBiomes.baseOasis, RWGBiomes.baseTemperateForest,
+                        RWGBiomes.baseJungleMesa },
+                0,
+                RWG_BIOMES,
+                0,
+                RWG_BIOMES.length);
 
         // RIVER
         BiomeDictionary.registerBiomeType(RWGBiomes.baseRiverIce, Type.RIVER, Type.COLD, Type.SNOWY);
@@ -75,6 +94,27 @@ public class BaseBiomes {
         BiomeDictionary.registerBiomeType(RWGBiomes.baseTropicalIsland, Type.HOT, Type.WET, Type.JUNGLE);
         BiomeDictionary.registerBiomeType(RWGBiomes.baseRedwood, Type.COLD, Type.CONIFEROUS, Type.FOREST);
         BiomeDictionary.registerBiomeType(RWGBiomes.baseJungle, Type.HOT, Type.WET, Type.JUNGLE);
+        BiomeDictionary
+                .registerBiomeType(RWGBiomes.baseJungleMesa, Type.HOT, Type.WET, Type.JUNGLE, Type.FOREST, Type.HILLS);
         BiomeDictionary.registerBiomeType(RWGBiomes.baseColdForest, Type.FOREST, Type.DENSE, Type.HILLS);
+    }
+
+    public static void validateRegistrations() {
+        BiomeGenBase[] registry = BiomeGenBase.getBiomeGenArray();
+        for (int index = 0; index < RWG_BIOMES.length; index++) {
+            BiomeGenBase expected = RWG_BIOMES[index];
+            int id = ConfigRWG.biomeIDs[index];
+            BiomeGenBase registered = id >= 0 && id < registry.length ? registry[id] : null;
+            if (registered != expected) {
+                String actualName = registered == null ? "nothing" : '"' + registered.biomeName + '"';
+                throw new IllegalStateException(
+                        "RWG biome ID collision at " + id
+                                + ": expected \""
+                                + expected.biomeName
+                                + "\", but the registry contains "
+                                + actualName
+                                + ". Assign unique IDs in config/RWG.cfg before loading a world.");
+            }
+        }
     }
 }

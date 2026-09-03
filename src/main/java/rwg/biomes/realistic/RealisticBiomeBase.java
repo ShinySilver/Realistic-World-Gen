@@ -115,6 +115,8 @@ public class RealisticBiomeBase {
     public static RealisticBiomeBase redDesertOasis = new RealisticBiomeRedOasis();
     public static RealisticBiomeBase canyon = new RealisticBiomeCanyon();
     public static RealisticBiomeBase mesa = new RealisticBiomeMesa();
+    public static RealisticBiomeBase hotPlainsCanyonIsland = new RealisticBiomeCanyon()
+            .setDisplayName("Hot Plains Canyon Island");
 
     // SWAMP ==========================================================================================
 
@@ -146,6 +148,7 @@ public class RealisticBiomeBase {
     public final BiomeGenBase baseBiome;
     public final RealisticBiomeBase beachBiome;
     public final BiomeGenBase riverBiome;
+    private String displayName;
 
     public RealisticBiomeBase(int sub, BiomeGenBase biome) {
         this(sub, biome, coastIce, RWGBiomes.baseRiverTemperate);
@@ -164,6 +167,15 @@ public class RealisticBiomeBase {
 
     public static RealisticBiomeBase getBiome(int id) {
         return biomeList[id];
+    }
+
+    public RealisticBiomeBase setDisplayName(String displayName) {
+        this.displayName = displayName;
+        return this;
+    }
+
+    public String getDisplayName() {
+        return displayName;
     }
 
     // ======================================================================================================================================
@@ -193,7 +205,7 @@ public class RealisticBiomeBase {
     }
 
     public float rNoise(NoiseGenerator perlin, CellNoise cell, int x, int y, float ocean, float border, float river,
-            float continent, float abyssalBasin) {
+            float continent) {
         return rNoise(perlin, cell, x, y, ocean, border, river);
     }
 
