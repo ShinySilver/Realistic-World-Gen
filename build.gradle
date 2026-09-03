@@ -4,11 +4,122 @@ plugins {
     id 'com.gtnewhorizons.gtnhconvention'
 }
 
-tasks.register('previewTool', JavaExec) {
+sourceSets {
+    preview {
+        compileClasspath += main.output + main.compileClasspath
+        runtimeClasspath += output + main.output + main.runtimeClasspath
+    }
+}
+
+dependencies {
+    previewImplementation('tools.profiler:async-profiler:4.5')
+}
+
+abstract class DownloadProfilerArchive extends DefaultTask {
+
+    @Input
+    abstract Property<String> getSourceUrl()
+
+    @OutputFile
+    abstract RegularFileProperty getDestination()
+
+    @TaskAction
+    void download() {
+        File output = destination.get().asFile
+        output.parentFile.mkdirs()
+        File temporary = new File(output.parentFile, output.name + '.part')
+        try {
+            new URL(sourceUrl.get()).withInputStream { input ->
+                temporary.withOutputStream { stream -> stream << input }
+            }
+            java.nio.file.Files.move(
+                temporary.toPath(),
+                output.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            temporary.delete()
+        }
+    }
+}
+
+tasks.register('runPreview', JavaExec) {
     group = 'verification'
     description = 'Opens the offline RWG_CONTINENT debug map'
-    dependsOn testClasses
-    classpath = sourceSets.test.runtimeClasspath
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
     mainClass = 'rwg.world.RWGPreviewTool'
     maxHeapSize = '1g'
+}
+
+def asyncProfilerVersion = '4.5'
+def hostOs = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+def hostArch = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
+def asyncProfilerPlatform = hostOs.contains('linux')
+    ? (hostArch.contains('aarch64') || hostArch.contains('arm64') ? 'linux-arm64' : 'linux-x64')
+    : hostOs.contains('mac') ? 'macos' : null
+def asyncProfilerExtension = hostOs.contains('mac') ? 'zip' : 'tar.gz'
+def asyncProfilerArchive = layout.buildDirectory.file(
+    "downloads/async-profiler-${asyncProfilerVersion}-${asyncProfilerPlatform}.${asyncProfilerExtension}")
+def asyncProfilerTools = layout.buildDirectory.dir('tools')
+def asyncProfilerDirectory = layout.buildDirectory.dir(
+    "tools/async-profiler-${asyncProfilerVersion}-${asyncProfilerPlatform}")
+
+def downloadAsyncProfiler = tasks.register('downloadAsyncProfiler', DownloadProfilerArchive) {
+    group = 'verification'
+    description = 'Downloads the async-profiler native distribution archive'
+    if (asyncProfilerPlatform == null) {
+        throw new GradleException('async-profiler provides official builds for Linux and macOS; use WSL on Windows.')
+    }
+    sourceUrl = "https://github.com/async-profiler/async-profiler/releases/download/v${asyncProfilerVersion}/async-profiler-${asyncProfilerVersion}-${asyncProfilerPlatform}.${asyncProfilerExtension}"
+    destination = asyncProfilerArchive
+}
+
+tasks.register('installAsyncProfiler', Sync) {
+    group = 'verification'
+    description = 'Extracts the async-profiler native distribution used by runPerfCheck'
+    dependsOn downloadAsyncProfiler
+    from(hostOs.contains('mac') ? zipTree(asyncProfilerArchive) : tarTree(resources.gzip(asyncProfilerArchive)))
+    into(asyncProfilerTools)
+}
+
+tasks.register('runPerfCheck', JavaExec) {
+    group = 'verification'
+    description = 'Profiles preview world generation and opens an async-profiler flame graph'
+    dependsOn previewClasses, installAsyncProfiler
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.RWGPreviewTool'
+    maxHeapSize = '1g'
+    args '--instrument'
+
+    def profileTimestamp = new java.text.SimpleDateFormat("dd.MM.yyyy_HH'h'mm").format(new Date())
+    def flameGraph = layout.buildDirectory.file("profiles/rwg-preview_${profileTimestamp}.html")
+    doFirst {
+        def profile = flameGraph.get().asFile
+        profile.parentFile.mkdirs()
+        if (profile.exists() && !profile.delete()) {
+            throw new GradleException("Could not replace old flame graph at ${profile}")
+        }
+        def libraryName = hostOs.contains('mac') ? 'libasyncProfiler.dylib' : 'libasyncProfiler.so'
+        def library = new File(asyncProfilerDirectory.get().asFile, "lib/${libraryName}")
+        if (!library.isFile()) throw new GradleException("async-profiler library not found at ${library}")
+        systemProperty 'rwg.asyncProfilerOutput', profile.absolutePath
+        jvmArgs "-agentpath:${library}=start,event=cpu,interval=1ms"
+    }
+    doLast {
+        def profile = flameGraph.get().asFile
+        if (!profile.isFile() || profile.length() == 0) {
+            throw new GradleException("async-profiler did not create the flame graph at ${profile}")
+        }
+        println "async-profiler flame graph: ${profile}"
+        try {
+            if (java.awt.Desktop.isDesktopSupported()
+                && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                java.awt.Desktop.getDesktop().browse(profile.toURI())
+            } else {
+                println 'Desktop browsing is unavailable; open the flame graph manually.'
+            }
+        } catch (Exception exception) {
+            println 'Desktop browsing is unavailable; open the flame graph manually.'
+        }
+    }
 }

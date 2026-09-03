@@ -3,11 +3,11 @@
 repositories {
     mavenCentral()
     maven {
-        name 'GTNH Maven'
-        url 'http://jenkins.usrv.eu:8081/nexus/content/groups/public/'
+        name = 'GTNH Maven'
+        url = 'https://nexus.gtnewhorizons.com/repository/public/'
     }
     maven {
-        url 'https://cursemaven.com'
+        url = 'https://cursemaven.com'
         content {
             includeGroup 'curse.maven'
         }
