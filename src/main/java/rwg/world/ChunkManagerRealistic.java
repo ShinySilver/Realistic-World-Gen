@@ -30,6 +30,7 @@ import rwg.util.PoissonPointNoise;
 public class ChunkManagerRealistic extends WorldChunkManager {
 
     private static final float SHALLOW_OCEAN_WIDTH = 300f;
+    private static final int MINIMUM_VILLAGE_CONTINENTAL_LAND_RADIUS = 96;
     private static final float CLIMATE_WARP_SCALE_MULTIPLIER = .4f;
     private static final float CLIMATE_WARP_STRENGTH_MULTIPLIER = .8f;
     private static final float BIOME_WARP_SCALE_MULTIPLIER = .4f;
@@ -876,6 +877,17 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     }
 
     public boolean areBiomesViable(int x, int y, int par3, List par4List) {
+        if (continental) {
+            int radius = Math.max(par3, MINIMUM_VILLAGE_CONTINENTAL_LAND_RADIUS);
+            for (int offsetX = -radius; offsetX <= radius; offsetX += 16) {
+                for (int offsetZ = -radius; offsetZ <= radius; offsetZ += 16) {
+                    if (!continents.isContinentalLand(landmassX(x + offsetX), landmassZ(y + offsetZ))) {
+                        return false;
+                    }
+                }
+            }
+        }
+
         float centerNoise = getNoiseAt(x, y);
         if (centerNoise < 62) {
             return false;
