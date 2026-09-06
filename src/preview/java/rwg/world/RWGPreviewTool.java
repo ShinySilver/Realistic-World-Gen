@@ -63,8 +63,8 @@ import rwg.support.SupportEBXL;
 /** Offline world-generation preview used by {@code runPreview} and {@code runPerfCheck}. */
 public final class RWGPreviewTool {
 
-    private static final int SIZE = 20480;
-    private static final int BLOCKS_PER_PIXEL = 8;
+    private static final int SIZE = 40960;
+    private static final int BLOCKS_PER_PIXEL = 16;
     private static final int RESOLUTION = SIZE / BLOCKS_PER_PIXEL;
     private static final int PIXELS_PER_CHUNK = 16 / BLOCKS_PER_PIXEL;
     private static final int CHUNKS = SIZE / 16;
@@ -176,8 +176,12 @@ public final class RWGPreviewTool {
                     RealisticBiomeBase[] chunkBiomes = new RealisticBiomeBase[256];
                     for (int cz = tz * CHUNKS / GRID; cz < (tz + 1) * CHUNKS / GRID; cz++) {
                         for (int cx = tx * CHUNKS / GRID; cx < (tx + 1) * CHUNKS / GRID; cx++) {
-                            float[] chunkHeight = generator
-                                    .getNewNoise(manager, cx * 16 - SIZE / 2, cz * 16 - SIZE / 2, chunkBiomes);
+                            float[] chunkHeight = generator.getNewNoise(
+                                    manager,
+                                    cx * 16 - SIZE / 2,
+                                    cz * 16 - SIZE / 2,
+                                    chunkBiomes,
+                                    BLOCKS_PER_PIXEL);
                             for (int z = 0; z < 16; z += BLOCKS_PER_PIXEL) {
                                 int target = (cz * PIXELS_PER_CHUNK + z / BLOCKS_PER_PIXEL) * RESOLUTION
                                         + cx * PIXELS_PER_CHUNK;

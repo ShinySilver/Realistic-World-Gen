@@ -266,6 +266,19 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
     }
 
     public float[] getNewNoise(ChunkManagerRealistic cmr, int x, int y, RealisticBiomeBase biomes[]) {
+        return getNewNoise(cmr, x, y, biomes, 1);
+    }
+
+    /**
+     * Samples terrain columns on a regular grid within a chunk. A stride of {@code 1} is identical to normal chunk
+     * generation; larger divisors of 16 avoid evaluating terrain noise for columns the caller will discard. Biome
+     * weights are still prepared and interpolated for the complete chunk so sampled columns match dense generation
+     * exactly.
+     */
+    public float[] getNewNoise(ChunkManagerRealistic cmr, int x, int y, RealisticBiomeBase biomes[], int stride) {
+        if (stride < 1 || stride > 16 || 16 % stride != 0) {
+            throw new IllegalArgumentException("Terrain sample stride must be a divisor of 16");
+        }
         int i, j, k, l, m, n, p;
         int activeBiomeCount = 0;
         Arrays.fill(activeBiomeFlags, false);
@@ -394,8 +407,8 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
         }
 
         float continent, river, ocean;
-        for (i = 0; i < 16; i++) {
-            for (j = 0; j < 16; j++) {
+        for (i = 0; i < 16; i += stride) {
+            for (j = 0; j < 16; j += stride) {
                 if (randBiome) {
                     bCount = 0f;
                     bRand = 0.5f + perlin.noise2((float) (x + i) / 15f, (float) (y + j) / 15f);
