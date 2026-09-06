@@ -119,12 +119,6 @@ public class ContinentalNoise {
         return sampleLandform(x, y).island;
     }
 
-    /** True when this coordinate is dry land belonging to a continent rather than to the island field. */
-    public boolean isContinentalLand(int x, int y) {
-        LandformSample sample = sampleLandform(x, y);
-        return sample.value >= 0f && !sample.island;
-    }
-
     /** Returns 0/1/2 for a small/medium/large island, or -1 when the coordinate is not on an island. */
     public int getIslandSizeTier(int x, int y) {
         LandformSample sample = sampleLandform(x, y);
