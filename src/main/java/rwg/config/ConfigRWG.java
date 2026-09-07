@@ -2,6 +2,7 @@ package rwg.config;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 
 import net.minecraftforge.common.config.Configuration;
 
@@ -92,20 +93,22 @@ public class ConfigRWG {
             generateUndergroundLakes = config.getBoolean("Generate Underground Lakes", "Settings", true, "");
             generateUndergroundLavaLakes = config.getBoolean("Generate Underground Lava Lakes", "Settings", true, "");
             String worldgenWarning = "Changing this after creating a world causes borders between old and new chunks.";
+            String continentWidthDescription = "Distance in blocks from a continent's Voronoi centre to its coast. "
+                    + worldgenWarning;
             minimumContinentWidth = config.getFloat(
                     "Minimum Continent Width",
                     CONTINENTAL_CATEGORY,
                     2700f,
                     1f,
                     100000f,
-                    "Minimum distance in blocks from a Voronoi centre to its coast. " + worldgenWarning);
+                    continentWidthDescription);
             maximumContinentWidth = config.getFloat(
                     "Maximum Continent Width",
                     CONTINENTAL_CATEGORY,
                     2700f,
                     1f,
                     100000f,
-                    "Maximum distance in blocks from a Voronoi centre to its coast. " + worldgenWarning);
+                    continentWidthDescription);
             averageOceanWidth = config.getFloat(
                     "Average Ocean Width",
                     CONTINENTAL_CATEGORY,
@@ -133,20 +136,11 @@ public class ConfigRWG {
                             + "interior seas. The result is approximate and varies with the world seed and the other "
                             + "continent settings. "
                             + worldgenWarning);
-            minimumIslandWidth = config.getFloat(
-                    "Minimum Island Width",
-                    CONTINENTAL_CATEGORY,
-                    300f,
-                    1f,
-                    100000f,
-                    "Minimum distance in blocks from an island seed to its coast. " + worldgenWarning);
-            maximumIslandWidth = config.getFloat(
-                    "Maximum Island Width",
-                    CONTINENTAL_CATEGORY,
-                    600f,
-                    1f,
-                    100000f,
-                    "Maximum distance in blocks from an island seed to its coast. " + worldgenWarning);
+            String islandWidthDescription = "Distance in blocks from an island seed to its coast. " + worldgenWarning;
+            minimumIslandWidth = config
+                    .getFloat("Minimum Island Width", CONTINENTAL_CATEGORY, 300f, 1f, 100000f, islandWidthDescription);
+            maximumIslandWidth = config
+                    .getFloat("Maximum Island Width", CONTINENTAL_CATEGORY, 600f, 1f, 100000f, islandWidthDescription);
             islandPlacementChance = config.getFloat(
                     "Island Placement Chance",
                     CONTINENTAL_CATEGORY,
@@ -170,6 +164,19 @@ public class ConfigRWG {
                     "Approximate average number of volcanoes per continent. Candidate probability is corrected for "
                             + "the configured continental land fraction. "
                             + worldgenWarning);
+            config.setCategoryPropertyOrder(
+                    CONTINENTAL_CATEGORY,
+                    Arrays.asList(
+                            "Minimum Continent Width",
+                            "Maximum Continent Width",
+                            "Average Ocean Width",
+                            "Minimum Ocean Width",
+                            "Maximum Ocean Fraction",
+                            "Minimum Island Width",
+                            "Maximum Island Width",
+                            "Island Placement Chance",
+                            "Large Island Volcano Chance",
+                            "Average Volcano Count Per Continent"));
             String expertCategory = "Expert / Worldgen Migration";
             config.setCategoryComment(
                     expertCategory,
