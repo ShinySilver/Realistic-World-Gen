@@ -49,6 +49,11 @@ public class DecoBlob extends WorldGenerator {
                 return false;
             }
 
+            if ((field_150545_a == Blocks.mossy_cobblestone || field_150545_a == Blocks.cobblestone)
+                    && p_76484_4_ <= 63) {
+                return false;
+            }
+
             int k2 = this.field_150544_b;
 
             for (int l = 0; k2 >= 0 && l < 3; ++l) {

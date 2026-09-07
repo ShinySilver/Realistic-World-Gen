@@ -6,7 +6,6 @@ import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.BiomeGenBase;
-import net.minecraft.world.gen.feature.WorldGenBlockBlob;
 import net.minecraft.world.gen.feature.WorldGenDeadBush;
 import net.minecraft.world.gen.feature.WorldGenPumpkin;
 import net.minecraft.world.gen.feature.WorldGenReed;
@@ -15,6 +14,7 @@ import net.minecraft.world.gen.feature.WorldGenerator;
 
 import rwg.api.RWGBiomes;
 import rwg.biomes.realistic.RealisticBiomeBase;
+import rwg.deco.DecoBlob;
 import rwg.deco.DecoCacti;
 import rwg.surface.SurfaceBase;
 import rwg.surface.SurfaceCanyon;
@@ -43,7 +43,7 @@ public class RealisticBiomeCanyon extends RealisticBiomeBase {
             int j1 = chunkY + rand.nextInt(16) + 8;
             int k1 = world.getHeightValue(i1, j1);
             if (k1 < 70) {
-                (new WorldGenBlockBlob(Blocks.mossy_cobblestone, 0)).generate(world, rand, i1, k1, j1);
+                (new DecoBlob(Blocks.mossy_cobblestone, 0)).generate(world, rand, i1, k1, j1);
             }
         }
 

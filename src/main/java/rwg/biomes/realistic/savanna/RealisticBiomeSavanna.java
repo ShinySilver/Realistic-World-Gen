@@ -6,7 +6,6 @@ import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.BiomeGenBase;
-import net.minecraft.world.gen.feature.WorldGenBlockBlob;
 import net.minecraft.world.gen.feature.WorldGenPumpkin;
 import net.minecraft.world.gen.feature.WorldGenReed;
 import net.minecraft.world.gen.feature.WorldGenShrub;
@@ -14,6 +13,7 @@ import net.minecraft.world.gen.feature.WorldGenerator;
 
 import rwg.api.RWGBiomes;
 import rwg.biomes.realistic.RealisticBiomeBase;
+import rwg.deco.DecoBlob;
 import rwg.deco.DecoCacti;
 import rwg.deco.DecoFlowers;
 import rwg.deco.DecoGrass;
@@ -50,7 +50,7 @@ public class RealisticBiomeSavanna extends RealisticBiomeBase {
             int i1 = chunkX + rand.nextInt(16) + 8;
             int j1 = chunkY + rand.nextInt(16) + 8;
             int k1 = world.getHeightValue(i1, j1);
-            (new WorldGenBlockBlob(Blocks.cobblestone, 0)).generate(world, rand, i1, k1, j1);
+            (new DecoBlob(Blocks.cobblestone, 0)).generate(world, rand, i1, k1, j1);
         }
 
         if (river > 0.8f) {
