@@ -15,6 +15,13 @@ public class ContinentalNoise {
     private static final int POISSON_ROUNDS = 8;
     private static final double WARP_SCALE = 3600D;
     private static final double WARP_STRENGTH = 1800D;
+    // Calibrated against preview-sized samples of the eight-round point field. This converts the second moment of
+    // continent radii into approximate land coverage before overlapping continents begin to merge.
+    private static final double LAND_COVERAGE_DENSITY = 1.82D;
+    // Once radii cross the original ocean gap, neighboring continent discs overlap. Preview sweeps provide this small
+    // nonlinear correction to the otherwise geometric estimate between roughly 50% and 30% ocean.
+    private static final double OVERLAP_CORRECTION_BASE = .75D;
+    private static final double OVERLAP_CORRECTION_SLOPE = .46D;
     private static final long CONTINENT_VOLCANO_SEED_SALT = 0x082EFA98EC4E6C89L;
 
     private final long seed;
@@ -27,6 +34,7 @@ public class ContinentalNoise {
     private final double minimumIslandWidth;
     private final double islandWidthRange;
     private final double voronoiRadius;
+    private final double continentDilation;
     private final NoiseGenerator warpX;
     private final NoiseGenerator warpY;
     private final double warpScale;
@@ -79,6 +87,12 @@ public class ContinentalNoise {
         continentWidthRange = maximumContinentWidth - minimumContinentWidth;
         double averageContinentWidth = (minimumContinentWidth + maximumContinentWidth) * 0.5D;
         voronoiRadius = averageContinentWidth + ConfigRWG.averageOceanWidth;
+        continentDilation = continentDilation(
+                minimumContinentWidth,
+                maximumContinentWidth,
+                voronoiRadius,
+                ConfigRWG.minimumOceanWidth,
+                ConfigRWG.maximumOceanFraction);
         warpScale = WARP_SCALE;
         warpStrength = WARP_STRENGTH;
         warpX = new PerlinNoise(seed ^ 0x243F6A8885A308D3L);
@@ -245,7 +259,25 @@ public class ContinentalNoise {
 
     private double continentField(double distance, int cellX, int cellY) {
         double width = minimumContinentWidth + random01(cellX, cellY, 0) * continentWidthRange;
-        return Math.min(voronoiRadius, width) - distance;
+        return Math.min(voronoiRadius, width) + continentDilation - distance;
+    }
+
+    private static double continentDilation(double minimumWidth, double maximumWidth, double radiusLimit,
+            double minimumOceanWidth, double oceanLimit) {
+        if (oceanLimit >= 1D) return 0D;
+
+        double lowerRadius = Math.min(radiusLimit, minimumWidth);
+        double upperRadius = Math.min(radiusLimit, maximumWidth);
+        double meanRadius = (lowerRadius + upperRadius) * .5D;
+        double meanSquaredRadius = (lowerRadius * lowerRadius + lowerRadius * upperRadius + upperRadius * upperRadius)
+                / 3D;
+        double pointSpacing = maximumWidth * 2D + minimumOceanWidth;
+        double requestedLandFraction = 1D - oceanLimit;
+        double overlapCorrection = OVERLAP_CORRECTION_BASE + OVERLAP_CORRECTION_SLOPE * requestedLandFraction;
+        double desiredLandFraction = Math.min(1D, requestedLandFraction * overlapCorrection);
+        double desiredMeanSquaredRadius = desiredLandFraction * pointSpacing * pointSpacing / LAND_COVERAGE_DENSITY;
+        if (desiredMeanSquaredRadius <= meanSquaredRadius) return 0D;
+        return Math.sqrt(meanRadius * meanRadius + desiredMeanSquaredRadius - meanSquaredRadius) - meanRadius;
     }
 
     private int getIslandSizeTier(double width) {

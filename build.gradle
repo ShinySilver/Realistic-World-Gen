@@ -53,6 +53,16 @@ tasks.register('runPreview', JavaExec) {
     maxHeapSize = '1g'
 }
 
+tasks.register('calibrateOceanCoverage', JavaExec) {
+    group = 'verification'
+    description = 'Samples ocean coverage for the configured continent geometry and target fractions'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.OceanCoverageCalibration'
+    maxHeapSize = '1g'
+    systemProperties System.properties.findAll { key, value -> key.toString().startsWith('rwg.') }
+}
+
 def asyncProfilerVersion = '4.5'
 def hostOs = System.getProperty('os.name').toLowerCase(Locale.ROOT)
 def hostArch = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
