@@ -1,10 +1,14 @@
 package rwg.support;
 
 import java.util.ArrayList;
+import java.util.List;
+
+import net.minecraft.world.biome.BiomeGenBase;
 
 import cpw.mods.fml.common.Loader;
 import rwg.api.RWGBiomes;
 import rwg.biomes.realistic.RealisticBiomeBase;
+import rwg.biomes.realistic.land.RealisticBiomeMountainChain;
 import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
 
 public class Support {
@@ -49,6 +53,8 @@ public class Support {
         public final ArrayList<RealisticBiomeBase> border = new ArrayList<RealisticBiomeBase>();
         public final ArrayList<RealisticBiomeBase> coldBorder = new ArrayList<RealisticBiomeBase>();
         public final ArrayList<RealisticBiomeBase> hotBorder = new ArrayList<RealisticBiomeBase>();
+        public final ArrayList<RealisticBiomeBase> veryColdBorder = new ArrayList<RealisticBiomeBase>();
+        public final ArrayList<RealisticBiomeBase> veryHotBorder = new ArrayList<RealisticBiomeBase>();
         public final ArrayList<RealisticBiomeBase> small = new ArrayList<RealisticBiomeBase>();
         public final ArrayList<RealisticBiomeBase> island = new ArrayList<RealisticBiomeBase>();
         public final ArrayList<RealisticBiomeBase> smallIsland = new ArrayList<RealisticBiomeBase>();
@@ -61,6 +67,8 @@ public class Support {
         BORDER,
         COLD_BORDER,
         HOT_BORDER,
+        VERY_COLD_BORDER,
+        VERY_HOT_BORDER,
         SMALL,
         ISLAND,
         SMALL_ISLAND,
@@ -101,7 +109,7 @@ public class Support {
         oceanShallowHot = new RealisticBiomeOcean(RWGBiomes.baseOceanHot, true, false, "RealisticBiomeOceanHotShallow");
         oceanShallowWet = new RealisticBiomeOcean(RWGBiomes.baseOceanWet, true, false, "RealisticBiomeOceanWetShallow");
         oceanDeepSnow = new RealisticBiomeOcean(RWGBiomes.baseOceanCold, false, false, "RealisticBiomeOceanSnowDeep");
-        oceanDeepCold = new RealisticBiomeOcean(RWGBiomes.baseOceanCold, false, false, "RealisticBiomeOceanColdDeep");
+        oceanDeepCold = new RealisticBiomeOcean(BiomeGenBase.deepOcean, false, false, "RealisticBiomeOceanColdDeep");
         oceanDeepHot = new RealisticBiomeOcean(RWGBiomes.baseOceanHot, false, false, "RealisticBiomeOceanHotDeep");
         oceanDeepWet = new RealisticBiomeOcean(RWGBiomes.baseOceanWet, false, false, "RealisticBiomeOceanWetDeep");
         oceanDeep = oceanDeepCold;
@@ -120,7 +128,25 @@ public class Support {
         if (loadModBiomes && Loader.isModLoaded("ChromatiCraft")) {
             SupportCC.init();
         }
+        rebuildExtremeBorderMountains();
         /** ChromatiCraft is non-supported content. if this ever errors out in some way feel free to remove this. */
+    }
+
+    public static void rebuildExtremeBorderMountains() {
+        snow.veryHotBorder.clear();
+        cold.veryHotBorder.clear();
+        hot.veryColdBorder.clear();
+        wet.veryColdBorder.clear();
+        addExtremeBorderMountains(snow.hotBorder, snow.veryHotBorder);
+        addExtremeBorderMountains(cold.hotBorder, cold.veryHotBorder);
+        addExtremeBorderMountains(hot.coldBorder, hot.veryColdBorder);
+        addExtremeBorderMountains(wet.coldBorder, wet.veryColdBorder);
+    }
+
+    private static void addExtremeBorderMountains(List<RealisticBiomeBase> source, List<RealisticBiomeBase> target) {
+        for (RealisticBiomeBase biome : source) {
+            target.add(RealisticBiomeMountainChain.forBiome(biome));
+        }
     }
 
     public static void addBiome(RealisticBiomeBase b, BiomeCategory cat) {
@@ -169,12 +195,17 @@ public class Support {
         return placement == BiomePlacement.BORDER ? lists.border
                 : placement == BiomePlacement.COLD_BORDER ? lists.coldBorder
                         : placement == BiomePlacement.HOT_BORDER ? lists.hotBorder
-                                : placement == BiomePlacement.SMALL ? lists.small
-                                        : placement == BiomePlacement.ISLAND ? lists.island
-                                                : placement == BiomePlacement.SMALL_ISLAND ? lists.smallIsland
-                                                        : placement == BiomePlacement.MEDIUM_ISLAND ? lists.mediumIsland
-                                                                : placement == BiomePlacement.LARGE_ISLAND
-                                                                        ? lists.largeIsland
-                                                                        : lists.core;
+                                : placement == BiomePlacement.VERY_COLD_BORDER ? lists.veryColdBorder
+                                        : placement == BiomePlacement.VERY_HOT_BORDER ? lists.veryHotBorder
+                                                : placement == BiomePlacement.SMALL ? lists.small
+                                                        : placement == BiomePlacement.ISLAND ? lists.island
+                                                                : placement == BiomePlacement.SMALL_ISLAND
+                                                                        ? lists.smallIsland
+                                                                        : placement == BiomePlacement.MEDIUM_ISLAND
+                                                                                ? lists.mediumIsland
+                                                                                : placement
+                                                                                        == BiomePlacement.LARGE_ISLAND
+                                                                                                ? lists.largeIsland
+                                                                                                : lists.core;
     }
 }

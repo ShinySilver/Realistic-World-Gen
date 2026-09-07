@@ -17,6 +17,7 @@ import rwg.biomes.base.BaseBiomes;
 import rwg.commands.RwgBugInfoCommand;
 import rwg.commands.RwgNoiseCommand;
 import rwg.config.ConfigRWG;
+import rwg.data.RailcraftWorldgenFilter;
 import rwg.data.VillageMaterials;
 import rwg.handlers.LoginHandler;
 import rwg.support.Support;
@@ -39,6 +40,7 @@ public class RWG {
         BaseBiomes.load();
 
         MinecraftForge.TERRAIN_GEN_BUS.register(new VillageMaterials());
+        MinecraftForge.TERRAIN_GEN_BUS.register(new RailcraftWorldgenFilter());
 
         FMLCommonHandler.instance().bus().register(new LoginHandler());
         // MinecraftForge.TERRAIN_GEN_BUS.register(new TreeReplacement());

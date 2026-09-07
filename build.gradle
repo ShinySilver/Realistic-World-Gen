@@ -12,6 +12,8 @@ sourceSets {
 }
 
 dependencies {
+    api('ganymedes01.etfuturum:Et-Futurum-Requiem:2.6.58-GTNH:dev')
+    api(rfg.deobf('curse.maven:witchery-69673:2234410'))
     previewImplementation('tools.profiler:async-profiler:4.5')
 }
 

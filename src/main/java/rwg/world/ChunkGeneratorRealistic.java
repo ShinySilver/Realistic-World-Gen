@@ -40,10 +40,12 @@ import net.minecraftforge.event.terraingen.TerrainGen;
 
 import cpw.mods.fml.common.eventhandler.Event.Result;
 import rwg.biomes.realistic.RealisticBiomeBase;
+import rwg.biomes.realistic.land.RealisticBiomeMountainChain;
 import rwg.biomes.realistic.ocean.RealisticBiomeIslandVolcano;
 import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
 import rwg.config.ConfigRWG;
 import rwg.deco.DecoClay;
+import rwg.support.EtFuturumCaveVines;
 import rwg.support.Support;
 import rwg.util.CanyonColor;
 import rwg.util.CellNoise;
@@ -87,6 +89,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
     private final float[][] hugeRender;
     private final float[][] smallRender;
     private final float[] testHeight;
+    private final float[] mountainChainWeight;
     private final float[] riverStrength;
     private final float[] riverSample;
     private final float[] continentValues;
@@ -94,6 +97,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
     private final float[] borderNoise;
 
     private final long worldSeed;
+    private final EtFuturumCaveVines etFuturumCaveVines;
 
     private final WorldGenMinable ore_dirt = new WorldGenMinable(Blocks.dirt, 32);
     private final WorldGenMinable ore_gravel = new WorldGenMinable(Blocks.gravel, 32);
@@ -139,6 +143,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
 
         mapRand = new Random(l);
         worldSeed = l;
+        etFuturumCaveVines = mapFeatures ? EtFuturumCaveVines.create() : null;
 
         Map<String, String> m = new HashMap<>();
         m.put("size", "0");
@@ -178,6 +183,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
         hugeRender = new float[81][256];
         smallRender = new float[625][256];
         testHeight = new float[256];
+        mountainChainWeight = new float[256];
         riverStrength = new float[256];
         riverSample = new float[4];
         continentValues = new float[256];
@@ -194,6 +200,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
         int k;
 
         generateTerrain(cmr, cx, cy, chunkBlocks, chunkMetadata, biomesForGeneration);
+        carveMountainChainRivers(cx, cy, chunkBlocks, chunkMetadata);
 
         for (k = 0; k < 256; k++) {
             if (mapGenBiomes[k] > 0f) {
@@ -427,6 +434,7 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                 l = ((int) (i + 4) * 25 + (j + 4));
 
                 testHeight[i * 16 + j] = 0f;
+                mountainChainWeight[i * 16 + j] = 0f;
 
                 river = cmr.getRiverStrength(x + i, y + j, riverSample);
                 riverStrength[i * 16 + j] = river;
@@ -479,14 +487,87 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                                     river + 1f,
                                     continent);
                         }
-                        testHeight[i * 16 + j] += cmr.calculateRiver(x + i, y + j, river, biomeHeight, riverSample)
-                                * smallRender[l][k];
+                        float weight = smallRender[l][k];
+                        testHeight[i * 16 + j] += biomeHeight * weight;
+                        if (noiseBiome instanceof RealisticBiomeMountainChain) {
+                            mountainChainWeight[i * 16 + j] += weight;
+                        }
                     }
                 }
+                float uncarvedHeight = testHeight[i * 16 + j];
+                float carvedHeight = cmr.calculateRiver(x + i, y + j, river, uncarvedHeight, riverSample);
+                float fade = Math.max(0f, Math.min(1f, (mountainChainWeight[i * 16 + j] - 0.35f) / 0.65f));
+                fade = fade * fade * (3f - 2f * fade);
+                testHeight[i * 16 + j] = carvedHeight + (uncarvedHeight - carvedHeight) * fade;
             }
         }
 
         return testHeight;
+    }
+
+    private void carveMountainChainRivers(int chunkX, int chunkZ, Block[] blocks, byte[] metadata) {
+        for (int localZ = 0; localZ < 16; localZ++) {
+            for (int localX = 0; localX < 16; localX++) {
+                int terrainIndex = localX * 16 + localZ;
+                float mountainWeight = mountainChainWeight[terrainIndex];
+                if (mountainWeight <= 0.10f) continue;
+
+                int worldX = chunkX * 16 + localX;
+                int worldZ = chunkZ * 16 + localZ;
+                float tunnel = cmr.getRiverTunnelStrength(worldX, worldZ);
+                float junction = cmr.getRiverJunctionStrength(worldX, worldZ);
+                if (tunnel <= 0f && junction <= 0f) continue;
+
+                int surface = Math.min(255, (int) testHeight[terrainIndex]);
+                float tunnelCurve = (float) Math.sqrt(Math.max(0f, tunnel));
+                int tunnelFloor = 62 - Math.round(tunnelCurve * 4f);
+                int tunnelCeiling = 62 + Math.round(tunnelCurve * 11f);
+                int caveFloor = tunnelFloor;
+                int caveCeiling = tunnelCeiling;
+
+                float mountainHost = smoothstep((mountainWeight - 0.10f) / 0.40f);
+                float overheadHost = smoothstep((surface - 76f) / 24f);
+                float chamberStrength = junction * mountainHost * overheadHost;
+                if (chamberStrength > 0f) {
+                    float chamberCurve = (float) Math.sqrt(chamberStrength);
+                    caveFloor = Math.min(caveFloor, 63 - Math.round(chamberCurve * 23f));
+                    caveCeiling = Math.max(caveCeiling, 63 + Math.round(chamberCurve * 42f));
+                    caveCeiling = Math.min(caveCeiling, surface - 10);
+                    caveCeiling = Math.max(caveCeiling, tunnelCeiling);
+                }
+
+                carveRiverColumn(blocks, metadata, localX, localZ, caveFloor, caveCeiling);
+
+                if (chamberStrength > 0.70f && surface > caveCeiling) {
+                    int openingBottom = Math.max(caveCeiling + 1, 63);
+                    for (int blockY = openingBottom; blockY <= surface; blockY++) {
+                        float heightFraction = (blockY - openingBottom) / (float) Math.max(1, surface - openingBottom);
+                        float openingThreshold = 0.70f + heightFraction * 0.15f;
+                        if (chamberStrength >= openingThreshold) {
+                            setRiverCaveBlock(blocks, metadata, localX, localZ, blockY);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static float smoothstep(float value) {
+        value = Math.max(0f, Math.min(1f, value));
+        return value * value * (3f - 2f * value);
+    }
+
+    private static void carveRiverColumn(Block[] blocks, byte[] metadata, int localX, int localZ, int floor,
+            int ceiling) {
+        for (int blockY = Math.max(1, floor); blockY <= Math.min(255, ceiling); blockY++) {
+            setRiverCaveBlock(blocks, metadata, localX, localZ, blockY);
+        }
+    }
+
+    private static void setRiverCaveBlock(Block[] blocks, byte[] metadata, int localX, int localZ, int blockY) {
+        int index = (localX * 16 + localZ) * 256 + blockY;
+        blocks[index] = blockY <= 62 ? Blocks.water : Blocks.air;
+        metadata[index] = 0;
     }
 
     private static void clearActiveBiomes(float[] weights, int[] activeBiomeIds, int activeBiomeCount) {
@@ -850,6 +931,10 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                 }
                 borderNoise[bn] = 0f;
             }
+        }
+
+        if (etFuturumCaveVines != null) {
+            etFuturumCaveVines.decorate(worldObj, rand, cmr, x, y);
         }
 
         // lazy fix

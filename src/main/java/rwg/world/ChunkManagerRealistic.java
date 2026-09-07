@@ -18,6 +18,7 @@ import gnu.trove.map.hash.TLongFloatHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import rwg.biomes.realistic.RealisticBiomeBase;
 import rwg.biomes.realistic.ocean.RealisticBiomeIslandVolcano;
+import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
 import rwg.config.ConfigRWG;
 import rwg.support.Support;
 import rwg.support.Support.BiomePlacement;
@@ -41,8 +42,8 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     private static final float HOT_CLIMATE_LIMIT = .78f;
     private static final float THREE_CLIMATE_SNOW_LIMIT = .2475f;
     private static final float THREE_CLIMATE_COLD_LIMIT = .62375f;
-    // Cell distance differences grow by roughly two blocks per block from the bisector.
     private static final double CLIMATE_BORDER_DISTANCE_DIFFERENCE = 288D;
+    private static final double SMALL_BIOME_RADIUS = 75D;
 
     private BiomeCache biomeCache;
     private List biomesToSpawnIn;
@@ -88,6 +89,8 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     private ArrayList<RealisticBiomeBase>[] borderBiomes;
     private ArrayList<RealisticBiomeBase>[] coldBorderBiomes;
     private ArrayList<RealisticBiomeBase>[] hotBorderBiomes;
+    private ArrayList<RealisticBiomeBase>[] veryColdBorderBiomes;
+    private ArrayList<RealisticBiomeBase>[] veryHotBorderBiomes;
     private ArrayList<RealisticBiomeBase>[] smallBiomes;
     private ArrayList<RealisticBiomeBase>[] islandBiomes;
     private ArrayList<RealisticBiomeBase>[] smallIslandBiomes;
@@ -134,7 +137,7 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         cell.setUseDistance(true);
         biomecell = new CellNoise(seed, (short) 0);
         climateWarp = NoiseSelector.createNoiseGenerator(seed ^ 0xBB67AE8584CAA73BL);
-        smallBiomePoints = new PoissonPointNoise(seed ^ 0x510E527FADE682D1L, 360D, 4);
+        smallBiomePoints = new PoissonPointNoise(seed ^ 0x510E527FADE682D1L, 1610D, 4);
         if (continental) {
             continents = new ContinentalNoise(seed ^ 0x6A09E667F3BCC909L);
         }
@@ -156,6 +159,16 @@ public class ChunkManagerRealistic extends WorldChunkManager {
                 Support.cold.hotBorder,
                 Support.hot.hotBorder,
                 Support.wet.hotBorder);
+        veryColdBorderBiomes = lists(
+                Support.snow.veryColdBorder,
+                Support.cold.veryColdBorder,
+                Support.hot.veryColdBorder,
+                Support.wet.veryColdBorder);
+        veryHotBorderBiomes = lists(
+                Support.snow.veryHotBorder,
+                Support.cold.veryHotBorder,
+                Support.hot.veryHotBorder,
+                Support.wet.veryHotBorder);
         smallBiomes = lists(Support.snow.small, Support.cold.small, Support.hot.small, Support.wet.small);
         islandBiomes = lists(Support.snow.island, Support.cold.island, Support.hot.island, Support.wet.island);
         smallIslandBiomes = lists(
@@ -274,6 +287,8 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         for (ArrayList<RealisticBiomeBase> list : borderBiomes) result.addAll(list);
         for (ArrayList<RealisticBiomeBase> list : coldBorderBiomes) result.addAll(list);
         for (ArrayList<RealisticBiomeBase> list : hotBorderBiomes) result.addAll(list);
+        for (ArrayList<RealisticBiomeBase> list : veryColdBorderBiomes) result.addAll(list);
+        for (ArrayList<RealisticBiomeBase> list : veryHotBorderBiomes) result.addAll(list);
         for (ArrayList<RealisticBiomeBase> list : smallBiomes) result.addAll(list);
         for (ArrayList<RealisticBiomeBase> list : islandBiomes) result.addAll(list);
         for (ArrayList<RealisticBiomeBase> list : smallIslandBiomes) result.addAll(list);
@@ -308,6 +323,8 @@ public class ChunkManagerRealistic extends WorldChunkManager {
             setCategory(categories, borderBiomes[index], index + 1);
             setCategory(categories, coldBorderBiomes[index], index + 1);
             setCategory(categories, hotBorderBiomes[index], index + 1);
+            setCategory(categories, veryColdBorderBiomes[index], index + 1);
+            setCategory(categories, veryHotBorderBiomes[index], index + 1);
             setCategory(categories, smallBiomes[index], index + 1);
             setCategory(categories, islandBiomes[index], index + 1);
             setCategory(categories, smallIslandBiomes[index], index + 1);
@@ -348,6 +365,8 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         if (smallBiomes[index].contains(biome)) return BiomePlacement.SMALL.ordinal();
         if (coldBorderBiomes[index].contains(biome)) return BiomePlacement.COLD_BORDER.ordinal();
         if (hotBorderBiomes[index].contains(biome)) return BiomePlacement.HOT_BORDER.ordinal();
+        if (veryColdBorderBiomes[index].contains(biome)) return BiomePlacement.VERY_COLD_BORDER.ordinal();
+        if (veryHotBorderBiomes[index].contains(biome)) return BiomePlacement.VERY_HOT_BORDER.ordinal();
         if (borderBiomes[index].contains(biome)) return BiomePlacement.BORDER.ordinal();
         return BiomePlacement.CORE.ordinal();
     }
@@ -358,6 +377,8 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         if (placement == BiomePlacement.BORDER) return borderBiomes[index];
         if (placement == BiomePlacement.COLD_BORDER) return coldBorderBiomes[index];
         if (placement == BiomePlacement.HOT_BORDER) return hotBorderBiomes[index];
+        if (placement == BiomePlacement.VERY_COLD_BORDER) return veryColdBorderBiomes[index];
+        if (placement == BiomePlacement.VERY_HOT_BORDER) return veryHotBorderBiomes[index];
         if (placement == BiomePlacement.SMALL) return smallBiomes[index];
         if (placement == BiomePlacement.ISLAND) return islandBiomes[index];
         if (placement == BiomePlacement.SMALL_ISLAND) return smallIslandBiomes[index];
@@ -427,6 +448,10 @@ public class ChunkManagerRealistic extends WorldChunkManager {
 
     public BiomeGenBase getBiomeGenAt(int par1, int par2) {
         return getBiomeDataAt(par1, par2).baseBiome;
+    }
+
+    public boolean isOceanBiomeAt(int x, int z) {
+        return getBiomeDataAt(x, z) instanceof RealisticBiomeOcean;
     }
 
     public RealisticBiomeBase getBiomeDataAt(int par1, int par2) {
@@ -615,6 +640,23 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         return getLandBiomeAt(par1, par2, getClimateAt(par1, par2));
     }
 
+    /** Returns the core biome selected at this coordinate without border, island, or small-biome replacement. */
+    public RealisticBiomeBase getCoreBiomeAt(int x, int z) {
+        int climate = getClimateAt(x, z);
+        int sampleX = biomeX(x);
+        int sampleZ = biomeZ(z);
+        switch (climate) {
+            case 1:
+                return selectBiome(biomes_snow, biomes_snowLength, sampleX, sampleZ);
+            case 2:
+                return selectBiome(biomes_cold, biomes_coldLength, sampleX, sampleZ);
+            case 4:
+                return selectBiome(biomes_wet, biomes_wetLength, sampleX, sampleZ);
+            default:
+                return selectBiome(biomes_hot, biomes_hotLength, sampleX, sampleZ);
+        }
+    }
+
     private RealisticBiomeBase getLandBiomeAt(int par1, int par2, int climate) {
         par1 = biomeX(par1);
         par2 = biomeZ(par2);
@@ -623,7 +665,9 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         if (!small.isEmpty()) {
             double[] point = smallPointSample.get();
             smallBiomePoints.sample(par1, par2, point);
-            if (point[0] < 30D) return selectBiome(small, small.size(), (int) point[3], (int) point[4]);
+            if (point[0] < SMALL_BIOME_RADIUS) {
+                return selectBiome(small, small.size(), (int) point[3], (int) point[4]);
+            }
         }
         double[] climatePoints = climatePointSample.get();
         double[] warped = climateWarpSample.get();
@@ -634,6 +678,15 @@ public class ChunkManagerRealistic extends WorldChunkManager {
                 && (climatePoints[2] - climatePoints[0]) * climateWidth < CLIMATE_BORDER_DISTANCE_DIFFERENCE;
         if (climateBorder) {
             int borderDirection = neighborClimate < climate ? -1 : 1;
+            boolean extreme = Math.abs(neighborClimate - climate) > 1;
+            if (extreme) {
+                ArrayList<RealisticBiomeBase> extremeDirectional = borderDirection < 0
+                        ? veryColdBorderBiomes[climateIndex]
+                        : veryHotBorderBiomes[climateIndex];
+                if (!extremeDirectional.isEmpty()) {
+                    return selectBiome(extremeDirectional, extremeDirectional.size(), par1, par2);
+                }
+            }
             ArrayList<RealisticBiomeBase> directional = borderDirection < 0 ? coldBorderBiomes[climateIndex]
                     : hotBorderBiomes[climateIndex];
             ArrayList<RealisticBiomeBase> shared = borderBiomes[climateIndex];
@@ -752,6 +805,18 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         sample[1] = pY;
         sample[2] = Float.NaN;
         return getRiverStrength(x, y, pX, pY);
+    }
+
+    public float getRiverTunnelStrength(int x, int y) {
+        float warpedX = x + perlin.noise1(y / 240f) * 220f;
+        float warpedY = y + perlin.noise1(x / 240f) * 220f;
+        return -cell.border(warpedX / 1250D, warpedY / 1250D, 9D / 1250D, 1f);
+    }
+
+    public float getRiverJunctionStrength(int x, int y) {
+        float warpedX = x + perlin.noise1(y / 240f) * 220f;
+        float warpedY = y + perlin.noise1(x / 240f) * 220f;
+        return -cell.junction(warpedX / 1250D, warpedY / 1250D, 60D / 1250D, 1f);
     }
 
     private float getRiverStrength(int x, int y, float pX, float pY) {

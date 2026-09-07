@@ -52,6 +52,7 @@ import com.google.common.base.Optional;
 import one.profiler.AsyncProfiler;
 import rwg.biomes.base.BaseBiomes;
 import rwg.biomes.realistic.RealisticBiomeBase;
+import rwg.biomes.realistic.land.RealisticBiomeMountainChain;
 import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
 import rwg.config.ConfigRWG;
 import rwg.support.RealisticBiomeSupport;
@@ -59,6 +60,7 @@ import rwg.support.Support;
 import rwg.support.Support.BiomePlacement;
 import rwg.support.SupportBOP;
 import rwg.support.SupportEBXL;
+import rwg.support.SupportTC;
 
 /** Offline world-generation preview used by {@code runPreview} and {@code runPerfCheck}. */
 public final class RWGPreviewTool {
@@ -86,6 +88,8 @@ public final class RWGPreviewTool {
         initAddonStubs();
         SupportBOP.init();
         SupportEBXL.init();
+        SupportTC.init();
+        Support.rebuildExtremeBorderMountains();
         open(instrumentOnly);
     }
 
@@ -113,8 +117,10 @@ public final class RWGPreviewTool {
                     field.set(null, Optional.of(debugBiome(field.getName(), "EBXL")));
                 }
             }
+            debugBiome("taintedLand", "Thaumcraft");
+            debugBiome("magicalForest", "Thaumcraft");
         } catch (ReflectiveOperationException exception) {
-            throw new RuntimeException("Could not create offline BOP/EBXL biome stubs", exception);
+            throw new RuntimeException("Could not create offline addon biome stubs", exception);
         }
     }
 
@@ -480,6 +486,11 @@ public final class RWGPreviewTool {
                 return name + " (" + source + ", " + terrain + ")";
             }
             return name + " (" + biome.getClass().getSimpleName() + ")";
+        }
+        if (biome instanceof RealisticBiomeMountainChain) {
+            String source = sourceSuffix(biome.baseBiome);
+            return name + (source.isEmpty() ? " (Mountain Chain)"
+                    : source.substring(0, source.length() - 1) + ", Mountain Chain)");
         }
         if (biome instanceof RealisticBiomeOcean) {
             String source = sourceSuffix(biome.baseBiome);

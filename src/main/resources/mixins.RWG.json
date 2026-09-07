@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "rwg.mixin",
+  "refmap": "mixins.RWG.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+    "MixinComponentClonedStructure"
+  ],
+  "client": [],
+  "server": []
+}

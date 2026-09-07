@@ -4,11 +4,11 @@ import net.minecraft.init.Blocks;
 import net.minecraft.world.biome.BiomeGenBase;
 
 import rwg.api.RWGBiomes;
-import rwg.config.ConfigRWG;
 import rwg.support.Support.BiomeCategory;
+import rwg.support.Support.BiomePlacement;
 import rwg.surface.SurfaceGrassland;
-import rwg.terrain.TerrainHighland;
 import rwg.terrain.TerrainSmallSupport;
+import rwg.terrain.TerrainSwampMountain;
 
 public class SupportTC {
     /*
@@ -36,33 +36,21 @@ public class SupportTC {
                 }
 
                 if ("Magical Forest".equals(b[i].biomeName)) {
-                    if (ConfigRWG.generateLargeThaumcraftBiomes) {
-                        Support.addBiome(
-                                new RealisticBiomeSupport(
-                                        b[i],
-                                        RWGBiomes.baseTemperateForest,
-                                        new TerrainHighland(6f, 120f, 65f, 150f),
-                                        new SurfaceGrassland(
-                                                b[i].topBlock,
-                                                b[i].fillerBlock,
-                                                Blocks.stone,
-                                                Blocks.cobblestone)),
-                                BiomeCategory.WET);
-                    } else {
-                        Support.addBiome(
-                                new RealisticBiomeSupport(
-                                        b[i],
-                                        RWGBiomes.baseRiverTemperate,
-                                        new TerrainSmallSupport(),
-                                        new SurfaceGrassland(
-                                                b[i].topBlock,
-                                                b[i].fillerBlock,
-                                                Blocks.stone,
-                                                Blocks.cobblestone)),
-                                BiomeCategory.SMALL);
-                    }
+                    Support.addBiome(
+                            new RealisticBiomeSupport(
+                                    b[i],
+                                    RWGBiomes.baseRiverCold,
+                                    new TerrainSwampMountain(135f, 300f),
+                                    new SurfaceGrassland(
+                                            b[i].topBlock,
+                                            b[i].fillerBlock,
+                                            Blocks.stone,
+                                            Blocks.cobblestone)),
+                            BiomeCategory.COLD,
+                            BiomePlacement.SMALL_ISLAND);
                 }
             }
         }
     }
+
 }

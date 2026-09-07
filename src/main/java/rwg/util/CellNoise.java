@@ -259,6 +259,38 @@ public class CellNoise {
         }
     }
 
+    /** Returns a negative blend near a Voronoi vertex, where the three nearest cells meet. */
+    public float junction(double x, double z, double width, float depth) {
+        int xInt = x > 0D ? (int) x : (int) x - 1;
+        int zInt = z > 0D ? (int) z : (int) z - 1;
+        double first = Double.POSITIVE_INFINITY;
+        double second = Double.POSITIVE_INFINITY;
+        double third = Double.POSITIVE_INFINITY;
+
+        for (int zCur = zInt - 2; zCur <= zInt + 2; zCur++) {
+            for (int xCur = xInt - 2; xCur <= xInt + 2; xCur++) {
+                double xPos = xCur + valueNoise2D(xCur, zCur, seed);
+                double zPos = zCur + valueNoise2D(xCur, zCur, seedOffset);
+                double xDistance = xPos - x;
+                double zDistance = zPos - z;
+                double distance = Math.sqrt(xDistance * xDistance + zDistance * zDistance) / SQRT_2;
+                if (distance < first) {
+                    third = second;
+                    second = first;
+                    first = distance;
+                } else if (distance < second) {
+                    third = second;
+                    second = distance;
+                } else if (distance < third) {
+                    third = distance;
+                }
+            }
+        }
+
+        double difference = third - first;
+        return difference < width ? (((float) (difference / width)) - 1f) * depth : 0f;
+    }
+
     public double noise(double x, double y, double z, double frequency) {
         // Inside each unit cube, there is a seed point at a random position. Go
         // through each of the nearby cubes until we find a cube with a seed point
