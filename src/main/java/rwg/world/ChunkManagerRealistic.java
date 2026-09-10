@@ -396,11 +396,21 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     }
 
     public long getVolcanoCoordinates(int x, int y) {
-        return continental ? continents.getVolcanoCoordinates(landmassX(x), landmassZ(y)) : Long.MIN_VALUE;
+        if (!continental) return Long.MIN_VALUE;
+        long coordinates = continents.getVolcanoCoordinates(landmassX(x), landmassZ(y));
+        return coordinates != Long.MIN_VALUE && canGenerateVolcanoAt(x, y) ? coordinates : Long.MIN_VALUE;
     }
 
     public long getVolcanoVicinityCoordinates(int x, int y) {
-        return continental ? continents.getVolcanoVicinityCoordinates(landmassX(x), landmassZ(y)) : Long.MIN_VALUE;
+        if (!continental) return Long.MIN_VALUE;
+        long coordinates = continents.getVolcanoVicinityCoordinates(landmassX(x), landmassZ(y));
+        return coordinates != Long.MIN_VALUE && canGenerateVolcanoAt(x, y) ? coordinates : Long.MIN_VALUE;
+    }
+
+    private boolean canGenerateVolcanoAt(int x, int y) {
+        return Support.volcanoIsland instanceof RealisticBiomeIslandVolcano
+                && ((RealisticBiomeIslandVolcano) Support.volcanoIsland)
+                        .canGenerateAtHeight(getVolcanoBaseHeight(x, y));
     }
 
     /**
@@ -472,7 +482,7 @@ public class ChunkManagerRealistic extends WorldChunkManager {
                 metaBiome = 0;
                 output = getOceanBiome(continent, getClimateAt(par1, par2), par1, par2);
             } else if (Support.volcanoIsland instanceof RealisticBiomeIslandVolcano
-                    && isVolcanoAboveUnderlying(par1, par2)) {
+                    && getVolcanoCoordinates(par1, par2) != Long.MIN_VALUE) {
                         metaBiome = getClimateAt(par1, par2);
                         output = Support.volcanoIsland;
                     } else {
@@ -522,7 +532,8 @@ public class ChunkManagerRealistic extends WorldChunkManager {
                 ? selectIslandBiome(2, climate, centerX, centerY)
                 : getLandBiomeAt(centerX, centerY, climate);
         if (biome == null) biome = getLandBiomeAt(centerX, centerY, climate);
-        float height = biome.rNoise(perlin, cell, centerX, centerY, 2f, 1f, 1f);
+        float continent = getContinentValue(centerX, centerY);
+        float height = biome.rNoise(perlin, cell, centerX, centerY, getTerrainOceanValue(continent), 1f, 1f, continent);
         if (volcanoBaseHeightMap.size() > 256) volcanoBaseHeightMap.clear();
         volcanoBaseHeightMap.put(seedCoordinates, height);
         return height;
@@ -549,19 +560,6 @@ public class ChunkManagerRealistic extends WorldChunkManager {
                 : getLandBiomeAt(x, y, getClimateAt(x, y));
         if (biome == null) biome = getLandBiomeAt(centerX, centerZ, climate);
         return biome;
-    }
-
-    private boolean isVolcanoAboveUnderlying(int x, int y) {
-        long coordinates = getVolcanoCoordinates(x, y);
-        if (coordinates == Long.MIN_VALUE) return false;
-        float underlyingHeight = getVolcanoUnderlyingHeight(x, y);
-        float volcanoHeight = ((RealisticBiomeIslandVolcano) Support.volcanoIsland).rNoiseAt(
-                perlin,
-                ContinentalNoise.unpackVolcanoX(coordinates),
-                ContinentalNoise.unpackVolcanoY(coordinates),
-                getVolcanoBaseHeight(x, y),
-                underlyingHeight);
-        return volcanoHeight > underlyingHeight;
     }
 
     private RealisticBiomeBase selectIslandBiome(int tier, int climate, int seedX, int seedY) {

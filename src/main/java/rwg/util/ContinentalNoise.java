@@ -10,8 +10,8 @@ import rwg.config.ConfigRWG;
 public class ContinentalNoise {
 
     /** Outer radius used for volcano blending and exclusion zones. */
-    public static final double VOLCANO_ISLAND_RADIUS = 135D;
-    public static final double VOLCANO_RADIUS = 110D;
+    public static final double VOLCANO_ISLAND_RADIUS = 160D;
+    public static final double VOLCANO_RADIUS = 130D;
     private static final int POISSON_ROUNDS = 8;
     private static final double WARP_SCALE = 3600D;
     private static final double WARP_STRENGTH = 1800D;
