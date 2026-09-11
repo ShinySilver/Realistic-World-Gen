@@ -5,8 +5,8 @@ import net.minecraft.init.Blocks;
 import biomesoplenty.api.content.BOPCBiomes;
 import biomesoplenty.api.content.BOPCBlocks;
 import rwg.api.RWGBiomes;
+import rwg.biomes.realistic.ocean.RealisticBiomeBOPOcean;
 import rwg.biomes.realistic.ocean.RealisticBiomeIslandVolcano;
-import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
 import rwg.biomes.realistic.support.RealisticBiomeFungiCanyonIsland;
 import rwg.support.Support.BiomeCategory;
 import rwg.support.Support.BiomePlacement;
@@ -35,17 +35,13 @@ public class SupportBOP {
 
     public static void init() {
         if (BOPCBiomes.kelpForest != null) {
-            Support.oceanShallowKelp = new RealisticBiomeOcean(
+            Support.oceanShallowKelp = new RealisticBiomeBOPOcean(
                     BOPCBiomes.kelpForest,
-                    true,
-                    true,
                     "RealisticBiomeOceanKelpForest");
         }
         if (BOPCBiomes.coralReef != null) {
-            Support.oceanShallowCoral = new RealisticBiomeOcean(
+            Support.oceanShallowCoral = new RealisticBiomeBOPOcean(
                     BOPCBiomes.coralReef,
-                    true,
-                    true,
                     "RealisticBiomeOceanCoralReef");
         }
         // VOLCANO ISLAND
