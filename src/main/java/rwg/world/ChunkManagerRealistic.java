@@ -138,7 +138,8 @@ public class ChunkManagerRealistic extends WorldChunkManager {
         cell.setUseDistance(true);
         biomecell = new CellNoise(seed, (short) 0);
         climateWarp = NoiseSelector.createNoiseGenerator(seed ^ 0xBB67AE8584CAA73BL);
-        smallBiomePoints = new PoissonPointNoise(seed ^ 0x510E527FADE682D1L, 1610D, 4);
+        // Point density is inversely proportional to spacing squared; 1020 instead of 1610 yields about 2.5x as many.
+        smallBiomePoints = new PoissonPointNoise(seed ^ 0x510E527FADE682D1L, 1020D, 4);
         if (continental) {
             continents = new ContinentalNoise(seed ^ 0x6A09E667F3BCC909L);
         }

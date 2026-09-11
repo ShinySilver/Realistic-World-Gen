@@ -13,6 +13,7 @@ import rwg.biomes.realistic.land.RealisticBiomeMountainChain;
 import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
 import rwg.surface.SurfaceGrassland;
 import rwg.terrain.TerrainHighland;
+import rwg.terrain.TerrainMarsh;
 import rwg.terrain.TerrainSwampMountain;
 
 public class Support {
@@ -120,6 +121,32 @@ public class Support {
                                 Blocks.stone,
                                 Blocks.cobblestone)),
                 BiomeCategory.WET);
+        BiomeGenBase icePlainsSpikes = BiomeGenBase.getBiome(BiomeGenBase.icePlains.biomeID + 128);
+        addBiome(
+                new RealisticBiomeSupport(
+                        icePlainsSpikes,
+                        RWGBiomes.baseRiverIce,
+                        new TerrainHighland(0f, 140f, 68f, 200f),
+                        new SurfaceGrassland(
+                                icePlainsSpikes.topBlock,
+                                icePlainsSpikes.fillerBlock,
+                                Blocks.stone,
+                                Blocks.cobblestone)),
+                BiomeCategory.SNOW,
+                BiomePlacement.SMALL);
+        BiomeGenBase sunflowerPlains = BiomeGenBase.getBiome(BiomeGenBase.plains.biomeID + 128);
+        addBiome(
+                new RealisticBiomeSupport(
+                        sunflowerPlains,
+                        RWGBiomes.baseRiverTemperate,
+                        new TerrainMarsh(),
+                        new SurfaceGrassland(
+                                sunflowerPlains.topBlock,
+                                sunflowerPlains.fillerBlock,
+                                Blocks.stone,
+                                Blocks.cobblestone)),
+                BiomeCategory.COLD,
+                BiomePlacement.SMALL);
         volcanoIsland = null;
         oceanShallowSnow = new RealisticBiomeOcean(
                 RWGBiomes.baseOceanCold,
