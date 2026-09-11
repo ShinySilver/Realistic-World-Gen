@@ -458,13 +458,15 @@ public final class RWGPreviewTool {
     }
 
     private static String placementName(BiomePlacement placement) {
-        if (placement == BiomePlacement.COLD_BORDER) return "Cold Border";
-        if (placement == BiomePlacement.HOT_BORDER) return "Hot Border";
         if (placement == BiomePlacement.SMALL_ISLAND) return "Small Islands";
         if (placement == BiomePlacement.LARGE_ISLAND) return "Large Islands";
         if (placement == BiomePlacement.ISLAND) return "All Island Sizes";
-        String lower = placement.name().toLowerCase();
-        return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
+        StringBuilder name = new StringBuilder();
+        for (String word : placement.name().toLowerCase().split("_")) {
+            if (name.length() > 0) name.append(' ');
+            name.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return name.toString();
     }
 
     private static JLabel sidebarLabel(JPanel entries, String text, int color) {
