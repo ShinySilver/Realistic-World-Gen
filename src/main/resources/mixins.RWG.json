@@ -7,7 +7,7 @@
   "mixins": [
     "MixinBOPSacredOak",
     "MixinNaturaRedwoodTreeGen",
-    "MixinComponentClonedStructure"
+    "MixinWitcheryComponent"
   ],
   "client": [],
   "server": []
