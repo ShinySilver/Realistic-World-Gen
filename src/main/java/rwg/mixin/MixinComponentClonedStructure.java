@@ -14,14 +14,14 @@ import com.emoniph.witchery.worldgen.ComponentClonedStructure;
 
 import rwg.support.WitcheryWorldgenCompat;
 
-/** Stops Witchery's cloned structures from bridging RWG junction skylights. */
+/** Stops Witchery's cloned structures from occupying protected RWG terrain. */
 @Mixin(value = ComponentClonedStructure.class, remap = false)
 public abstract class MixinComponentClonedStructure {
 
     @Inject(method = "addComponentParts", at = @At("HEAD"), cancellable = true, remap = false)
-    private void rwg$rejectRiverJunctions(World world, Random random, CallbackInfoReturnable<Boolean> callback) {
+    private void rwg$rejectProtectedTerrain(World world, Random random, CallbackInfoReturnable<Boolean> callback) {
         StructureBoundingBox bounds = ((ComponentClonedStructure) (Object) this).getBoundingBox();
-        if (WitcheryWorldgenCompat.intersectsRiverJunctionOpening(world, bounds)) {
+        if (WitcheryWorldgenCompat.intersectsProtectedTerrain(world, bounds)) {
             callback.setReturnValue(false);
         }
     }
