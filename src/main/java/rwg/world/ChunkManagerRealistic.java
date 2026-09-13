@@ -863,8 +863,12 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     public float calculateRiver(int x, int y, float st, float biomeHeight) {
 
         if (st < 0f && biomeHeight > 59f) {
-            return (biomeHeight * (st + 1f))
-                    + ((59f + perlin.noise2(x / 12f, y / 12f) * 2f + perlin.noise2(x / 8f, y / 8f) * 1.5f) * (-st));
+            float pX = x + (perlin.noise1(y / 240f) * 220f);
+            float pY = y + (perlin.noise1(x / 240f) * 220f);
+            float riverCarving = cell.border(pX / 1250D, pY / 1250D, 50D / 1300D, 1f);
+            return (biomeHeight * (riverCarving + 1f))
+                    + ((59f + perlin.noise2(x / 12f, y / 12f) * 2f + perlin.noise2(x / 8f, y / 8f) * 1.5f)
+                            * (-riverCarving));
         } else {
             return biomeHeight;
         }
@@ -873,10 +877,10 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     public float calculateRiver(int x, int y, float st, float biomeHeight, float[] sample) {
         if (st >= 0f || biomeHeight <= 59f) return biomeHeight;
         if (Float.isNaN(sample[2])) {
-            sample[2] = st;
+            sample[2] = cell.border(sample[0] / 1250D, sample[1] / 1250D, 50D / 1300D, 1f);
             sample[3] = 59f + perlin.noise2(x / 12f, y / 12f) * 2f + perlin.noise2(x / 8f, y / 8f) * 1.5f;
         }
-        return (biomeHeight * (st + 1f)) + (sample[3] * (-st));
+        return (biomeHeight * (sample[2] + 1f)) + (sample[3] * (-sample[2]));
     }
 
     public float getRiverStrength(int x, int y) {
