@@ -146,9 +146,13 @@ public final class LavaCaveLandmark {
             ceiling = Math.min(45f + dome * 29f + roughness, surface - 8f) - stalactite;
             localLavaLevel = LAVA_LEVEL;
             if (tunnel) {
-                // Keep the Voronoi trough through the chamber's dry shelf so every arm opens into the central lake.
-                floor = Math.min(floor, tunnelFloor);
-                ceiling = Math.max(ceiling, Math.min(tunnelCeiling + roughness * .25f, surface - 8f));
+                // Ease the Voronoi trough into the lake shore instead of cutting a vertical, lava-deep slot at the
+                // final tunnel column.
+                float channelProfile = (float) Math.sqrt(Math.max(0f, 1f - horizontal * horizontal));
+                float channelBlend = smootherstep(channelProfile);
+                floor += (Math.min(floor, tunnelFloor) - floor) * channelBlend;
+                float tunnelRoof = Math.min(tunnelCeiling + roughness * .25f, surface - 8f);
+                ceiling += (Math.max(ceiling, tunnelRoof) - ceiling) * channelBlend;
             }
         } else {
             floor = tunnelFloor;
@@ -162,7 +166,7 @@ public final class LavaCaveLandmark {
         for (int y = bottom; y <= top; y++) {
             int index = column + y;
             if (main && isBoulder(x, z, y)) {
-                blocks[index] = y <= LAVA_LEVEL ? Blocks.obsidian : Blocks.cobblestone;
+                blocks[index] = Blocks.obsidian;
             } else {
                 blocks[index] = y <= localLavaLevel ? Blocks.lava : Blocks.air;
             }
@@ -174,10 +178,20 @@ public final class LavaCaveLandmark {
             metadata[column + top] = 0;
         }
 
-        // Sparse ceiling sources create occasional lava drips without turning the whole roof into a hazard.
-        float drip = perlin.noise2((worldX + 411f) / 11f, (worldZ - 733f) / 11f)
-                + perlin.noise2(worldX / 29f, worldZ / 29f) * .35f;
-        if ((main ? drip > .48f : drip > 1.08f) && top + 2 < surface) {
+        float ceilingGlow = perlin.noise2((worldX - 823f) / 9f, (worldZ + 521f) / 9f)
+                + perlin.noise2((worldX + 191f) / 24f, (worldZ - 337f) / 24f) * .45f;
+        boolean glowstonePatch = main && distance < MAIN_RADIUS - 8f && ceilingGlow > .68f;
+        if (glowstonePatch && top + 1 < surface) {
+            blocks[column + top + 1] = Blocks.glowstone;
+            metadata[column + top + 1] = 0;
+        }
+
+        // A spaced high-frequency sample creates plentiful isolated sources rather than broad lava patches.
+        float drip = perlin.noise2((worldX + 411f) / 4f, (worldZ - 733f) / 4f);
+        boolean isolatedLavaSource = (worldX & 1) == 0 && (worldZ & 1) == 0
+                && Math.floorMod(coordinateHash(worldX, worldZ), 10) == 0
+                && drip > .18f;
+        if (!glowstonePatch && isolatedLavaSource && top + 2 < surface) {
             blocks[column + top + 1] = Blocks.lava;
             metadata[column + top + 1] = 0;
         }
@@ -198,6 +212,13 @@ public final class LavaCaveLandmark {
                 }
             }
         }
+    }
+
+    private static int coordinateHash(int x, int z) {
+        int hash = x * 0x1f1f1f1f ^ z * 0x45d9f3b;
+        hash ^= hash >>> 16;
+        hash *= 0x45d9f3b;
+        return hash ^ hash >>> 16;
     }
 
     private static int findSurface(Block[] blocks, int column) {

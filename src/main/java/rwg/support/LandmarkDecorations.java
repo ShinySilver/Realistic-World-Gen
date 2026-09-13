@@ -1,13 +1,17 @@
 package rwg.support;
 
+import java.util.Random;
+
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.World;
+import net.minecraft.world.gen.feature.WorldGenerator;
 
 import cpw.mods.fml.common.Loader;
 import eu.usrv.legacylootgames.blocks.DungeonBrick;
 import ganymedes01.etfuturum.ModBlocks;
-import mods.natura.common.NContent;
+import mods.natura.worldgen.GlowshroomGenBlueGreen;
+import mods.natura.worldgen.GlowshroomGenPurple;
 import ru.timeconqueror.lootgames.registry.LGBlocks;
 import rwg.biomes.realistic.land.RealisticBiomeMountainChain;
 import rwg.map.LavaCaveLandmark;
@@ -26,28 +30,47 @@ public final class LandmarkDecorations {
     private final Block deepslate;
     private final Block puzzleMaster;
     private final Block twilightPortal;
-    private final Block glowshroom;
+    private final WorldGenerator[] glowshrooms;
 
-    private LandmarkDecorations(Block deepslate, Block puzzleMaster, Block twilightPortal, Block glowshroom) {
+    private LandmarkDecorations(Block deepslate, Block puzzleMaster, Block twilightPortal,
+            WorldGenerator[] glowshrooms) {
         this.deepslate = deepslate;
         this.puzzleMaster = puzzleMaster;
         this.twilightPortal = twilightPortal;
-        this.glowshroom = glowshroom;
+        this.glowshrooms = glowshrooms;
     }
 
     public static LandmarkDecorations create() {
         if (!Loader.isModLoaded("etfuturum")) return null;
         Block lootGame = Loader.isModLoaded("lootgames") ? LGBlocks.PUZZLE_MASTER : null;
         Block twilight = Loader.isModLoaded("TwilightForest") ? TFBlocks.portal : null;
-        Block naturaGlowshroom = Loader.isModLoaded("Natura") ? NContent.glowshroom : null;
+        WorldGenerator[] naturaGlowshrooms = Loader.isModLoaded("Natura")
+                ? new WorldGenerator[] { new GlowshroomGenBlueGreen(false), new GlowshroomGenPurple(false) }
+                : null;
         Block deep = ModBlocks.DEEPSLATE.get();
-        return new LandmarkDecorations(deep == null ? Blocks.stone : deep, lootGame, twilight, naturaGlowshroom);
+        return new LandmarkDecorations(deep == null ? Blocks.stone : deep, lootGame, twilight, naturaGlowshrooms);
     }
 
     public void decorate(World world, ChunkManagerRealistic manager, NoiseGenerator perlin, int chunkX, int chunkZ) {
+        activateCeilingLavaSources(world, manager, chunkX, chunkZ);
         decorateLavaShore(world, manager, perlin, chunkX, chunkZ);
         decorateLavaCenter(world, manager, chunkX, chunkZ);
         decorateRiverJunction(world, manager, chunkX, chunkZ);
+    }
+
+    private static void activateCeilingLavaSources(World world, ChunkManagerRealistic manager, int chunkX, int chunkZ) {
+        for (int offsetX = 8; offsetX < 24; offsetX++) {
+            int x = chunkX + offsetX;
+            for (int offsetZ = 8; offsetZ < 24; offsetZ++) {
+                int z = chunkZ + offsetZ;
+                if (manager.getLavaCaveCoordinates(x, z) == Long.MIN_VALUE) continue;
+                for (int y = 26; y < 96; y++) {
+                    if (world.getBlock(x, y, z) != Blocks.lava || !world.isAirBlock(x, y - 1, z)) continue;
+                    world.setBlock(x, y, z, Blocks.flowing_lava, 0, 2);
+                    world.scheduleBlockUpdate(x, y, z, Blocks.flowing_lava, Blocks.flowing_lava.tickRate(world));
+                }
+            }
+        }
     }
 
     private void decorateLavaCenter(World world, ChunkManagerRealistic manager, int chunkX, int chunkZ) {
@@ -59,13 +82,15 @@ public final class LandmarkDecorations {
                 || manager.getVolcanoVicinityCoordinates(centerX, centerZ) != Long.MIN_VALUE)
             return;
 
-        placeRoundedPillar(world, centerX, centerZ, 9, LAVA_PILLAR_TOP, 6, deepslate);
         long choice = mix(world.getSeed() ^ center ^ 0xD1B54A32D192ED03L);
         if ((choice & 3L) == 0L) {
+            placeRoundedPillar(world, centerX, centerZ, 9, LAVA_PILLAR_TOP, 6, deepslate, false);
             placeNetherPortal(world, centerX, LAVA_PILLAR_TOP + 1, centerZ, (choice & 4L) != 0L);
         } else if (puzzleMaster != null) {
-            placeLootGameFloor(world, centerX, centerZ, LAVA_PILLAR_TOP, 5, false);
+            placeRoundedPillar(world, centerX, centerZ, 9, LAVA_PILLAR_TOP, 6, deepslate, true);
             world.setBlock(centerX, LAVA_PILLAR_TOP + 2, centerZ, puzzleMaster, 0, 2);
+        } else {
+            placeRoundedPillar(world, centerX, centerZ, 9, LAVA_PILLAR_TOP, 6, deepslate, false);
         }
     }
 
@@ -85,15 +110,14 @@ public final class LandmarkDecorations {
             placeSquarePillar(world, center[0], center[1], 40, RIVER_PILLAR_TOP, 8, deepslate);
             placeTwilightPortal(world, center[0], RIVER_PILLAR_TOP, center[1]);
         } else if (puzzleMaster != null) {
-            placeRoundedPillar(world, center[0], center[1], 40, RIVER_PILLAR_TOP, 2, deepslate);
-            placeLootGameFloor(world, center[0], center[1], RIVER_PILLAR_TOP, 2, true);
+            placeRoundedPillar(world, center[0], center[1], 40, RIVER_PILLAR_TOP, 2, deepslate, true);
             world.setBlock(center[0], RIVER_PILLAR_TOP + 2, center[1], puzzleMaster, 0, 2);
         }
     }
 
     private void decorateLavaShore(World world, ChunkManagerRealistic manager, NoiseGenerator perlin, int chunkX,
             int chunkZ) {
-        if (glowshroom == null) return;
+        if (glowshrooms == null) return;
         for (int offsetX = 8; offsetX < 24; offsetX++) {
             int x = chunkX + offsetX;
             for (int offsetZ = 8; offsetZ < 24; offsetZ++) {
@@ -105,11 +129,19 @@ public final class LandmarkDecorations {
                         ContinentalNoise.unpackVolcanoY(cave)))
                     continue;
                 float patch = perlin.noise2((x + 719f) / 8f, (z - 283f) / 8f) + perlin.noise2(x / 23f, z / 23f) * .3f;
-                if (patch < .48f) continue;
+                if (patch < .62f) continue;
+                long placement = mix(world.getSeed() ^ (long) x * 0x9E3779B97F4A7C15L ^ (long) z * 0xC2B2AE3D27D4EB4FL);
+                if ((placement & 63L) != 0L) continue;
                 int floor = findCaveFloor(world, x, z);
                 if (floor >= LAVA_LEVEL && floor <= 34 && world.isAirBlock(x, floor + 1, z)) {
-                    int metadata = (int) (mix(world.getSeed() ^ (long) x << 32 ^ z & 0xffffffffL) & 3L);
-                    world.setBlock(x, floor + 1, z, glowshroom, metadata % 3, 2);
+                    Block substrate = world.getBlock(x, floor, z);
+                    int substrateMetadata = world.getBlockMetadata(x, floor, z);
+                    world.setBlock(x, floor, z, Blocks.netherrack, 0, 2);
+                    Random random = new Random(placement);
+                    WorldGenerator glowshroom = glowshrooms[(int) (placement >>> 6 & 1L)];
+                    if (!glowshroom.generate(world, random, x, floor + 1, z)) {
+                        world.setBlock(x, floor, z, substrate, substrateMetadata, 2);
+                    }
                 }
             }
         }
@@ -172,12 +204,22 @@ public final class LandmarkDecorations {
     }
 
     private static void placeRoundedPillar(World world, int centerX, int centerZ, int bottom, int top, int radius,
-            Block block) {
+            Block block, boolean shieldTop) {
         int radiusSquared = radius * radius + radius / 2;
+        int shieldMetadata = DungeonBrick.Type.FLOOR_SHIELDED.ordinal();
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 if (dx * dx + dz * dz > radiusSquared) continue;
-                for (int y = bottom; y <= top; y++) world.setBlock(centerX + dx, y, centerZ + dz, block, 0, 2);
+                for (int y = bottom; y <= top; y++) {
+                    boolean shield = shieldTop && y == top;
+                    world.setBlock(
+                            centerX + dx,
+                            y,
+                            centerZ + dz,
+                            shield ? LGBlocks.DUNGEON_WALL : block,
+                            shield ? shieldMetadata : 0,
+                            2);
+                }
             }
         }
     }
@@ -189,17 +231,6 @@ public final class LandmarkDecorations {
         for (int dx = minimumOffset; dx <= maximumOffset; dx++) {
             for (int dz = minimumOffset; dz <= maximumOffset; dz++) {
                 for (int y = bottom; y <= top; y++) world.setBlock(centerX + dx, y, centerZ + dz, block, 0, 2);
-            }
-        }
-    }
-
-    private static void placeLootGameFloor(World world, int centerX, int centerZ, int y, int radius, boolean rounded) {
-        int radiusSquared = radius * radius + radius / 2;
-        int metadata = DungeonBrick.Type.FLOOR_SHIELDED.ordinal();
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                if (rounded && dx * dx + dz * dz > radiusSquared) continue;
-                world.setBlock(centerX + dx, y, centerZ + dz, LGBlocks.DUNGEON_WALL, metadata, 2);
             }
         }
     }
