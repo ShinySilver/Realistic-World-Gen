@@ -1,6 +1,7 @@
 package rwg.map;
 
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockFalling;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.World;
 
@@ -26,7 +27,7 @@ public final class LavaCaveLandmark {
         float x = warpedX(perlin, localX, localZ);
         float z = warpedZ(perlin, localX, localZ);
         float distance = (float) Math.sqrt(x * x + z * z);
-        if (distance >= SURFACE_RADIUS) return underlyingHeight;
+        if (distance >= SURFACE_RADIUS || underlyingHeight < 63f) return underlyingHeight;
         float cone = smoothstep(1f - distance / SURFACE_RADIUS) * 20f;
         float vent = smoothstep(1f - distance / (OPENING_RADIUS + 4f));
         float subtleRim = Math.max(0f, 1f - Math.abs(distance - (OPENING_RADIUS + 2f)) / 5f) * 2.5f;
@@ -156,7 +157,8 @@ public final class LavaCaveLandmark {
         }
 
         int bottom = Math.max(5, (int) Math.ceil(floor));
-        int top = Math.min(250, (int) Math.floor(ceiling));
+        int top = Math.min(Math.min(250, (int) Math.floor(ceiling)), surface - 2);
+        if (top < bottom) return;
         for (int y = bottom; y <= top; y++) {
             int index = column + y;
             if (main && isBoulder(x, z, y)) {
@@ -167,15 +169,20 @@ public final class LavaCaveLandmark {
             metadata[index] = 0;
         }
 
+        if (blocks[column + top + 1] instanceof BlockFalling) {
+            blocks[column + top] = Blocks.stone;
+            metadata[column + top] = 0;
+        }
+
         // Sparse ceiling sources create occasional lava drips without turning the whole roof into a hazard.
         float drip = perlin.noise2((worldX + 411f) / 11f, (worldZ - 733f) / 11f)
                 + perlin.noise2(worldX / 29f, worldZ / 29f) * .35f;
-        if ((main ? drip > .48f : drip > 1.08f) && top + 1 < 255) {
+        if ((main ? drip > .48f : drip > 1.08f) && top + 2 < surface) {
             blocks[column + top + 1] = Blocks.lava;
             metadata[column + top + 1] = 0;
         }
 
-        if (distance < 28f && surface > top) {
+        if (distance < 28f && surface >= 63 && surface > top) {
             int height = Math.max(1, surface - top);
             for (int y = top + 1; y <= surface; y++) {
                 float vertical = (y - top) / (float) height;

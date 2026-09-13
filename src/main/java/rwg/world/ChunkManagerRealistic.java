@@ -413,16 +413,33 @@ public class ChunkManagerRealistic extends WorldChunkManager {
 
     public long getLavaCaveCoordinates(int x, int z) {
         if (!continental) return Long.MIN_VALUE;
-        return continents.getLavaCaveCoordinates(landmassX(x), landmassZ(z));
+        long coordinates = continents.getLavaCaveCoordinates(landmassX(x), landmassZ(z));
+        return coordinates != Long.MIN_VALUE && canGenerateLavaCaveAt(x, z) ? coordinates : Long.MIN_VALUE;
     }
 
     public long getLavaCaveCenterCoordinates(int x, int z) {
         if (!continental) return Long.MIN_VALUE;
         long center = continents.getLavaCaveCenterCoordinates(landmassX(x), landmassZ(z));
-        if (center == Long.MIN_VALUE) return center;
+        if (center == Long.MIN_VALUE || !canGenerateLavaCaveAt(x, z)) return Long.MIN_VALUE;
         int centerX = (int) (center >> 32) - ConfigRWG.landmassOffsetX;
         int centerZ = (int) center - ConfigRWG.landmassOffsetZ;
         return (long) centerX << 32 | centerZ & 0xffffffffL;
+    }
+
+    private boolean canGenerateLavaCaveAt(int x, int z) {
+        int shiftedX = landmassX(x);
+        int shiftedZ = landmassZ(z);
+        long key = continents.getLavaCaveSeedKey(shiftedX, shiftedZ);
+        if (key == Long.MIN_VALUE) return false;
+        if (lavaCaveEligibilityMap.containsKey(key)) return lavaCaveEligibilityMap.get(key) == 1;
+
+        long center = continents.getLavaCaveCenterCoordinates(shiftedX, shiftedZ);
+        int centerX = (int) (center >> 32) - ConfigRWG.landmassOffsetX;
+        int centerZ = (int) center - ConfigRWG.landmassOffsetZ;
+        boolean eligible = getNoiseAt(centerX, centerZ) > 63f;
+        if (lavaCaveEligibilityMap.size() > 256) lavaCaveEligibilityMap.clear();
+        lavaCaveEligibilityMap.put(key, (byte) (eligible ? 1 : 2));
+        return eligible;
     }
 
     private boolean canGenerateVolcanoAt(int x, int y) {
@@ -655,6 +672,7 @@ public class ChunkManagerRealistic extends WorldChunkManager {
     private TLongByteHashMap metaBiomeDataMap = new TLongByteHashMap();
     private TLongFloatHashMap volcanoBaseHeightMap = new TLongFloatHashMap();
     private TLongByteHashMap volcanoEligibilityMap = new TLongByteHashMap();
+    private TLongByteHashMap lavaCaveEligibilityMap = new TLongByteHashMap();
 
     private RealisticBiomeBase getOceanBiome(float continent, int climate, int x, int y) {
         if (continent < -SHALLOW_OCEAN_WIDTH) {
