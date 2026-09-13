@@ -81,10 +81,11 @@ public final class LandmarkDecorations {
         long choice = mix(world.getSeed() ^ key ^ 0x94D049BB133111EBL);
         if ((choice & 1L) != 0L) return;
 
-        placeSquarePillar(world, center[0], center[1], 40, RIVER_PILLAR_TOP, 6, deepslate);
         if ((choice >>> 1 & 3L) == 0L && twilightPortal != null) {
+            placeSquarePillar(world, center[0], center[1], 40, RIVER_PILLAR_TOP, 8, deepslate);
             placeTwilightPortal(world, center[0], RIVER_PILLAR_TOP, center[1]);
         } else if (puzzleMaster != null) {
+            placeRoundedPillar(world, center[0], center[1], 40, RIVER_PILLAR_TOP, 2, deepslate);
             placeLootGameFloor(world, center[0], center[1], RIVER_PILLAR_TOP, 2, true);
             world.setBlock(center[0], RIVER_PILLAR_TOP + 2, center[1], puzzleMaster, 0, 2);
         }
