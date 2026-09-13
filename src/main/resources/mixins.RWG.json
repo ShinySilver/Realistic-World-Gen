@@ -5,6 +5,8 @@
   "refmap": "mixins.RWG.refmap.json",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
+    "MixinBOPSacredOak",
+    "MixinNaturaRedwoodTreeGen",
     "MixinComponentClonedStructure"
   ],
   "client": [],

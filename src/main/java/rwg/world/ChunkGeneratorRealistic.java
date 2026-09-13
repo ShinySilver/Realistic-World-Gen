@@ -48,6 +48,7 @@ import rwg.deco.DecoClay;
 import rwg.map.LavaCaveLandmark;
 import rwg.support.EtFuturumCaveVines;
 import rwg.support.LandmarkDecorations;
+import rwg.support.LargeTreeWorldgenCompat;
 import rwg.support.Support;
 import rwg.util.CanyonColor;
 import rwg.util.CellNoise;
@@ -999,7 +1000,12 @@ public class ChunkGeneratorRealistic implements IChunkProvider {
                 if (b instanceof RealisticBiomeOcean) {
                     deferredOceanDecorations[bn] = borderNoise[bn];
                 } else {
-                    b.rDecorate(this.worldObj, this.rand, x, y, perlin, cell, borderNoise[bn], river);
+                    LargeTreeWorldgenCompat.beginBiomeDecoration();
+                    try {
+                        b.rDecorate(this.worldObj, this.rand, x, y, perlin, cell, borderNoise[bn], river);
+                    } finally {
+                        LargeTreeWorldgenCompat.endBiomeDecoration();
+                    }
                 }
 
                 if (b.baseBiome.temperature < 0.15f) {
