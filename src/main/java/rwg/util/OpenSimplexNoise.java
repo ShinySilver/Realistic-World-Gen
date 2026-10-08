@@ -10,6 +10,8 @@ package rwg.util;
  * @author Kurt Spencer
  * @version $Revision: 1.1$
  */
+/** @deprecated The runtime-selectable backend was removed; retained temporarily for compatibility and comparison. */
+@Deprecated
 public class OpenSimplexNoise implements NoiseGenerator {
 
     private static final double STRETCH_2D = -0.211324865405187; // (1/Math.sqrt(2+1)-1)/2;

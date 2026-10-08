@@ -1,8 +1,5 @@
 package rwg;
 
-import net.minecraft.command.ICommandManager;
-import net.minecraft.command.ServerCommandManager;
-import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.MinecraftForge;
 
 import cpw.mods.fml.common.FMLCommonHandler;
@@ -12,16 +9,12 @@ import cpw.mods.fml.common.Mod.Instance;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
-import cpw.mods.fml.common.event.FMLServerStartingEvent;
-import rwg.biomes.base.BaseBiomes;
-import rwg.commands.RwgBugInfoCommand;
-import rwg.commands.RwgNoiseCommand;
-import rwg.config.ConfigRWG;
-import rwg.data.RailcraftWorldgenFilter;
-import rwg.data.VillageMaterials;
-import rwg.handlers.LoginHandler;
-import rwg.support.Support;
-import rwg.world.WorldTypeRealistic;
+import rwg.biomes.villages.VillageMaterials;
+import rwg.registry.BiomeRegistry;
+import rwg.registry.BiomeRegistryBootstrap;
+import rwg.support.RailcraftWorldgenFilter;
+import rwg.world.WorldType;
+import rwg.world.debug.GridBiomeReporter;
 
 @Mod(
         modid = "RWG",
@@ -34,21 +27,22 @@ public class RWG {
     @Instance("RWG")
     public static RWG instance;
 
-    public static final WorldTypeRealistic worldtype = new WorldTypeRealistic("RWG", false);
-    public static final WorldTypeRealistic continentWorldtype = new WorldTypeRealistic("RWG_CONTINENT", true);
+    public static final WorldType worldtype = new WorldType("RWG", false);
+    public static final WorldType continentWorldtype = new WorldType("RWG_CONTINENT", true);
+    public static final WorldType gridWorldtype = new WorldType("RWG_GRID", false, true);
+    private static BiomeRegistry biomeRegistry;
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         instance = this;
 
         ConfigRWG.init(event);
-        BaseBiomes.load();
+        biomeRegistry = BiomeRegistryBootstrap.createBuiltins();
 
         MinecraftForge.TERRAIN_GEN_BUS.register(new VillageMaterials());
         MinecraftForge.TERRAIN_GEN_BUS.register(new RailcraftWorldgenFilter());
 
-        FMLCommonHandler.instance().bus().register(new LoginHandler());
-        // MinecraftForge.TERRAIN_GEN_BUS.register(new TreeReplacement());
+        // MinecraftForge.TERRAIN_GEN_BUS.register(new rwg.world.TreeReplacement());
     }
 
     @EventHandler
@@ -56,17 +50,13 @@ public class RWG {
 
     @EventHandler
     public void postInit(FMLPostInitializationEvent event) {
-        BaseBiomes.validateRegistrations();
-        Support.init();
+        BiomeRegistryBootstrap.finish(biomeRegistry, true);
+        FMLCommonHandler.instance().bus().register(new GridBiomeReporter());
     }
 
-    @EventHandler
-    public void serverStart(FMLServerStartingEvent event) {
-        MinecraftServer server = event.getServer();
-        ICommandManager command = server.getCommandManager();
-        ServerCommandManager manager = (ServerCommandManager) command;
-
-        manager.registerCommand(new RwgNoiseCommand());
-        manager.registerCommand(new RwgBugInfoCommand());
+    public static BiomeRegistry biomeRegistry() {
+        if (biomeRegistry == null) throw new IllegalStateException("RWG biome registry has not been initialized");
+        return biomeRegistry;
     }
+
 }

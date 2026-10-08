@@ -7,10 +7,3 @@ rwg.buginfo.line4=To allow players from both versions to continue playing on the
 rwg.buginfo.line5=this version of RWG supports both but requires you to select which one to use when upgrading worlds.
 rwg.buginfo.perlin= is the version used in all versions except 2.2.0.0
 rwg.buginfo.opensimplex= is the version used in 2.2.0.0
-
-rwg.noise.current_type=Current noise type is %s
-rwg.noise.unchanged=Noise type unchanged.
-rwg.noise.was_set_to.unknown=Noise type was set to UNKNOWN, which will default to Perlin.
-rwg.noise.was_set_to.generic=Noise type was set to %s
-rwg.noise.instant_new_chunks=All new chunks will instantly be generated with the selected algorithm.
-rwg.noise.needs_restart=World must be reloaded (server restarted or single player relog) for changes to take effect.

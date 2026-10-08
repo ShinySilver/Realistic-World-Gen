@@ -15,4 +15,5 @@ final class ChunkBiomeArrayCompat {
         if (ids.length != biomes.length) throw new IllegalStateException("Unexpected extended biome array length");
         for (int index = 0; index < ids.length; index++) ids[index] = (short) biomes[index].biomeID;
     }
+
 }

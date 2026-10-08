@@ -9,8 +9,8 @@ import net.minecraftforge.common.util.ForgeDirection;
 import cpw.mods.fml.common.Loader;
 import ganymedes01.etfuturum.ModBlocks;
 import ganymedes01.etfuturum.world.generate.decorate.WorldGenCaveVines;
-import rwg.biomes.realistic.land.RealisticBiomeMountainChain;
-import rwg.world.ChunkManagerRealistic;
+import rwg.registry.TerrainCategory;
+import rwg.world.ChunkManager;
 
 /** Optional Et Futurum Requiem cave-vine decoration for RWG's mountain river caves. */
 public final class EtFuturumCaveVines {
@@ -26,7 +26,7 @@ public final class EtFuturumCaveVines {
         return new EtFuturumCaveVines(new WorldGenCaveVines(ModBlocks.CAVE_VINE.get()));
     }
 
-    public void decorate(World world, Random random, ChunkManagerRealistic manager, int chunkX, int chunkZ) {
+    public void decorate(World world, Random random, ChunkManager manager, int chunkX, int chunkZ) {
         for (int localX = 0; localX < 16; localX++) {
             for (int localZ = 0; localZ < 16; localZ++) {
                 int x = chunkX + localX;
@@ -44,10 +44,10 @@ public final class EtFuturumCaveVines {
         }
     }
 
-    private static boolean hasMountainChainNearby(ChunkManagerRealistic manager, int x, int z) {
+    private static boolean hasMountainChainNearby(ChunkManager manager, int x, int z) {
         for (int offsetX = -8; offsetX <= 8; offsetX += 8) {
             for (int offsetZ = -8; offsetZ <= 8; offsetZ += 8) {
-                if (manager.getBiomeDataAt(x + offsetX, z + offsetZ) instanceof RealisticBiomeMountainChain)
+                if (manager.getBiomeRegistrationAt(x + offsetX, z + offsetZ).category == TerrainCategory.MOUNTAIN)
                     return true;
             }
         }

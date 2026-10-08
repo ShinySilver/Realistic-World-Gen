@@ -20,21 +20,25 @@ import java.util.Random;
  *
  * by mncat77 and jtjj222. <----------
  */
-public class CellNoise {
+public class CellNoise implements NoiseField2D {
 
     private static final double SQRT_2 = 1.4142135623730950488;
     private static final double SQRT_3 = 1.7320508075688772935;
 
-    private boolean useDistance = false;
-
-    private long seed;
-    private long seedOffset;
-    private short distanceMethod;
+    private final boolean useDistance;
+    private final long seed;
+    private final long seedOffset;
+    private final short distanceMethod;
 
     public CellNoise(long seed, short distanceMethod) {
+        this(seed, distanceMethod, false);
+    }
+
+    public CellNoise(long seed, short distanceMethod, boolean useDistance) {
         this.seed = seed;
         this.seedOffset = new Random(seed).nextLong();
         this.distanceMethod = distanceMethod;
+        this.useDistance = useDistance;
     }
 
     private double getDistance2D(double xDist, double zDist) {
@@ -65,10 +69,6 @@ public class CellNoise {
         return useDistance;
     }
 
-    public void setUseDistance(boolean useDistance) {
-        this.useDistance = useDistance;
-    }
-
     public short getDistanceMethod() {
         return distanceMethod;
     }
@@ -77,13 +77,11 @@ public class CellNoise {
         return seed;
     }
 
-    public void setDistanceMethod(short distanceMethod) {
-        this.distanceMethod = distanceMethod;
-    }
-
-    public void setSeed(long seed) {
-        this.seed = seed;
-        this.seedOffset = new Random(seed).nextLong();
+    /** Returns the value attached to the jittered Voronoi site owned by one integer grid cell. */
+    public double voronoiValueAtCell(int cellX, int cellZ) {
+        double siteX = cellX + valueNoise2D(cellX, cellZ, seed);
+        double siteZ = cellZ + valueNoise2D(cellX, cellZ, seedOffset);
+        return valueNoise2D((int) Math.floor(siteX), (int) Math.floor(siteZ), seed);
     }
 
     public float noise(double x, double z, double frequency) {
@@ -121,6 +119,72 @@ public class CellNoise {
             return (float) getDistance2D(xDist, zDist);
         } else return ((float) CellNoise
                 .valueNoise2D((int) (Math.floor(xCandidate)), (int) (Math.floor(zCandidate)), seed));
+    }
+
+    /** Collects the local Voronoi sites and identifies the site selected by {@link #noise}. */
+    public void sampleVoronoi2D(double x, double z, double frequency, VoronoiSample2D output) {
+        x *= frequency;
+        z *= frequency;
+        int xInt = x > 0D ? (int) x : (int) x - 1;
+        int zInt = z > 0D ? (int) z : (int) z - 1;
+        output.count = 0;
+        output.winner = 0;
+        double minimumDistance = Double.POSITIVE_INFINITY;
+        for (int zCur = zInt - 2; zCur <= zInt + 2; zCur++) {
+            for (int xCur = xInt - 2; xCur <= xInt + 2; xCur++) {
+                int index = output.count++;
+                double siteX = xCur + valueNoise2D(xCur, zCur, seed);
+                double siteZ = zCur + valueNoise2D(xCur, zCur, seedOffset);
+                double xDistance = siteX - x;
+                double zDistance = siteZ - z;
+                double distance = xDistance * xDistance + zDistance * zDistance;
+                output.x[index] = siteX;
+                output.z[index] = siteZ;
+                output.value[index] = valueNoise2D((int) Math.floor(siteX), (int) Math.floor(siteZ), seed);
+                output.key[index] = (long) xCur << 32 | zCur & 0xffffffffL;
+                if (distance < minimumDistance) {
+                    minimumDistance = distance;
+                    output.winner = index;
+                }
+            }
+        }
+        output.queryX = x;
+        output.queryZ = z;
+    }
+
+    /** True when no Voronoi site is closer than the supplied pair at a projected boundary point. */
+    public boolean hasNoCloserSite2D(double x, double z, double frequency, double pairDistanceSquared) {
+        x *= frequency;
+        z *= frequency;
+        int xInt = x > 0D ? (int) x : (int) x - 1;
+        int zInt = z > 0D ? (int) z : (int) z - 1;
+        for (int zCur = zInt - 2; zCur <= zInt + 2; zCur++) {
+            for (int xCur = xInt - 2; xCur <= xInt + 2; xCur++) {
+                double siteX = xCur + valueNoise2D(xCur, zCur, seed);
+                double siteZ = zCur + valueNoise2D(xCur, zCur, seedOffset);
+                double dx = x - siteX;
+                double dz = z - siteZ;
+                if (dx * dx + dz * dz < pairDistanceSquared - 1.0E-10D) return false;
+            }
+        }
+        return true;
+    }
+
+    public static final class VoronoiSample2D {
+
+        public final double[] x = new double[25];
+        public final double[] z = new double[25];
+        public final double[] value = new double[25];
+        public final long[] key = new long[25];
+        public int count;
+        public int winner;
+        public double queryX;
+        public double queryZ;
+    }
+
+    @Override
+    public float sample2D(double x, double z) {
+        return noise(x, z, 1D);
     }
 
     /** Output: nearest distance/value followed by second-nearest distance/value. */

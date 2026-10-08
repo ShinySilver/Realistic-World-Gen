@@ -2,7 +2,7 @@ package rwg.world;
 
 import java.io.File;
 
-import rwg.config.ConfigRWG;
+import rwg.ConfigRWG;
 import rwg.util.ContinentalNoise;
 
 /** Headless sampling utility for calibrating the approximate maximum-ocean setting. */
@@ -17,7 +17,7 @@ public final class OceanCoverageCalibration {
         int size = Integer.getInteger("rwg.calibrationSize", 16384);
         int step = Integer.getInteger("rwg.calibrationStep", 16);
         String targets = System.getProperty("rwg.oceanTargets", "1.0,0.5,0.4,0.3");
-        ConfigRWG.init(config);
+        ConfigRWG.initPreview(config);
         System.out.println("RWG ocean calibration config: " + config.getAbsolutePath());
         for (String text : targets.split(",")) {
             float target = Float.parseFloat(text.trim());

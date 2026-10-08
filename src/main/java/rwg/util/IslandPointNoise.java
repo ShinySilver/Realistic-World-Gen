@@ -3,10 +3,11 @@ package rwg.util;
 import java.util.ArrayList;
 import java.util.List;
 
-import gnu.trove.map.hash.TLongObjectHashMap;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 /** Selects deterministic island seeds from the unused darts in the continent Poisson field. */
-final class IslandPointNoise {
+final class IslandPointNoise implements PointField2D {
 
     private static final int CACHE_LIMIT = 32768;
 
@@ -20,10 +21,24 @@ final class IslandPointNoise {
     private final double placementChance;
     private final int islandSearchCells;
     private final int neighbourCells;
-    private final TLongObjectHashMap<IslandCandidate[]> candidates = new TLongObjectHashMap<IslandCandidate[]>();
-    private final TLongObjectHashMap<IslandCandidate[]> regions = new TLongObjectHashMap<IslandCandidate[]>();
-    private final double[] point = new double[2];
-    private final double[] nearestContinent = new double[5];
+    private final Cache<Long, IslandCandidate[]> candidates = CacheBuilder.newBuilder().maximumSize(CACHE_LIMIT)
+            .concurrencyLevel(4).build();
+    private final Cache<Long, IslandCandidate[]> regions = CacheBuilder.newBuilder().maximumSize(CACHE_LIMIT)
+            .concurrencyLevel(4).build();
+    private final ThreadLocal<RegionLookup> lastRegion = new ThreadLocal<RegionLookup>() {
+
+        @Override
+        protected RegionLookup initialValue() {
+            return new RegionLookup();
+        }
+    };
+    private final ThreadLocal<double[]> continentSamples = new ThreadLocal<double[]>() {
+
+        @Override
+        protected double[] initialValue() {
+            return new double[continents.sampleSize()];
+        }
+    };
 
     IslandPointNoise(long seed, PoissonPointNoise continents, double maximumContinentWidth, double firstIslandWidth,
             double secondIslandWidth, double minimumOceanWidth, double placementChance) {
@@ -40,7 +55,8 @@ final class IslandPointNoise {
     }
 
     /** Output: winning island field value, radius, seed X, and seed Z. */
-    synchronized void sample(double x, double z, double[] output) {
+    @Override
+    public void sample(double x, double z, double[] output) {
         int cellX = floor(x / continents.getCellSize());
         int cellZ = floor(z / continents.getCellSize());
         double best = -Double.MAX_VALUE;
@@ -69,11 +85,22 @@ final class IslandPointNoise {
         output[3] = bestZ;
     }
 
+    @Override
+    public int sampleSize() {
+        return 4;
+    }
+
     private IslandCandidate[] region(int cellX, int cellZ) {
+        RegionLookup lookup = lastRegion.get();
+        if (lookup.candidates != null && lookup.x == cellX && lookup.z == cellZ) return lookup.candidates;
         long key = cellKey(cellX, cellZ);
-        IslandCandidate[] cached = regions.get(key);
-        if (cached != null) return cached;
-        if (regions.size() >= CACHE_LIMIT) regions.clear();
+        IslandCandidate[] cached = regions.getIfPresent(key);
+        if (cached != null) {
+            lookup.x = cellX;
+            lookup.z = cellZ;
+            lookup.candidates = cached;
+            return cached;
+        }
 
         List<IslandCandidate> placed = new ArrayList<IslandCandidate>();
         for (int offsetZ = -islandSearchCells; offsetZ <= islandSearchCells; offsetZ++) {
@@ -85,54 +112,71 @@ final class IslandPointNoise {
             }
         }
         IslandCandidate[] result = placed.toArray(new IslandCandidate[placed.size()]);
-        regions.put(key, result);
-        return result;
+        IslandCandidate[] raced = regions.asMap().putIfAbsent(key, result);
+        lookup.x = cellX;
+        lookup.z = cellZ;
+        lookup.candidates = raced == null ? result : raced;
+        return lookup.candidates;
     }
 
     private boolean isPlaced(IslandCandidate candidate) {
-        return isIdentified(candidate)
-                && unit(hash(candidate.cellX, candidate.cellZ, candidate.round * 4 + 3)) < placementChance;
+        byte state = candidate.placed;
+        if (state != 0) return state > 0;
+        synchronized (candidate) {
+            if (candidate.placed == 0) {
+                boolean placed = isIdentified(candidate)
+                        && unit(hash(candidate.cellX, candidate.cellZ, candidate.round * 4 + 3)) < placementChance;
+                candidate.placed = (byte) (placed ? 1 : -1);
+            }
+            return candidate.placed > 0;
+        }
     }
 
     private boolean isIdentified(IslandCandidate candidate) {
-        if (candidate.identified != 0) {
-            return candidate.identified > 0;
-        }
-        if (!isHoleCandidate(candidate)) {
-            candidate.identified = -1;
-            return false;
-        }
-
-        for (int offsetZ = -neighbourCells; offsetZ <= neighbourCells; offsetZ++) {
-            for (int offsetX = -neighbourCells; offsetX <= neighbourCells; offsetX++) {
-                for (int round = 0; round < continents.getRounds(); round++) {
-                    IslandCandidate neighbour = candidate(candidate.cellX + offsetX, candidate.cellZ + offsetZ, round);
-                    if (neighbour == candidate || !isHoleCandidate(neighbour) || !overlaps(candidate, neighbour)) {
-                        continue;
-                    }
-                    if (Long.compareUnsigned(neighbour.priority, candidate.priority) < 0) {
-                        candidate.identified = -1;
-                        return false;
+        byte state = candidate.identified;
+        if (state != 0) return state > 0;
+        synchronized (candidate) {
+            if (candidate.identified == 0) {
+                boolean identified = isHoleCandidate(candidate);
+                for (int offsetZ = -neighbourCells; identified && offsetZ <= neighbourCells; offsetZ++) {
+                    for (int offsetX = -neighbourCells; identified && offsetX <= neighbourCells; offsetX++) {
+                        for (int round = 0; round < continents.getRounds(); round++) {
+                            IslandCandidate neighbour = candidate(
+                                    candidate.cellX + offsetX,
+                                    candidate.cellZ + offsetZ,
+                                    round);
+                            if (neighbour == candidate || !isHoleCandidate(neighbour)
+                                    || !overlaps(candidate, neighbour))
+                                continue;
+                            if (Long.compareUnsigned(neighbour.priority, candidate.priority) < 0) {
+                                identified = false;
+                                break;
+                            }
+                        }
                     }
                 }
+                candidate.identified = (byte) (identified ? 1 : -1);
             }
+            return candidate.identified > 0;
         }
-        candidate.identified = 1;
-        return true;
     }
 
     private boolean isHoleCandidate(IslandCandidate candidate) {
-        if (candidate.hole != 0) {
+        byte state = candidate.hole;
+        if (state != 0) return state > 0;
+        synchronized (candidate) {
+            if (candidate.hole == 0) {
+                boolean hole = !continents.isAccepted(candidate.cellX, candidate.cellZ, candidate.round);
+                if (hole) {
+                    double[] nearestContinent = continentSamples.get();
+                    continents.sample(candidate.x, candidate.z, nearestContinent);
+                    double requiredClearance = maximumContinentWidth + candidate.width + minimumOceanWidth;
+                    hole = nearestContinent[0] >= requiredClearance;
+                }
+                candidate.hole = (byte) (hole ? 1 : -1);
+            }
             return candidate.hole > 0;
         }
-        if (continents.isAccepted(candidate.cellX, candidate.cellZ, candidate.round)) {
-            candidate.hole = -1;
-            return false;
-        }
-        continents.sample(candidate.x, candidate.z, nearestContinent);
-        double requiredClearance = maximumContinentWidth + candidate.width + minimumOceanWidth;
-        candidate.hole = nearestContinent[0] >= requiredClearance ? (byte) 1 : (byte) -1;
-        return candidate.hole > 0;
     }
 
     private boolean overlaps(IslandCandidate left, IslandCandidate right) {
@@ -144,27 +188,31 @@ final class IslandPointNoise {
 
     private IslandCandidate candidate(int cellX, int cellZ, int round) {
         long key = cellKey(cellX, cellZ);
-        IslandCandidate[] cell = candidates.get(key);
+        IslandCandidate[] cell = candidates.getIfPresent(key);
         if (cell == null) {
-            if (candidates.size() >= CACHE_LIMIT) {
-                candidates.clear();
-            }
-            cell = new IslandCandidate[continents.getRounds()];
-            candidates.put(key, cell);
+            IslandCandidate[] created = new IslandCandidate[continents.getRounds()];
+            IslandCandidate[] raced = candidates.asMap().putIfAbsent(key, created);
+            cell = raced == null ? created : raced;
         }
         IslandCandidate candidate = cell[round];
         if (candidate == null) {
-            continents.getCandidate(cellX, cellZ, round, point);
-            double width = minimumIslandWidth + unit(hash(cellX, cellZ, round * 4)) * islandWidthRange;
-            candidate = new IslandCandidate(
-                    cellX,
-                    cellZ,
-                    round,
-                    point[0],
-                    point[1],
-                    width,
-                    hash(cellX, cellZ, round * 4 + 1));
-            cell[round] = candidate;
+            synchronized (cell) {
+                candidate = cell[round];
+                if (candidate == null) {
+                    double[] point = new double[2];
+                    continents.getCandidate(cellX, cellZ, round, point);
+                    double width = minimumIslandWidth + unit(hash(cellX, cellZ, round * 4)) * islandWidthRange;
+                    candidate = new IslandCandidate(
+                            cellX,
+                            cellZ,
+                            round,
+                            point[0],
+                            point[1],
+                            width,
+                            hash(cellX, cellZ, round * 4 + 1));
+                    cell[round] = candidate;
+                }
+            }
         }
         return candidate;
     }
@@ -203,8 +251,9 @@ final class IslandPointNoise {
         private final double z;
         private final double width;
         private final long priority;
-        private byte hole;
-        private byte identified;
+        private volatile byte hole;
+        private volatile byte identified;
+        private volatile byte placed;
 
         private IslandCandidate(int cellX, int cellZ, int round, double x, double z, double width, long priority) {
             this.cellX = cellX;
@@ -215,5 +264,12 @@ final class IslandPointNoise {
             this.width = width;
             this.priority = priority;
         }
+    }
+
+    private static final class RegionLookup {
+
+        int x;
+        int z;
+        IslandCandidate[] candidates;
     }
 }

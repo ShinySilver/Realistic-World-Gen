@@ -1,9 +1,7 @@
 package rwg.world;
 
-import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.FontMetrics;
+import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
@@ -17,314 +15,107 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.File;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
+import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
-import net.minecraft.block.Block;
-import net.minecraft.init.Blocks;
-import net.minecraft.world.biome.BiomeGenBase;
-
-import com.google.common.base.Optional;
+import net.minecraft.world.ColorizerGrass;
 
 import one.profiler.AsyncProfiler;
-import rwg.biomes.base.BaseBiomes;
-import rwg.biomes.realistic.RealisticBiomeBase;
-import rwg.biomes.realistic.land.RealisticBiomeMountainChain;
-import rwg.biomes.realistic.ocean.RealisticBiomeOcean;
-import rwg.config.ConfigRWG;
-import rwg.support.RealisticBiomeSupport;
-import rwg.support.Support;
-import rwg.support.Support.BiomePlacement;
-import rwg.support.SupportBOP;
-import rwg.support.SupportEBXL;
-import rwg.support.SupportTC;
+import rwg.ConfigRWG;
+import rwg.biomes.surface.SurfaceBase;
+import rwg.biomes.surface.SurfaceCanyon;
+import rwg.biomes.surface.SurfaceDesert;
+import rwg.biomes.surface.SurfaceDesertMountain;
+import rwg.biomes.surface.SurfaceIslandMountainStone;
+import rwg.biomes.surface.SurfaceMesa;
+import rwg.biomes.surface.SurfaceMountainPolar;
+import rwg.biomes.surface.SurfaceMountainSnow;
+import rwg.biomes.surface.SurfaceMountainStone;
+import rwg.biomes.surface.SurfaceMountainStoneMix1;
+import rwg.biomes.surface.SurfacePolar;
+import rwg.biomes.surface.SurfaceRedDesert;
+import rwg.registry.BiomeRegistration;
+import rwg.registry.BiomeRegistry;
+import rwg.registry.Climate;
+import rwg.registry.TerrainCategory;
+import rwg.registry.TerrainSubcategory;
+import rwg.world.sample.ColumnSample;
 
-/** Offline world-generation preview used by {@code runPreview} and {@code runPerfCheck}. */
+/** Interactive window-resolution preview backed by the active world-generation pipeline. */
 public final class RWGPreviewTool {
 
-    private static final int SIZE = 40960;
-    private static final int BLOCKS_PER_PIXEL = 16;
-    private static final int RESOLUTION = SIZE / BLOCKS_PER_PIXEL;
-    private static final int PIXELS_PER_CHUNK = 16 / BLOCKS_PER_PIXEL;
-    private static final int CHUNKS = SIZE / 16;
-    private static final int GRID = 4;
-    private static final int WORKERS = GRID * GRID;
-    private static final long SEED = 927692613931855800L;
-    private static final int[] CATEGORY_COLORS = { 0x287EB3, 0x91B69C, 0x447A52, 0xD2B44B, 0x3C9166, 0x916FA3, 0xD58A45,
-            0x666666 };
-    private static final List<BiomeGenBase> ADDON_BIOMES = new ArrayList<BiomeGenBase>();
-    private static final Map<BiomeGenBase, String> ADDON_SOURCES = new IdentityHashMap<BiomeGenBase, String>();
-    private static final Map<BiomeGenBase, String> ADDON_COMMENTS = new IdentityHashMap<BiomeGenBase, String>();
+    private static final int WORKERS = 16;
+    private static final double OVERSCAN = .10d;
+    private static final double MAXIMUM_VIEW_SPAN = 40960d;
+    private static final long DEFAULT_SEED = 927692613931855800L;
+    private static final int[] CATEGORY_COLORS = { 0x8DB360, 0x73A653, 0xB89D68, 0x858585, 0xA7C36A, 0xC27652, 0x557E58,
+            0x66A878, 0x4E916B, 0x397A5D, 0x3979A8, 0x9A8457, 0xD6C49A, 0x3288BD, 0x185A8D };
+    private static final int[] CLIMATE_COLORS = { 0xE8F4FF, 0x74B86A, 0xD6A34A, 0x286B3A };
+    private static final int CLIMATE_OCEAN_COLOR = 0x287EAE;
+    private static final int CLIMATE_RIVER_COLOR = 0x3C91BE;
+    private static final int CLIMATE_JUNCTION_COLOR = 0xE02020;
+    private static final int MOUNTAIN_RIDGE_COLOR = 0xFF2020;
+    private static final int HEIGHT_LAND_COLOR = 0x68A94F;
+    private static final int HEIGHT_DEEP_OCEAN_COLOR = 0x174F82;
+    private static final int HEIGHT_SHALLOW_OCEAN_COLOR = 0x3C91BE;
+    private static final int SAND_COLOR = 0xD8C17A;
+    private static final int RED_SAND_COLOR = 0xA95832;
+    private static final int SNOW_COLOR = 0xF2F8FF;
+    private static final int STONE_COLOR = 0x777777;
+    private static int[] registrationColors;
+
+    private RWGPreviewTool() {}
 
     public static void main(String[] args) {
-        boolean instrumentOnly = Arrays.asList(args).contains("--instrument");
-        File configFile = previewConfig(args);
-        ConfigRWG.init(configFile);
-        System.out.println("RWG preview config: " + configFile.getAbsolutePath());
-        BaseBiomes.load();
-        Support.init(false);
-        initAddonStubs();
-        SupportBOP.init();
-        SupportEBXL.init();
-        SupportTC.init();
-        Support.rebuildExtremeBorderMountains();
+        ConfigRWG.initPreview(previewConfig(args));
+        BiomeRegistry registry = PreviewBiomeRegistry.create();
+        initializePreviewColors(registry);
         for (String argument : args) {
-            if (argument.startsWith("--probe=")) {
-                probe(argument.substring("--probe=".length()));
+            if (argument.startsWith("--probe-point=")) {
+                debugPoint(registry, argument.substring("--probe-point=".length()));
+                return;
+            }
+            if (argument.startsWith("--probe-blended-chunk=")) {
+                debugProbe(registry, argument.substring("--probe-blended-chunk=".length()));
                 return;
             }
         }
-        open(instrumentOnly);
-    }
-
-    private static void probe(String coordinates) {
-        String[] parts = coordinates.split(",");
-        if (parts.length != 2) throw new IllegalArgumentException("Probe coordinates must be x,z");
-        int centerX = Integer.parseInt(parts[0]);
-        int centerZ = Integer.parseInt(parts[1]);
-        ChunkManagerRealistic manager = new ChunkManagerRealistic(SEED, true);
-        ChunkGeneratorRealistic generator = new ChunkGeneratorRealistic(manager, SEED, true);
-        RealisticBiomeBase[] chunkBiomes = new RealisticBiomeBase[256];
-        for (int z = centerZ - 8; z <= centerZ + 8; z++) {
-            for (int x = centerX - 16; x <= centerX + 16; x++) {
-                int chunkX = Math.floorDiv(x, 16);
-                int chunkZ = Math.floorDiv(z, 16);
-                float[] heights = generator.getNewNoise(manager, chunkX * 16, chunkZ * 16, chunkBiomes);
-                int localX = Math.floorMod(x, 16);
-                int localZ = Math.floorMod(z, 16);
-                RealisticBiomeBase biome = chunkBiomes[localX * 16 + localZ];
-                System.out.printf(
-                        "%d,%d chunk=%d,%d height=%.3f biome=%s river=%.4f tunnel=%.4f%n",
-                        x,
-                        z,
-                        chunkX,
-                        chunkZ,
-                        heights[localX * 16 + localZ],
-                        biome.baseBiome.biomeName,
-                        manager.getRiverStrength(x, z),
-                        manager.getRiverTunnelStrength(x, z));
-            }
-        }
+        if (Arrays.asList(args).contains("--instrument")) profile(registry);
+        else open(registry);
     }
 
     private static File previewConfig(String[] args) {
-        for (String argument : args) {
+        for (String argument : args)
             if (argument.startsWith("--config=")) return new File(argument.substring("--config=".length()));
-        }
         return new File(System.getProperty("rwg.previewConfig", "run/client/config/RWG.cfg"));
     }
 
-    private static void initAddonStubs() {
-        try {
-            for (Field field : Class.forName("biomesoplenty.api.content.BOPCBiomes").getFields()) {
-                if (Modifier.isStatic(field.getModifiers()) && field.getType() == BiomeGenBase.class) {
-                    field.set(null, debugBiome(field.getName(), "BOP"));
-                }
-            }
-            for (Field field : Class.forName("biomesoplenty.api.content.BOPCBlocks").getFields()) {
-                if (Modifier.isStatic(field.getModifiers()) && field.getType() == Block.class) {
-                    field.set(null, field.getName().contains("ash") ? Blocks.sand : Blocks.stone);
-                }
-            }
-            for (Field field : Class.forName("extrabiomes.api.BiomeManager").getFields()) {
-                if (Modifier.isStatic(field.getModifiers()) && field.getType() == Optional.class) {
-                    field.set(null, Optional.of(debugBiome(field.getName(), "EBXL")));
-                }
-            }
-            debugBiome("taintedLand", "Thaumcraft");
-            debugBiome("magicalForest", "Thaumcraft");
-        } catch (ReflectiveOperationException exception) {
-            throw new RuntimeException("Could not create offline addon biome stubs", exception);
-        }
-    }
-
-    private static BiomeGenBase debugBiome(String fieldName, String source) {
-        String lower = fieldName.toLowerCase();
-        float temperature = lower.matches(".*(alps|arctic|boreal|frost|glacier|ice|snow|taiga|tundra).*") ? .2f
-                : lower.matches(".*(bamboo|bayou|desert|jungle|lush|oasis|outback|rain|savanna|tropic|volcano).*")
-                        ? 1.2f
-                        : .7f;
-        BiomeGenBase biome = new DebugBiome(nextBiomeId()).setBiomeName(prettyName(fieldName))
-                .setTemperatureRainfall(temperature, .5f);
-        ADDON_BIOMES.add(biome);
-        ADDON_SOURCES.put(biome, source);
-        String comment = disabledComment(fieldName, source);
-        if (comment != null) ADDON_COMMENTS.put(biome, comment);
-        return biome;
-    }
-
-    private static String disabledComment(String fieldName, String source) {
-        String lower = fieldName.toLowerCase();
-        if ("BOP".equals(source) && (lower.equals("undergarden") || lower.equals("phantasmagoricinferno")
-                || lower.equals("boneyard")
-                || lower.equals("visceralheap")
-                || lower.equals("polarchasm")
-                || lower.equals("spectralgarden")))
-            return "Nether biome";
-        if (lower.startsWith("alps") || lower.equals("arctic")
-                || lower.equals("canyonravine")
-                || lower.equals("glacier")
-                || lower.equals("denseforest")
-                || lower.equals("sprucewoods")
-                || lower.contains("river")
-                || lower.contains("mountain"))
-            return "Not Useful";
-        if (lower.equals("xericshrubland") || lower.equals("originvalley")
-                || lower.equals("silkglades")
-                || lower.equals("silkglade")
-                || lower.equals("mysticgrove"))
-            return "Weird";
-        if (lower.equals("marsh")) return "Buggy";
-        return null;
-    }
-
-    private static int nextBiomeId() {
-        BiomeGenBase[] biomes = BiomeGenBase.getBiomeGenArray();
-        for (int id = biomes.length - 1; id >= 0; id--) if (biomes[id] == null) return id;
-        throw new IllegalStateException("No free biome ID for offline addon stub");
-    }
-
-    private static String prettyName(String name) {
-        return name.substring(0, 1).toUpperCase() + name.substring(1).replaceAll("([A-Z])", " $1");
-    }
-
-    private static final class DebugBiome extends BiomeGenBase {
-
-        private DebugBiome(int id) {
-            super(id);
-        }
-    }
-
-    public static void open(boolean instrumentOnly) {
-        ChunkManagerRealistic categoryManager = new ChunkManagerRealistic(SEED, true);
-        List<RealisticBiomeBase> configuredBiomes = categoryManager.getConfiguredBiomes();
-        float[] height = new float[RESOLUTION * RESOLUTION];
-        byte[] biomes = new byte[RESOLUTION * RESOLUTION];
-        byte[] metaBiomes = new byte[RESOLUTION * RESOLUTION];
-        byte[] placements = new byte[RESOLUTION * RESOLUTION];
-        BufferedImage image = new BufferedImage(RESOLUTION, RESOLUTION, BufferedImage.TYPE_INT_RGB);
-        int[] pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
-        HighlightState highlight = new HighlightState();
-        MapPanel mapPanel = instrumentOnly ? null
-                : new MapPanel(image, height, biomes, metaBiomes, placements, highlight);
-        JPanel root = instrumentOnly ? null : new JPanel(new BorderLayout());
-        JLabel progress = instrumentOnly ? null : new JLabel("Generating world: 0%", JLabel.CENTER);
-        if (!instrumentOnly) createPreviewFrame(root, mapPanel, progress);
-        AtomicInteger completedChunks = new AtomicInteger();
-        ExecutorService workers = Executors.newFixedThreadPool(WORKERS);
-        CompletableFuture<?>[] jobs = new CompletableFuture[WORKERS];
-
-        try {
-            for (int tile = 0; tile < WORKERS; tile++) {
-                final int tx = tile % GRID, tz = tile / GRID;
-                jobs[tile] = CompletableFuture.runAsync(() -> {
-                    ChunkManagerRealistic manager = new ChunkManagerRealistic(SEED, true);
-                    ChunkGeneratorRealistic generator = new ChunkGeneratorRealistic(manager, SEED, true);
-                    RealisticBiomeBase[] chunkBiomes = new RealisticBiomeBase[256];
-                    for (int cz = tz * CHUNKS / GRID; cz < (tz + 1) * CHUNKS / GRID; cz++) {
-                        for (int cx = tx * CHUNKS / GRID; cx < (tx + 1) * CHUNKS / GRID; cx++) {
-                            float[] chunkHeight = generator.getNewNoise(
-                                    manager,
-                                    cx * 16 - SIZE / 2,
-                                    cz * 16 - SIZE / 2,
-                                    chunkBiomes,
-                                    BLOCKS_PER_PIXEL);
-                            for (int z = 0; z < 16; z += BLOCKS_PER_PIXEL) {
-                                int target = (cz * PIXELS_PER_CHUNK + z / BLOCKS_PER_PIXEL) * RESOLUTION
-                                        + cx * PIXELS_PER_CHUNK;
-                                for (int x = 0; x < 16; x += BLOCKS_PER_PIXEL) {
-                                    int index = target + x / BLOCKS_PER_PIXEL;
-                                    int worldX = cx * 16 + x - SIZE / 2;
-                                    int worldZ = cz * 16 + z - SIZE / 2;
-                                    RealisticBiomeBase biome = chunkBiomes[x * 16 + z];
-                                    height[index] = chunkHeight[x * 16 + z];
-                                    biomes[index] = (byte) biome.biomeID;
-                                    int metaBiome = manager.getMetaBiomeAt(worldX, worldZ);
-                                    metaBiomes[index] = (byte) metaBiome;
-                                    placements[index] = (byte) manager.getPlacementAt(metaBiome, biome);
-                                    if (!instrumentOnly) pixels[index] = biomeColor(biome.biomeID, metaBiome);
-                                }
-                            }
-                            int completed = completedChunks.incrementAndGet();
-                            if (!instrumentOnly && (completed & 1023) == 0) {
-                                SwingUtilities.invokeLater(() -> {
-                                    progress.setText(
-                                            String.format(
-                                                    "Generating world: %.1f%%",
-                                                    completed * 100d / (CHUNKS * CHUNKS)));
-                                    mapPanel.repaint();
-                                });
-                            }
-                        }
-                    }
-                }, workers);
-            }
-            CompletableFuture.allOf(jobs).join();
-            if (instrumentOnly) {
-                stopAsyncProfiler();
-                return;
-            }
-            SwingUtilities.invokeLater(() -> {
-                progress.setText("Lighting preview…");
-                mapPanel.repaint();
-            });
-            for (int tile = 0; tile < WORKERS; tile++) {
-                final int tx = tile % GRID, tz = tile / GRID;
-                jobs[tile] = CompletableFuture.runAsync(() -> {
-                    lightTile(
-                            height,
-                            biomes,
-                            metaBiomes,
-                            pixels,
-                            tx * RESOLUTION / GRID,
-                            (tx + 1) * RESOLUTION / GRID,
-                            tz * RESOLUTION / GRID,
-                            (tz + 1) * RESOLUTION / GRID);
-                }, workers);
-            }
-            CompletableFuture.allOf(jobs).join();
-        } finally {
-            workers.shutdownNow();
-        }
-
-        JPanel sidebar = createSidebar(biomes, metaBiomes, placements, configuredBiomes, categoryManager, highlight);
-        SwingUtilities.invokeLater(() -> {
-            mapPanel.finishGeneration();
-            root.remove(progress);
-            root.add(sidebar, BorderLayout.EAST);
-            root.revalidate();
-            mapPanel.repaint();
-        });
-    }
-
-    private static JFrame createPreviewFrame(JPanel root, MapPanel mapPanel, JLabel progress) {
-        JFrame frame = new JFrame("RWG_CONTINENT — seed " + SEED);
-        root.add(mapPanel);
-        root.add(progress, BorderLayout.SOUTH);
-        frame.add(root);
+    private static void open(BiomeRegistry registry) {
+        PreviewPanel panel = new PreviewPanel(registry);
+        JFrame frame = new JFrame("RWG preview");
+        frame.add(panel);
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setSize(1400, 900);
         frame.setLocationRelativeTo(null);
@@ -332,421 +123,150 @@ public final class RWGPreviewTool {
                 event -> frame.dispose(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
+        frame.getRootPane().registerKeyboardAction(
+                event -> panel.cycleLayer(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
         frame.setVisible(true);
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
 
             @Override
             public void windowClosed(java.awt.event.WindowEvent event) {
+                panel.close();
                 System.exit(0);
             }
         });
-        return frame;
+        panel.scheduleFullRender();
     }
 
-    private static void stopAsyncProfiler() {
-        try {
-            String output = System.getProperty("rwg.asyncProfilerOutput");
-            if (output == null) throw new IllegalStateException("Missing async-profiler output path");
-            AsyncProfiler.getInstance().execute("stop,file=" + output + ",title=RWG preview world generation");
-            System.out.println("RWG generation workers finished; async-profiler stopped.");
-        } catch (Exception exception) {
-            throw new RuntimeException("Could not stop async-profiler after world generation", exception);
-        }
-    }
+    private static final class PreviewPanel extends JPanel {
 
-    private static JPanel createSidebar(byte[] biomes, byte[] metaBiomes, byte[] placements,
-            List<RealisticBiomeBase> configuredBiomes, ChunkManagerRealistic manager, HighlightState highlight) {
-        int[][][] counts = new int[5][BiomePlacement.values().length][256];
-        int[] metaCounts = new int[5];
-        for (int index = 0; index < biomes.length; index++) {
-            int meta = metaBiomes[index] & 255;
-            int placement = placements[index] & 255;
-            counts[meta][placement][biomes[index] & 255]++;
-            metaCounts[meta]++;
-        }
-        Set<BiomeGenBase> supported = new HashSet<BiomeGenBase>();
-        for (RealisticBiomeBase biome : configuredBiomes) if (biome != null) supported.add(biome.baseBiome);
-        List<BiomeGenBase> missing = new ArrayList<BiomeGenBase>();
-        for (BiomeGenBase biome : ADDON_BIOMES) if (!supported.contains(biome)) missing.add(biome);
-        Collections.sort(missing, (a, b) -> {
-            String aComment = ADDON_COMMENTS.get(a);
-            String bComment = ADDON_COMMENTS.get(b);
-            if (aComment == null && bComment != null) return 1;
-            if (aComment != null && bComment == null) return -1;
-            if (aComment != null) {
-                int commentOrder = aComment.compareToIgnoreCase(bComment);
-                if (commentOrder != 0) return commentOrder;
-            }
-            return a.biomeName.compareToIgnoreCase(b.biomeName);
-        });
+        private final BiomeRegistry registry;
+        private final ThreadPoolExecutor coordinator = new ThreadPoolExecutor(
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>());
+        private final ThreadPoolExecutor hoverCoordinator = new ThreadPoolExecutor(
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>());
+        private final AtomicInteger generation = new AtomicInteger();
+        private final AtomicInteger hoverGeneration = new AtomicInteger();
+        private final JLabel hover = overlayLabel(" ");
+        private final JLabel viewport = overlayLabel(" ");
+        private final JLabel progress = overlayLabel(" ");
+        private final JPanel controls;
+        private final JComboBox<Layer> layers;
+        private final Timer panTimer;
+        private final Timer zoomTimer;
+        private volatile RenderedCanvas canvas;
+        private volatile Layer layer = Layer.BIOME;
+        private long seed = DEFAULT_SEED;
+        private double centerX;
+        private double centerZ;
+        private double blocksPerPixel = 16d;
+        private Point dragStart;
+        private double dragCenterX;
+        private double dragCenterZ;
+        private long lastPanRenderNanos;
+        private int hoverX;
+        private int hoverZ;
+        private RenderedCanvas pendingHoverCanvas;
+        private int pendingHoverIndex = -1;
 
-        JPanel entries = new JPanel();
-        entries.setLayout(new BoxLayout(entries, BoxLayout.Y_AXIS));
-        String[] metaNames = { "Water", "Snow", "Cold", "Hot", "Wet" };
-        for (int meta = 0; meta < metaNames.length; meta++) {
-            if (metaCounts[meta] == 0) continue;
-            List<Integer>[] idsByPlacement = configuredIds(meta, counts[meta], configuredBiomes, manager);
-            int biomeCount = uniqueCount(idsByPlacement);
-            double metaPercent = metaCounts[meta] * 100d / biomes.length;
-            JLabel header = sidebarLabel(
-                    entries,
-                    String.format(
-                            "%.2f%% - %s - %d biomes, avg %.2f%% per biome",
-                            metaPercent,
-                            metaNames[meta],
-                            biomeCount,
-                            biomeCount == 0 ? 0d : metaPercent / biomeCount),
-                    mix(CATEGORY_COLORS[meta], 0xFFFFFF, .72f));
-            addGroupHover(header, -1, meta, -1, highlight);
-
-            int nonEmptyPlacements = 0;
-            for (List<Integer> ids : idsByPlacement) if (!ids.isEmpty()) nonEmptyPlacements++;
-            for (BiomePlacement placement : BiomePlacement.values()) {
-                int placementIndex = placement.ordinal();
-                List<Integer> ids = idsByPlacement[placementIndex];
-                if (ids.isEmpty()) continue;
-                if (nonEmptyPlacements > 1 && placement != BiomePlacement.CORE) {
-                    JLabel placementHeader = sidebarLabel(
-                            entries,
-                            placementName(placement),
-                            mix(CATEGORY_COLORS[meta], 0xFFFFFF, .55f));
-                    addGroupHover(placementHeader, -1, meta, placementIndex, highlight);
-                }
-                for (int id : ids) {
-                    int count = counts[meta][placementIndex][id];
-                    addSidebarEntry(
-                            entries,
-                            String.format(
-                                    "%.2f%% - %s",
-                                    count * 100d / biomes.length,
-                                    biomeName(RealisticBiomeBase.getBiome(id))),
-                            meta == 0 ? 0x287EB3 : biomeColor(id, meta),
-                            id,
-                            meta,
-                            placementIndex,
-                            highlight);
-                }
-            }
-        }
-
-        JLabel disabledHeader = new JLabel("  N/A - Disabled");
-        disabledHeader.setAlignmentX(0f);
-        entries.add(disabledHeader);
-        for (BiomeGenBase biome : missing) {
-            String comment = ADDON_COMMENTS.get(biome);
-            addSidebarEntry(
-                    entries,
-                    (comment == null ? "N/A" : comment) + " - " + biome.biomeName + sourceSuffix(biome),
-                    CATEGORY_COLORS[7],
-                    -1,
-                    -1,
-                    -1,
-                    highlight);
-        }
-
-        JScrollPane content = new JScrollPane(entries);
-        content.setPreferredSize(new Dimension(420, 1));
-        highlight.attachSidebar(content);
-        JPanel sidebar = new JPanel(new BorderLayout());
-        JButton toggle = new JButton("▶");
-        toggle.addActionListener(event -> {
-            content.setVisible(!content.isVisible());
-            toggle.setText(content.isVisible() ? "▶" : "◀");
-            sidebar.revalidate();
-        });
-        sidebar.add(toggle, BorderLayout.WEST);
-        sidebar.add(content);
-        return sidebar;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static List<Integer>[] configuredIds(int meta, int[][] counts, List<RealisticBiomeBase> configured,
-            ChunkManagerRealistic manager) {
-        List<Integer>[] result = new List[BiomePlacement.values().length];
-        for (int placement = 0; placement < result.length; placement++) result[placement] = new ArrayList<Integer>();
-        if (meta == 0) {
-            int[] categories = manager.getConfiguredBiomeCategories();
-            for (RealisticBiomeBase biome : configured) {
-                if (biome != null && categories[biome.biomeID] == 0)
-                    result[BiomePlacement.CORE.ordinal()].add(biome.biomeID);
-            }
-        } else {
-            for (BiomePlacement placement : BiomePlacement.values()) {
-                for (RealisticBiomeBase biome : manager.getBiomesFor(meta, placement)) {
-                    if (!result[placement.ordinal()].contains(biome.biomeID))
-                        result[placement.ordinal()].add(biome.biomeID);
-                }
-            }
-        }
-        for (int placement = 0; placement < result.length; placement++) {
-            final int group = placement;
-            Collections.sort(
-                    result[placement],
-                    (first, second) -> Integer.compare(counts[group][second], counts[group][first]));
-        }
-        return result;
-    }
-
-    private static int uniqueCount(List<Integer>[] groups) {
-        Set<Integer> unique = new HashSet<Integer>();
-        for (List<Integer> group : groups) unique.addAll(group);
-        return unique.size();
-    }
-
-    private static String placementName(BiomePlacement placement) {
-        if (placement == BiomePlacement.SMALL_ISLAND) return "Small Islands";
-        if (placement == BiomePlacement.LARGE_ISLAND) return "Large Islands";
-        if (placement == BiomePlacement.ISLAND) return "All Island Sizes";
-        StringBuilder name = new StringBuilder();
-        for (String word : placement.name().toLowerCase().split("_")) {
-            if (name.length() > 0) name.append(' ');
-            name.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
-        }
-        return name.toString();
-    }
-
-    private static JLabel sidebarLabel(JPanel entries, String text, int color) {
-        JLabel entry = new JLabel("  " + text + "  ");
-        entry.setOpaque(true);
-        entry.setBackground(new Color(color));
-        entry.setMaximumSize(new Dimension(Integer.MAX_VALUE, entry.getPreferredSize().height + 6));
-        entry.setAlignmentX(0f);
-        entries.add(entry);
-        return entry;
-    }
-
-    private static void addGroupHover(JLabel entry, int biomeId, int meta, int placement, HighlightState highlight) {
-        entry.addMouseListener(new MouseAdapter() {
-
-            @Override
-            public void mouseEntered(MouseEvent event) {
-                highlight.set(biomeId, meta, placement, false);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent event) {
-                highlight.clear();
-            }
-        });
-    }
-
-    private static void addSidebarEntry(JPanel entries, String text, int color, int biomeId, int meta, int placement,
-            HighlightState highlight) {
-        JLabel entry = sidebarLabel(entries, text, color);
-        if (biomeId >= 0) {
-            highlight.register(biomeId, meta, placement, entry);
-            entry.addMouseListener(new MouseAdapter() {
-
-                @Override
-                public void mouseEntered(MouseEvent event) {
-                    highlight.set(biomeId, meta, placement, false);
-                }
-
-                @Override
-                public void mouseExited(MouseEvent event) {
-                    highlight.clear();
+        private PreviewPanel(BiomeRegistry registry) {
+            this.registry = registry;
+            setLayout(null);
+            JTextField seedField = new JTextField(Long.toString(seed), 17);
+            seedField.setFocusTraversalKeysEnabled(false);
+            JButton apply = new JButton("Apply");
+            apply.setFocusTraversalKeysEnabled(false);
+            apply.addActionListener(event -> {
+                try {
+                    seed = Long.parseLong(seedField.getText().trim());
+                    scheduleFullRender();
+                } catch (NumberFormatException exception) {
+                    progress.setText("Invalid seed");
                 }
             });
-        }
-    }
+            seedField.addActionListener(event -> apply.doClick());
+            JPanel seedRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+            seedRow.add(seedField);
+            seedRow.add(apply);
+            layers = new JComboBox<Layer>(Layer.values());
+            layers.setFocusTraversalKeysEnabled(false);
+            layers.addActionListener(event -> setLayer((Layer) layers.getSelectedItem()));
+            controls = new JPanel();
+            controls.setLayout(new BoxLayout(controls, BoxLayout.Y_AXIS));
+            controls.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+            controls.add(seedRow);
+            controls.add(layers);
+            hover.setBackground(new Color(245, 245, 245, 190));
+            hover.setVisible(false);
+            add(controls);
+            add(hover);
+            add(viewport);
+            add(progress);
 
-    private static String sourceSuffix(BiomeGenBase biome) {
-        String source = ADDON_SOURCES.get(biome);
-        return source == null ? "" : " (" + source + ")";
-    }
-
-    private static String biomeName(RealisticBiomeBase biome) {
-        String name = biome.getDisplayName() == null ? biome.baseBiome.biomeName : biome.getDisplayName();
-        if (biome instanceof RealisticBiomeSupport) {
-            String source = ADDON_SOURCES.get(biome.baseBiome);
-            if (source != null) {
-                String terrain = ((RealisticBiomeSupport) biome).terrain.getClass().getSimpleName()
-                        .replaceFirst("^Terrain", "").replaceAll("([a-z])([A-Z])", "$1 $2");
-                return name + " (" + source + ", " + terrain + ")";
-            }
-            return name + " (" + biome.getClass().getSimpleName() + ")";
-        }
-        if (biome instanceof RealisticBiomeMountainChain) {
-            String source = sourceSuffix(biome.baseBiome);
-            return name + (source.isEmpty() ? " (Mountain Chain)"
-                    : source.substring(0, source.length() - 1) + ", Mountain Chain)");
-        }
-        if (biome instanceof RealisticBiomeOcean) {
-            String source = sourceSuffix(biome.baseBiome);
-            String variant = ((RealisticBiomeOcean) biome).getVariantName();
-            return biome.baseBiome.biomeName + (source.isEmpty() ? " (" + variant + ")"
-                    : source.substring(0, source.length() - 1) + ", " + variant + ")");
-        }
-        return name + " (" + biome.getClass().getSimpleName() + ")";
-    }
-
-    private static void lightTile(float[] height, byte[] biomes, byte[] metaBiomes, int[] pixels, int x0, int x1,
-            int z0, int z1) {
-        for (int z = z0; z < z1; z++) {
-            for (int x = x0; x < x1; x++) {
-                int i = z * RESOLUTION + x;
-                float h = height[i];
-                int radius = 3;
-                float dx = height[z * RESOLUTION + Math.min(x + radius, RESOLUTION - 1)]
-                        - height[z * RESOLUTION + Math.max(x - radius, 0)];
-                float dz = height[Math.min(z + radius, RESOLUTION - 1) * RESOLUTION + x]
-                        - height[Math.max(z - radius, 0) * RESOLUTION + x];
-                float light = .96f + .08f * (12f + dx + dz) / (float) Math.sqrt(dx * dx + dz * dz + 432f);
-                if (h >= 63f) light += clamp((h - 63f) / 120f, 0f, 1f) * .14f;
-                int id = biomes[i] & 255;
-                int meta = metaBiomes[i] & 255;
-                if (meta == 0) {
-                    pixels[i] = biomeColor(id, meta);
-                    continue;
-                }
-                int color = h < 63f ? mix(0x071F4A, 0x4DA6D8, clamp((h - 30f) / 33f, 0f, 1f)) : biomeColor(id, meta);
-                pixels[i] = shade(color, clamp(light, .88f, 1.18f));
-            }
-        }
-    }
-
-    private static int biomeColor(int id, int meta) {
-        return shade(CATEGORY_COLORS[meta], .92f + (id % 5) * .02f);
-    }
-
-    private static String categoryName(int meta) {
-        return new String[] { "Water", "Snow", "Cold", "Hot", "Wet" }[meta];
-    }
-
-    private static int shade(int rgb, float amount) {
-        return Math.min(255, (int) (((rgb >> 16) & 255) * amount)) << 16
-                | Math.min(255, (int) (((rgb >> 8) & 255) * amount)) << 8
-                | Math.min(255, (int) ((rgb & 255) * amount));
-    }
-
-    private static int mix(int from, int to, float amount) {
-        int r = (int) (((from >> 16) & 255) * (1 - amount) + ((to >> 16) & 255) * amount);
-        int g = (int) (((from >> 8) & 255) * (1 - amount) + ((to >> 8) & 255) * amount);
-        int b = (int) ((from & 255) * (1 - amount) + (to & 255) * amount);
-        return r << 16 | g << 8 | b;
-    }
-
-    private static float clamp(float value, float min, float max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private static final class HighlightState {
-
-        private MapPanel map;
-        private JScrollPane sidebar;
-        private final JLabel[][][] entries = new JLabel[5][BiomePlacement.values().length][256];
-        private JLabel selected;
-        private int selectedBiome = -1;
-        private int selectedMeta = -1;
-        private int selectedPlacement = -1;
-
-        private void attachSidebar(JScrollPane sidebar) {
-            this.sidebar = sidebar;
-        }
-
-        private void register(int biomeId, int meta, int placement, JLabel entry) {
-            entries[meta][placement][biomeId] = entry;
-        }
-
-        private void set(int biomeId, int meta, int placement, boolean scroll) {
-            if (map != null) map.setHighlight(biomeId, meta, placement);
-            if (selectedBiome == biomeId && selectedMeta == meta && selectedPlacement == placement) return;
-            selectedBiome = biomeId;
-            selectedMeta = meta;
-            selectedPlacement = placement;
-            if (selected != null) {
-                selected.setBorder(null);
-                selected = null;
-            }
-            if (biomeId >= 0 && meta >= 0 && placement >= 0 && entries[meta][placement][biomeId] != null) {
-                selected = entries[meta][placement][biomeId];
-                selected.setBorder(BorderFactory.createLineBorder(Color.WHITE, 2));
-                if (scroll && sidebar != null) selected.scrollRectToVisible(selected.getVisibleRect());
-            }
-        }
-
-        private void clear() {
-            set(-1, -1, -1, false);
-        }
-    }
-
-    private static final class MapPanel extends JPanel {
-
-        private final BufferedImage image;
-        private final float[] height;
-        private final byte[] biomes;
-        private final byte[] metaBiomes;
-        private final byte[] placements;
-        private final HighlightState highlight;
-        private final BufferedImage hatch = new BufferedImage(RESOLUTION, RESOLUTION, BufferedImage.TYPE_INT_ARGB);
-        private final int[] hatchPixels = ((DataBufferInt) hatch.getRaster().getDataBuffer()).getData();
-        private double zoom;
-        private double x;
-        private double y;
-        private Point drag;
-        private int hoverX = -1;
-        private int hoverZ;
-        private int highlightedBiome = -1;
-        private int highlightedMeta = -1;
-        private int highlightedPlacement = -1;
-        private boolean generationFinished;
-
-        private MapPanel(BufferedImage image, float[] height, byte[] biomes, byte[] metaBiomes, byte[] placements,
-                HighlightState highlight) {
-            this.image = image;
-            this.height = height;
-            this.biomes = biomes;
-            this.metaBiomes = metaBiomes;
-            this.placements = placements;
-            this.highlight = highlight;
-            highlight.map = this;
+            panTimer = new Timer(100, event -> {
+                lastPanRenderNanos = System.nanoTime();
+                requestRender(false);
+            });
+            panTimer.setRepeats(false);
+            zoomTimer = new Timer(350, event -> requestRender(true));
+            zoomTimer.setRepeats(false);
             MouseAdapter mouse = new MouseAdapter() {
 
                 @Override
                 public void mousePressed(MouseEvent event) {
-                    if (SwingUtilities.isLeftMouseButton(event)) drag = event.getPoint();
-                }
-
-                @Override
-                public void mouseReleased(MouseEvent event) {
-                    drag = null;
+                    dragStart = event.getPoint();
+                    dragCenterX = centerX;
+                    dragCenterZ = centerZ;
                 }
 
                 @Override
                 public void mouseDragged(MouseEvent event) {
-                    if (drag == null) return;
-                    x += event.getX() - drag.x;
-                    y += event.getY() - drag.y;
-                    drag = event.getPoint();
+                    centerX = dragCenterX - (event.getX() - dragStart.x) * blocksPerPixel;
+                    centerZ = dragCenterZ - (event.getY() - dragStart.y) * blocksPerPixel;
+                    schedulePanRender();
+                    showHover(event.getX(), event.getY());
                     repaint();
                 }
 
                 @Override
                 public void mouseMoved(MouseEvent event) {
-                    hoverX = (int) ((event.getX() - x) / zoom);
-                    hoverZ = (int) ((event.getY() - y) / zoom);
-                    if (hoverX < 0 || hoverX >= RESOLUTION || hoverZ < 0 || hoverZ >= RESOLUTION) hoverX = -1;
-                    if (hoverX < 0) highlight.clear();
-                    else {
-                        int index = hoverZ * RESOLUTION + hoverX;
-                        highlight.set(biomes[index] & 255, metaBiomes[index] & 255, placements[index] & 255, true);
-                    }
-                    repaint();
+                    showHover(event.getX(), event.getY());
                 }
 
                 @Override
                 public void mouseExited(MouseEvent event) {
-                    hoverX = -1;
-                    highlight.clear();
-                    repaint();
+                    hover.setVisible(false);
+                    hoverGeneration.incrementAndGet();
+                    hoverCoordinator.getQueue().clear();
+                    pendingHoverCanvas = null;
+                    pendingHoverIndex = -1;
                 }
 
                 @Override
                 public void mouseWheelMoved(MouseWheelEvent event) {
-                    double factor = Math.pow(1.15, -event.getPreciseWheelRotation());
-                    x = event.getX() - (event.getX() - x) * factor;
-                    y = event.getY() - (event.getY() - y) * factor;
-                    zoom *= factor;
+                    double previousScale = blocksPerPixel;
+                    double nextScale = clamp(
+                            previousScale * Math.pow(1.18d, event.getPreciseWheelRotation()),
+                            .25d,
+                            maximumBlocksPerPixel());
+                    if (nextScale == previousScale) return;
+                    double worldX = viewOriginX() + event.getX() * blocksPerPixel;
+                    double worldZ = viewOriginZ() + event.getY() * blocksPerPixel;
+                    blocksPerPixel = nextScale;
+                    centerX = worldX + (getWidth() * .5d - event.getX()) * blocksPerPixel;
+                    centerZ = worldZ + (getHeight() * .5d - event.getY()) * blocksPerPixel;
+                    updateViewportLabel();
+                    zoomTimer.restart();
+                    showHover(event.getX(), event.getY());
                     repaint();
                 }
             };
@@ -757,80 +277,762 @@ public final class RWGPreviewTool {
 
                 @Override
                 public void componentResized(ComponentEvent event) {
-                    zoom = 0;
-                    repaint();
+                    blocksPerPixel = Math.min(blocksPerPixel, maximumBlocksPerPixel());
+                    updateViewportLabel();
+                    scheduleFullRender();
                 }
             });
         }
 
-        private void setHighlight(int biomeId, int meta, int placement) {
-            if (highlightedBiome == biomeId && highlightedMeta == meta && highlightedPlacement == placement) return;
-            highlightedBiome = biomeId;
-            highlightedMeta = meta;
-            highlightedPlacement = placement;
-            Arrays.fill(hatchPixels, 0);
-            if (biomeId >= 0 || meta >= 0 || placement >= 0) {
-                for (int z = 0, i = 0; z < RESOLUTION; z++) {
-                    for (int x = 0; x < RESOLUTION; x++, i++) {
-                        if ((biomeId < 0 || (biomes[i] & 255) == biomeId) && (meta < 0 || (metaBiomes[i] & 255) == meta)
-                                && (placement < 0 || (placements[i] & 255) == placement)
-                                && (x + z) % 8 < 2)
-                            hatchPixels[i] = 0xA0FFFFFF;
-                    }
-                }
+        private void scheduleFullRender() {
+            if (getWidth() <= 0 || getHeight() <= 0) return;
+            zoomTimer.restart();
+        }
+
+        private void schedulePanRender() {
+            long now = System.nanoTime();
+            long elapsedMillis = (now - lastPanRenderNanos) / 1_000_000L;
+            if (elapsedMillis >= 100L) {
+                panTimer.stop();
+                lastPanRenderNanos = now;
+                requestRender(false);
+            } else if (!panTimer.isRunning()) {
+                panTimer.setInitialDelay((int) (100L - elapsedMillis));
+                panTimer.start();
             }
+        }
+
+        private void requestRender(boolean full) {
+            if (getWidth() <= 0 || getHeight() <= 0) return;
+            final int request = full ? generation.incrementAndGet() : generation.get();
+            final int width = (int) Math.ceil(getWidth() * (1d + OVERSCAN * 2d));
+            final int height = (int) Math.ceil(getHeight() * (1d + OVERSCAN * 2d));
+            final double scale = blocksPerPixel;
+            final double originX = centerX - width * scale * .5d;
+            final double originZ = centerZ - height * scale * .5d;
+            final long requestedSeed = seed;
+            progress.setText(full ? "Refining…" : "Filling edges…");
+            if (full) {
+                coordinator.getQueue().clear();
+                RenderedCanvas target = prepareCanvas(width, height, originX, originZ, scale, requestedSeed, false);
+                canvas = target;
+                repaint();
+                coordinator.execute(() -> generate(request, target, true));
+            } else {
+                coordinator.execute(() -> {
+                    if (generation.get() != request) return;
+                    RenderedCanvas target = prepareCanvas(width, height, originX, originZ, scale, requestedSeed, true);
+                    canvas = target;
+                    SwingUtilities.invokeLater(this::repaint);
+                    generate(request, target, false);
+                });
+            }
+        }
+
+        private RenderedCanvas prepareCanvas(int width, int height, double originX, double originZ, double scale,
+                long requestedSeed, boolean copySamples) {
+            RenderedCanvas target = new RenderedCanvas(width, height, originX, originZ, scale, requestedSeed);
+            RenderedCanvas previous = canvas;
+            target.reproject(previous);
+            if (copySamples) target.copyAlignedSamples(previous);
+            return target;
+        }
+
+        private void generate(int request, RenderedCanvas target, boolean full) {
+            ExecutorService workers = Executors.newFixedThreadPool(WORKERS);
+            CompletableFuture<?>[] jobs = new CompletableFuture[WORKERS];
+            AtomicInteger rows = new AtomicInteger();
+            ChunkManager manager = new ChunkManager(target.seed, true, registry);
+            WorldGenerator generator = new WorldGenerator(target.seed, manager.worldgenSelector());
+            try {
+                for (int worker = 0; worker < WORKERS; worker++) {
+                    final int firstRow = worker;
+                    jobs[worker] = CompletableFuture.runAsync(() -> {
+                        for (int z = firstRow; z < target.height; z += WORKERS) {
+                            if (generation.get() != request) return;
+                            for (int x = 0; x < target.width; x++) {
+                                int index = z * target.width + x;
+                                if (!full && target.valid[index]) continue;
+                                WorldGenerator.PreviewColumn column = generator.samplePreviewPoint(
+                                        (int) Math.floor(target.originX + (x + .5d) * target.scale),
+                                        (int) Math.floor(target.originZ + (z + .5d) * target.scale));
+                                target.set(index, column, layer);
+                            }
+                            if ((rows.incrementAndGet() & 15) == 0)
+                                SwingUtilities.invokeLater(() -> { if (generation.get() == request) repaint(); });
+                        }
+                    }, workers);
+                }
+                CompletableFuture.allOf(jobs).join();
+            } finally {
+                workers.shutdownNow();
+            }
+            if (generation.get() != request) return;
+            target.recolor(layer);
+            SwingUtilities.invokeLater(() -> {
+                if (generation.get() != request) return;
+                progress.setText(coordinator.getQueue().isEmpty() ? "Complete" : "Filling edges…");
+                repaint();
+            });
+        }
+
+        private void setLayer(Layer newLayer) {
+            layer = newLayer;
+            RenderedCanvas current = canvas;
+            if (current != null) current.recolor(newLayer);
+            if (hover.isVisible()) showHover(hoverX, hoverZ);
             repaint();
         }
 
-        private void finishGeneration() {
-            generationFinished = true;
+        private void cycleLayer() {
+            layers.setSelectedIndex((layers.getSelectedIndex() + 1) % layers.getItemCount());
+        }
+
+        private void showHover(int screenX, int screenZ) {
+            hoverX = screenX;
+            hoverZ = screenZ;
+            RenderedCanvas current = canvas;
+            if (current == null) return;
+            double worldX = viewOriginX() + screenX * blocksPerPixel;
+            double worldZ = viewOriginZ() + screenZ * blocksPerPixel;
+            int x = (int) Math.floor((worldX - current.originX) / current.scale);
+            int z = (int) Math.floor((worldZ - current.originZ) / current.scale);
+            if (x < 0 || z < 0 || x >= current.width || z >= current.height) {
+                generateHoverPoint(current, -1, screenX, screenZ, worldX, worldZ);
+                return;
+            }
+            int index = z * current.width + x;
+            if (!current.valid[index]) {
+                generateHoverPoint(current, index, screenX, screenZ, worldX, worldZ);
+                return;
+            }
+            setHoverFromSample(
+                    screenX,
+                    screenZ,
+                    worldX,
+                    worldZ,
+                    current.baseHeights[index],
+                    current.heights[index],
+                    current.registrations[index] & 65535,
+                    current.categories[index],
+                    current.climates[index],
+                    current.climateCategories[index],
+                    current.rawMountainDistances[index],
+                    current.mountainDistances[index],
+                    current.valleyDistances[index],
+                    current.valleyStrengths[index]);
+        }
+
+        private void generateHoverPoint(RenderedCanvas target, int index, int screenX, int screenZ, double worldX,
+                double worldZ) {
+            if (pendingHoverCanvas == target && pendingHoverIndex == index) return;
+            pendingHoverCanvas = target;
+            pendingHoverIndex = index;
+            hover.setVisible(false);
+            int request = hoverGeneration.incrementAndGet();
+            hoverCoordinator.getQueue().clear();
+            hoverCoordinator.execute(() -> {
+                ChunkManager manager = new ChunkManager(target.seed, true, registry);
+                WorldGenerator.PreviewColumn column = new WorldGenerator(target.seed, manager.worldgenSelector())
+                        .samplePreviewPoint((int) Math.floor(worldX), (int) Math.floor(worldZ));
+                if (hoverGeneration.get() != request) return;
+                if (index >= 0 && canvas == target) target.set(index, column, layer);
+                SwingUtilities.invokeLater(() -> {
+                    if (hoverGeneration.get() != request) return;
+                    pendingHoverCanvas = null;
+                    pendingHoverIndex = -1;
+                    setHoverFromSample(
+                            screenX,
+                            screenZ,
+                            worldX,
+                            worldZ,
+                            column.baseHeight,
+                            column.height,
+                            column.sample.biome.registration.id,
+                            (byte) column.sample.morphology.category.ordinal(),
+                            (byte) column.sample.climate.climate.ordinal(),
+                            (byte) column.sample.climate.category.ordinal(),
+                            column.sample.morphology.rawMountainDistance,
+                            column.sample.morphology.mountainDistance,
+                            column.sample.morphology.valleyDistance,
+                            column.sample.morphology.valleyStrength);
+                    repaint();
+                });
+            });
+        }
+
+        private void setHoverFromSample(int screenX, int screenZ, double worldX, double worldZ, float baseHeight,
+                float finalHeight, int registrationId, byte category, byte climate, byte climateCategory,
+                float rawMountainDistance, float effectiveMountainDistance, float valleyDistance,
+                float valleyStrength) {
+            BiomeRegistration registration = registry.registration(registrationId);
+            String coordinates = String.format("X: %.0f&nbsp;&nbsp;Z: %.0f", worldX, worldZ);
+            String placement = Climate.values()[climate & 255] + " / "
+                    + TerrainCategory.values()[category & 255]
+                    + (registration.subcategory == TerrainSubcategory.CORE ? "" : " / " + registration.subcategory);
+            String value;
+            if (layer == Layer.CATEGORY) {
+                value = "Climate / terrain: " + placement
+                        + "<br>Base height: "
+                        + String.format("%.1f", baseHeight)
+                        + "<br>Mountain distance: "
+                        + String.format("%.1f → %.1f", rawMountainDistance, effectiveMountainDistance)
+                        + "<br>Valley: "
+                        + String.format("%.2f (distance %.1f)", valleyStrength, valleyDistance);
+            } else if (layer == Layer.CLIMATE) {
+                value = "Climate/Category: " + Climate.values()[climate & 255]
+                        + " / "
+                        + TerrainSubcategory.values()[climateCategory & 255];
+            } else {
+                value = "Biome: " + registration.biome.biomeName
+                        + " (#"
+                        + registration.biome.biomeID
+                        + ")"
+                        + "<br>Registry entry: #"
+                        + registration.id
+                        + (registration.builtin ? " (built-in)" : " (integration)")
+                        + "<br>Terrain base: "
+                        + registration.terrain.getClass().getSimpleName()
+                        + "<br>Surface: "
+                        + surfaceNames(registration.surfaces)
+                        + "<br>Selection: "
+                        + registration.climate
+                        + " / "
+                        + registration.category
+                        + " / "
+                        + registration.subcategory
+                        + " (weight "
+                        + registration.weight
+                        + ")"
+                        + "<br>Base height: "
+                        + String.format("%.1f", baseHeight)
+                        + "&nbsp;&nbsp;Final height: "
+                        + String.format("%.1f", finalHeight)
+                        + "<br>Valley strength: "
+                        + String.format("%.2f", valleyStrength);
+            }
+            setHover(screenX, screenZ, coordinates, value);
+        }
+
+        private static String surfaceNames(SurfaceBase[] surfaces) {
+            if (surfaces.length == 0) return "none";
+            StringBuilder names = new StringBuilder();
+            for (SurfaceBase surface : surfaces) {
+                if (names.length() != 0) names.append(", ");
+                names.append(surface.getClass().getSimpleName());
+            }
+            return names.toString();
+        }
+
+        private void setHover(int cursorX, int cursorZ, String coordinates, String detail) {
+            hover.setText("<html>" + coordinates + "<br>" + detail + "</html>");
+            java.awt.Dimension size = hover.getPreferredSize();
+            int x = cursorX + 14;
+            int z = cursorZ + 14;
+            if (x + size.width > getWidth() - 4) x = cursorX - size.width - 14;
+            if (z + size.height > getHeight() - 4) z = cursorZ - size.height - 14;
+            hover.setBounds(Math.max(4, x), Math.max(4, z), size.width, size.height);
+            hover.setVisible(true);
+        }
+
+        private double viewOriginX() {
+            return centerX - getWidth() * blocksPerPixel * .5d;
+        }
+
+        private double viewOriginZ() {
+            return centerZ - getHeight() * blocksPerPixel * .5d;
+        }
+
+        private double maximumBlocksPerPixel() {
+            int longestSide = Math.max(1, Math.max(getWidth(), getHeight()));
+            return Math.max(.25d, MAXIMUM_VIEW_SPAN / longestSide);
+        }
+
+        private void updateViewportLabel() {
+            viewport.setText(
+                    String.format(
+                            "Viewport: %,.0f × %,.0f blocks  (%.2f blocks/px)",
+                            getWidth() * blocksPerPixel,
+                            getHeight() * blocksPerPixel,
+                            blocksPerPixel));
+        }
+
+        private void close() {
+            generation.incrementAndGet();
+            coordinator.shutdownNow();
+            hoverGeneration.incrementAndGet();
+            hoverCoordinator.shutdownNow();
+        }
+
+        @Override
+        public void doLayout() {
+            controls.setBounds(8, 8, 285, 65);
+            viewport.setBounds(8, Math.max(8, getHeight() - 60), Math.min(430, getWidth() - 16), 24);
+            progress.setBounds(Math.max(8, getWidth() - 150), Math.max(8, getHeight() - 32), 142, 24);
         }
 
         @Override
         protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
-            if (zoom == 0) {
-                zoom = Math.min((double) getWidth() / image.getWidth(), (double) getHeight() / image.getHeight());
-                x = (getWidth() - image.getWidth() * zoom) / 2;
-                y = (getHeight() - image.getHeight() * zoom) / 2;
-            }
-            Graphics2D map = (Graphics2D) graphics.create();
-            map.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-            map.translate(x, y);
-            map.scale(zoom, zoom);
-            map.drawImage(image, 0, 0, null);
-            if (generationFinished && (highlightedBiome >= 0 || highlightedMeta >= 0 || highlightedPlacement >= 0)) {
-                map.drawImage(hatch, 0, 0, null);
-            }
-            map.dispose();
-            paintTooltip((Graphics2D) graphics);
+            RenderedCanvas current = canvas;
+            if (current == null) return;
+            double x = (current.originX - viewOriginX()) / blocksPerPixel;
+            double z = (current.originZ - viewOriginZ()) / blocksPerPixel;
+            double width = current.width * current.scale / blocksPerPixel;
+            double height = current.height * current.scale / blocksPerPixel;
+            Graphics2D graphics2D = (Graphics2D) graphics.create();
+            graphics2D.setRenderingHint(
+                    RenderingHints.KEY_INTERPOLATION,
+                    current.scale < blocksPerPixel ? RenderingHints.VALUE_INTERPOLATION_BILINEAR
+                            : RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            graphics2D.drawImage(
+                    current.image,
+                    (int) Math.floor(x),
+                    (int) Math.floor(z),
+                    (int) Math.ceil(width),
+                    (int) Math.ceil(height),
+                    null);
+            graphics2D.dispose();
+        }
+    }
+
+    private static final class RenderedCanvas {
+
+        private static final int SHADING_RADIUS = 3;
+        private final int width;
+        private final int height;
+        private final double originX;
+        private final double originZ;
+        private final double scale;
+        private final long seed;
+        private final float[] heights;
+        private final float[] baseHeights;
+        private final short[] registrations;
+        private final byte[] categories;
+        private final byte[] hostCategories;
+        private final byte[] climates;
+        private final byte[] climateCategories;
+        private final float[] rawMountainDistances;
+        private final float[] mountainDistances;
+        private final float[] valleyDistances;
+        private final float[] valleyStrengths;
+        private final boolean[] valid;
+        private final BufferedImage image;
+        private final int[] pixels;
+
+        private RenderedCanvas(int width, int height, double originX, double originZ, double scale, long seed) {
+            this.width = width;
+            this.height = height;
+            this.originX = originX;
+            this.originZ = originZ;
+            this.scale = scale;
+            this.seed = seed;
+            heights = new float[width * height];
+            baseHeights = new float[width * height];
+            registrations = new short[width * height];
+            categories = new byte[width * height];
+            hostCategories = new byte[width * height];
+            climates = new byte[width * height];
+            climateCategories = new byte[width * height];
+            rawMountainDistances = new float[width * height];
+            mountainDistances = new float[width * height];
+            valleyDistances = new float[width * height];
+            valleyStrengths = new float[width * height];
+            valid = new boolean[width * height];
+            image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+            pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
         }
 
-        private void paintTooltip(Graphics2D graphics) {
-            if (hoverX < 0) return;
-            int i = hoverZ * RESOLUTION + hoverX;
-            int id = biomes[i] & 255;
-            int meta = metaBiomes[i] & 255;
-            int placement = placements[i] & 255;
-            String[] lines = {
-                    "X " + (hoverX * BLOCKS_PER_PIXEL - SIZE / 2)
-                            + "  Y "
-                            + Math.round(height[i])
-                            + "  Z "
-                            + (hoverZ * BLOCKS_PER_PIXEL - SIZE / 2),
-                    "Category: " + placementName(BiomePlacement.values()[placement]) + " " + categoryName(meta),
-                    "Biome: " + biomeName(RealisticBiomeBase.getBiome(id)),
-                    "Backing biome: " + RealisticBiomeBase.getBiome(id).baseBiome.biomeName };
-            FontMetrics metrics = graphics.getFontMetrics();
-            int width = 0;
-            for (String line : lines) width = Math.max(width, metrics.stringWidth(line));
-            int boxX = getWidth() - width - 24, boxY = getHeight() - metrics.getHeight() * lines.length - 18;
-            graphics.setColor(new Color(0, 0, 0, 190));
-            graphics.fillRoundRect(boxX, boxY, width + 16, metrics.getHeight() * lines.length + 10, 10, 10);
-            graphics.setColor(Color.WHITE);
-            for (int line = 0; line < lines.length; line++) {
-                graphics.drawString(lines[line], boxX + 8, boxY + 5 + metrics.getAscent() + line * metrics.getHeight());
+        private void reproject(RenderedCanvas source) {
+            if (source == null || source.seed != seed) return;
+            double x = (source.originX - originX) / scale;
+            double z = (source.originZ - originZ) / scale;
+            double projectedWidth = source.width * source.scale / scale;
+            double projectedHeight = source.height * source.scale / scale;
+            Graphics2D graphics = image.createGraphics();
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.drawImage(
+                    source.image,
+                    (int) Math.floor(x),
+                    (int) Math.floor(z),
+                    (int) Math.ceil(projectedWidth),
+                    (int) Math.ceil(projectedHeight),
+                    null);
+            graphics.dispose();
+        }
+
+        private void copyAlignedSamples(RenderedCanvas source) {
+            if (source == null || source.seed != seed || source.scale != scale) return;
+            int shiftX = (int) Math.round((source.originX - originX) / scale);
+            int shiftZ = (int) Math.round((source.originZ - originZ) / scale);
+            if (Math.abs(source.originX - originX - shiftX * scale) > .001d
+                    || Math.abs(source.originZ - originZ - shiftZ * scale) > .001d)
+                return;
+            int targetX = Math.max(0, shiftX);
+            int targetZ = Math.max(0, shiftZ);
+            int sourceX = Math.max(0, -shiftX);
+            int sourceZ = Math.max(0, -shiftZ);
+            int copyWidth = Math.min(width - targetX, source.width - sourceX);
+            int copyHeight = Math.min(height - targetZ, source.height - sourceZ);
+            if (copyWidth <= 0 || copyHeight <= 0) return;
+            for (int row = 0; row < copyHeight; row++) {
+                int from = (sourceZ + row) * source.width + sourceX;
+                int to = (targetZ + row) * width + targetX;
+                System.arraycopy(source.heights, from, heights, to, copyWidth);
+                System.arraycopy(source.baseHeights, from, baseHeights, to, copyWidth);
+                System.arraycopy(source.registrations, from, registrations, to, copyWidth);
+                System.arraycopy(source.categories, from, categories, to, copyWidth);
+                System.arraycopy(source.hostCategories, from, hostCategories, to, copyWidth);
+                System.arraycopy(source.climates, from, climates, to, copyWidth);
+                System.arraycopy(source.climateCategories, from, climateCategories, to, copyWidth);
+                System.arraycopy(source.rawMountainDistances, from, rawMountainDistances, to, copyWidth);
+                System.arraycopy(source.mountainDistances, from, mountainDistances, to, copyWidth);
+                System.arraycopy(source.valleyDistances, from, valleyDistances, to, copyWidth);
+                System.arraycopy(source.valleyStrengths, from, valleyStrengths, to, copyWidth);
+                System.arraycopy(source.valid, from, valid, to, copyWidth);
             }
         }
+
+        private void set(int index, WorldGenerator.PreviewColumn column, Layer layer) {
+            heights[index] = column.height;
+            baseHeights[index] = column.baseHeight;
+            registrations[index] = (short) column.sample.biome.registration.id;
+            categories[index] = (byte) column.sample.morphology.category.ordinal();
+            hostCategories[index] = (byte) column.sample.biome.registration.category.ordinal();
+            climates[index] = (byte) column.sample.climate.climate.ordinal();
+            climateCategories[index] = (byte) column.sample.climate.category.ordinal();
+            rawMountainDistances[index] = column.sample.morphology.rawMountainDistance;
+            mountainDistances[index] = column.sample.morphology.mountainDistance;
+            valleyDistances[index] = column.sample.morphology.valleyDistance;
+            valleyStrengths[index] = column.sample.morphology.valleyStrength;
+            valid[index] = true;
+            pixels[index] = color(index, layer);
+            refreshSlopeDependents(index, layer);
+        }
+
+        /** Re-shades only pixels whose east/west/north/south slope stencil includes the new sample. */
+        private void refreshSlopeDependents(int index, Layer layer) {
+            int x = index % width;
+            int z = index / width;
+            recolorIfValid(index, layer);
+            recolorIfValid(z * width + Math.max(0, x - SHADING_RADIUS), layer);
+            recolorIfValid(z * width + Math.min(width - 1, x + SHADING_RADIUS), layer);
+            recolorIfValid(Math.max(0, z - SHADING_RADIUS) * width + x, layer);
+            recolorIfValid(Math.min(height - 1, z + SHADING_RADIUS) * width + x, layer);
+            recolorIfValid(z * width + Math.max(0, x - 1), layer);
+            recolorIfValid(z * width + Math.min(width - 1, x + 1), layer);
+            recolorIfValid(Math.max(0, z - 1) * width + x, layer);
+            recolorIfValid(Math.min(height - 1, z + 1) * width + x, layer);
+        }
+
+        private void recolorIfValid(int index, Layer layer) {
+            if (valid[index]) pixels[index] = color(index, layer);
+        }
+
+        private void recolor(Layer layer) {
+            for (int index = 0; index < pixels.length; index++) if (valid[index]) pixels[index] = color(index, layer);
+        }
+
+        private int color(int index, Layer layer) {
+            boolean regionalLayer = layer == Layer.CATEGORY || layer == Layer.CLIMATE;
+            float elevation = regionalLayer ? baseHeights[index] : heights[index];
+            int color;
+            if (layer == Layer.CLIMATE) {
+                int terrainCategory = categories[index] & 255;
+                if (isOcean(index)) color = CLIMATE_OCEAN_COLOR;
+                else if (terrainCategory == TerrainCategory.RIVER.ordinal()) color = CLIMATE_RIVER_COLOR;
+                else if (mountainDistances[index] <= Math.max(16d, scale)) color = CLIMATE_JUNCTION_COLOR;
+                else {
+                    int climate = climates[index] & 255;
+                    color = CLIMATE_COLORS[climate];
+                    TerrainSubcategory category = TerrainSubcategory.values()[climateCategories[index] & 255];
+                    if (category == TerrainSubcategory.COLD_BORDER && climate > 0)
+                        color = mix(color, CLIMATE_COLORS[climate - 1], .33f);
+                    else if (category == TerrainSubcategory.HOT_BORDER && climate + 1 < CLIMATE_COLORS.length)
+                        color = mix(color, CLIMATE_COLORS[climate + 1], .33f);
+                }
+            } else if (layer == Layer.CATEGORY && rawMountainDistances[index] <= Math.max(1d, scale * .75d)) {
+                return MOUNTAIN_RIDGE_COLOR;
+            } else if (layer == Layer.CATEGORY) {
+                int category = categories[index] & 255;
+                if (category == TerrainCategory.RIVER.ordinal() && elevation >= 63f) {
+                    category = hostCategories[index] & 255;
+                }
+                color = CATEGORY_COLORS[category];
+            } else {
+                color = biomeColor(registrations[index] & 65535, elevation);
+            }
+            int x = index % width;
+            int z = index / width;
+            int westX = Math.max(0, x - SHADING_RADIUS);
+            int eastX = Math.min(width - 1, x + SHADING_RADIUS);
+            int northZ = Math.max(0, z - SHADING_RADIUS);
+            int southZ = Math.min(height - 1, z + SHADING_RADIUS);
+            int west = z * width + westX;
+            int east = z * width + eastX;
+            int north = northZ * width + x;
+            int south = southZ * width + x;
+            if (!valid[west] || !valid[east] || !valid[north] || !valid[south]) return color;
+            float[] shadingHeights = regionalLayer ? baseHeights : heights;
+            float referenceSpan = SHADING_RADIUS * 2f;
+            float dx = (shadingHeights[east] - shadingHeights[west]) * referenceSpan
+                    / (float) ((eastX - westX) * scale);
+            float dz = (shadingHeights[south] - shadingHeights[north]) * referenceSpan
+                    / (float) ((southZ - northZ) * scale);
+            float directional = (12f + dx + dz) / (float) Math.sqrt(dx * dx + dz * dz + 432f);
+            float light = .78f + .40f * directional;
+            if (elevation >= 63f) light += clamp((elevation - 63f) / 120f, 0f, 1f) * .14f;
+            color = shade(color, clamp(light, .55f, 1.45f));
+            return contour(color, index, elevation, shadingHeights);
+        }
+
+        private int contour(int color, int index, float elevation, float[] contourHeights) {
+            int x = index % width;
+            int z = index / width;
+            int east = z * width + Math.min(width - 1, x + 1);
+            int south = Math.min(height - 1, z + 1) * width + x;
+            if (!valid[east] || !valid[south]) return color;
+            int contour = (int) Math.floor(elevation / 10f);
+            int eastContour = (int) Math.floor(contourHeights[east] / 10f);
+            int southContour = (int) Math.floor(contourHeights[south] / 10f);
+            if (contour == eastContour && contour == southContour) return color;
+            boolean major = contour % 5 == 0 || eastContour % 5 == 0 || southContour % 5 == 0;
+            return shade(color, major ? .48f : .68f);
+        }
+
+        private boolean isOcean(int index) {
+            int category = categories[index] & 255;
+            return category == TerrainCategory.SHALLOW_OCEAN.ordinal()
+                    || category == TerrainCategory.DEEP_OCEAN.ordinal();
+        }
+
+    }
+
+    private enum Layer {
+
+        BIOME("Biomes"),
+        CATEGORY("Terrain categories"),
+        CLIMATE("Climates");
+
+        private final String label;
+
+        Layer(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    private static JLabel overlayLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setOpaque(true);
+        label.setBackground(new Color(245, 245, 245, 230));
+        label.setBorder(BorderFactory.createEmptyBorder(3, 6, 3, 6));
+        return label;
+    }
+
+    private static void profile(BiomeRegistry registry) {
+        profilePass(registry, DEFAULT_SEED ^ 0x5DEECE66DL, 1400, 900);
+        profilePass(registry, DEFAULT_SEED ^ 0xC0FFEE1234L, 1400, 900);
+        try {
+            Thread.sleep(1000L);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting for profiling warm-up", exception);
+        }
+        restartProfiler();
+        long started = System.nanoTime();
+        profilePass(registry, DEFAULT_SEED, 1400, 900);
+        System.out
+                .println(String.format("Measured preview generation: %.3f s", (System.nanoTime() - started) / 1.0E9D));
+        stopProfiler();
+    }
+
+    private static void profilePass(BiomeRegistry registry, long seed, int width, int height) {
+        RenderedCanvas canvas = new RenderedCanvas(width, height, -width * 8d, -height * 8d, 16d, seed);
+        PreviewPanel panel = new PreviewPanel(registry);
+        panel.canvas = canvas;
+        int request = panel.generation.incrementAndGet();
+        panel.generate(request, canvas, true);
+        panel.close();
+    }
+
+    private static void restartProfiler() {
+        try {
+            AsyncProfiler profiler = AsyncProfiler.getInstance();
+            profiler.execute("stop");
+            profiler.execute("start,event=cpu,interval=1ms");
+        } catch (Exception exception) {
+            throw new RuntimeException("Could not restart async-profiler after warm-up", exception);
+        }
+    }
+
+    private static void debugProbe(BiomeRegistry registry, String coordinates) {
+        String[] parts = coordinates.split(",");
+        if (parts.length != 2) throw new IllegalArgumentException("Chunk coordinates must be x,z");
+        int chunkX = Integer.parseInt(parts[0]);
+        int chunkZ = Integer.parseInt(parts[1]);
+        ChunkManager manager = new ChunkManager(DEFAULT_SEED, true, registry);
+        WorldGenerator.ChunkTerrain chunk = new WorldGenerator(DEFAULT_SEED, manager.worldgenSelector())
+                .sampleChunk(chunkX, chunkZ);
+        float minimum = Float.POSITIVE_INFINITY;
+        float maximum = Float.NEGATIVE_INFINITY;
+        float baseMinimum = Float.POSITIVE_INFINITY;
+        float baseMaximum = Float.NEGATIVE_INFINITY;
+        long fingerprint = 0xcbf29ce484222325L;
+        for (int index = 0; index < chunk.heights.length; index++) {
+            minimum = Math.min(minimum, chunk.heights[index]);
+            maximum = Math.max(maximum, chunk.heights[index]);
+            baseMinimum = Math.min(baseMinimum, chunk.baseHeights[index]);
+            baseMaximum = Math.max(baseMaximum, chunk.baseHeights[index]);
+            fingerprint = (fingerprint ^ Float.floatToIntBits(chunk.heights[index])) * 0x100000001b3L;
+            fingerprint = (fingerprint ^ chunk.registrations[index].id) * 0x100000001b3L;
+        }
+        System.out.println("RWG component registry entries=" + registry.registrations().size());
+        System.out.println(
+                "chunk=" + chunkX
+                        + ","
+                        + chunkZ
+                        + " height="
+                        + minimum
+                        + ".."
+                        + maximum
+                        + " baseHeight="
+                        + baseMinimum
+                        + ".."
+                        + baseMaximum
+                        + " fingerprint=0x"
+                        + Long.toHexString(fingerprint));
+    }
+
+    private static void debugPoint(BiomeRegistry registry, String coordinates) {
+        String[] parts = coordinates.split(",");
+        if (parts.length != 2) throw new IllegalArgumentException("Point coordinates must be x,z");
+        int x = Integer.parseInt(parts[0]);
+        int z = Integer.parseInt(parts[1]);
+        ChunkManager manager = new ChunkManager(DEFAULT_SEED, true, registry);
+        WorldGenerator.PreviewColumn column = new WorldGenerator(DEFAULT_SEED, manager.worldgenSelector())
+                .samplePreviewPoint(x, z);
+        ColumnSample sample = column.sample;
+        System.out.println("point=" + x + "," + z);
+        System.out.println(
+                "continent=" + sample.continent.distance
+                        + " climate="
+                        + sample.climate.climate
+                        + " climateSelector="
+                        + sample.climate.selector);
+        System.out.println(
+                "category=" + sample.morphology.category
+                        + " rawMountainDistance="
+                        + sample.morphology.rawMountainDistance
+                        + " mountainDistance="
+                        + sample.morphology.mountainDistance
+                        + " mountainStrength="
+                        + sample.morphology.mountainStrength
+                        + " plateauSide="
+                        + sample.morphology.plateauSide
+                        + " riverStrength="
+                        + sample.morphology.riverStrength
+                        + " riverDistance="
+                        + sample.morphology.riverDistance
+                        + " valleyStrength="
+                        + sample.morphology.valleyStrength
+                        + " valleyDistance="
+                        + sample.morphology.valleyDistance
+                        + " baseHeight="
+                        + column.baseHeight
+                        + " finalHeight="
+                        + column.height);
+        System.out.println(
+                "biome=" + sample.biome.registration.biome.biomeName + " registryId=" + sample.biome.registration.id);
+    }
+
+    private static void stopProfiler() {
+        try {
+            String output = System.getProperty("rwg.asyncProfilerOutput");
+            if (output == null) throw new IllegalStateException("Missing async-profiler output path");
+            AsyncProfiler.getInstance().execute("stop,file=" + output + ",title=RWG preview world generation");
+        } catch (Exception exception) {
+            throw new RuntimeException("Could not stop async-profiler", exception);
+        }
+    }
+
+    private static int biomeColor(int registrationId, float height) {
+        if (height < 63f) return mix(0x123C69, 0x4CA3D9, clamp((height - 28f) / 35f, 0f, 1f));
+        return registrationColors[registrationId];
+    }
+
+    private static void initializePreviewColors(BiomeRegistry registry) {
+        initializeGrassColorizer();
+        registrationColors = new int[registry.registrations().size()];
+        for (BiomeRegistration registration : registry.registrations()) {
+            int color = registration.biome.getBiomeGrassColor(0, 64, 0) & 0xffffff;
+            if (registration.builtin) {
+                for (SurfaceBase surface : registration.surfaces) {
+                    if (surface instanceof SurfaceRedDesert || surface instanceof SurfaceCanyon
+                            || surface instanceof SurfaceMesa) {
+                        color = RED_SAND_COLOR;
+                        break;
+                    }
+                    if (surface instanceof SurfaceDesert || surface instanceof SurfaceDesertMountain) {
+                        color = SAND_COLOR;
+                        break;
+                    }
+                    if (surface instanceof SurfacePolar || surface instanceof SurfaceMountainSnow
+                            || surface instanceof SurfaceMountainPolar) {
+                        color = SNOW_COLOR;
+                        break;
+                    }
+                    if (surface instanceof SurfaceMountainStone || surface instanceof SurfaceMountainStoneMix1
+                            || surface instanceof SurfaceIslandMountainStone) {
+                        color = STONE_COLOR;
+                        break;
+                    }
+                }
+            }
+            registrationColors[registration.id] = color;
+        }
+    }
+
+    private static void initializeGrassColorizer() {
+        InputStream stream = RWGPreviewTool.class.getResourceAsStream("/assets/minecraft/textures/colormap/grass.png");
+        if (stream == null) throw new IllegalStateException("Minecraft grass color map is missing from the classpath");
+        try {
+            BufferedImage image = ImageIO.read(stream);
+            int[] colors = new int[image.getWidth() * image.getHeight()];
+            image.getRGB(0, 0, image.getWidth(), image.getHeight(), colors, 0, image.getWidth());
+            ColorizerGrass.setGrassBiomeColorizer(colors);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not load Minecraft's grass color map", exception);
+        } finally {
+            try {
+                stream.close();
+            } catch (IOException ignored) {}
+        }
+    }
+
+    private static int mix(int first, int second, float amount) {
+        float inverse = 1f - amount;
+        return (int) ((first >> 16 & 255) * inverse + (second >> 16 & 255) * amount) << 16
+                | (int) ((first >> 8 & 255) * inverse + (second >> 8 & 255) * amount) << 8
+                | (int) ((first & 255) * inverse + (second & 255) * amount);
+    }
+
+    private static int shade(int color, float light) {
+        int red = Math.min(255, (int) ((color >> 16 & 255) * light));
+        int green = Math.min(255, (int) ((color >> 8 & 255) * light));
+        int blue = Math.min(255, (int) ((color & 255) * light));
+        return red << 16 | green << 8 | blue;
+    }
+
+    private static float clamp(float value, float minimum, float maximum) {
+        return Math.max(minimum, Math.min(maximum, value));
+    }
+
+    private static double clamp(double value, double minimum, double maximum) {
+        return Math.max(minimum, Math.min(maximum, value));
     }
 }

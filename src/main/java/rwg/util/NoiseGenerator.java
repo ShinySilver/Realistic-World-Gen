@@ -1,6 +1,11 @@
 package rwg.util;
 
-public interface NoiseGenerator {
+public interface NoiseGenerator extends NoiseField2D {
+
+    @Override
+    default float sample2D(double x, double z) {
+        return noise2((float) x, (float) z);
+    }
 
     /**
      * Computes noise function for three dimensions at the point (x,y,z).

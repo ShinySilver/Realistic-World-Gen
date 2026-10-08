@@ -1,14 +1,13 @@
 package rwg.util;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
-import gnu.trove.map.hash.TLongObjectHashMap;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 /** Deterministic, fixed-round Poisson dart throwing over an infinite hashed grid. */
-public class PoissonPointNoise {
+public class PoissonPointNoise implements PointField2D {
 
     private static final int CELL_CACHE_LIMIT = 32768;
     private static final int REGION_CACHE_LIMIT = 128;
@@ -20,15 +19,15 @@ public class PoissonPointNoise {
     private final double cellSize;
     private final int neighbourCells;
     private final int rounds;
-    private final TLongObjectHashMap<Cell> cells = new TLongObjectHashMap<Cell>();
-    private final Map<Long, Candidate[]> regions = new LinkedHashMap<Long, Candidate[]>(
-            REGION_CACHE_LIMIT + 1,
-            1F,
-            false) {
+    private final Cache<Long, Cell> cells = CacheBuilder.newBuilder().maximumSize(CELL_CACHE_LIMIT).concurrencyLevel(4)
+            .build();
+    private final Cache<Long, Candidate[]> regions = CacheBuilder.newBuilder().maximumSize(REGION_CACHE_LIMIT)
+            .concurrencyLevel(4).build();
+    private final ThreadLocal<RegionLookup> lastRegion = new ThreadLocal<RegionLookup>() {
 
         @Override
-        protected boolean removeEldestEntry(Map.Entry<Long, Candidate[]> eldest) {
-            return size() > REGION_CACHE_LIMIT;
+        protected RegionLookup initialValue() {
+            return new RegionLookup();
         }
     };
 
@@ -45,6 +44,7 @@ public class PoissonPointNoise {
     }
 
     /** Output: distance, owner cell X/Z, point X/Z, and round. */
+    @Override
     public void sample(double x, double z, double[] output) {
         int queryCellX = floor(x / cellSize);
         int queryCellZ = floor(z / cellSize);
@@ -67,6 +67,11 @@ public class PoissonPointNoise {
         if (output.length > 5) {
             output[5] = best.round;
         }
+    }
+
+    @Override
+    public int sampleSize() {
+        return 6;
     }
 
     /** Output contains the nearest point in slots 0-4 and the second-nearest point in slots 5-9. */
@@ -123,10 +128,15 @@ public class PoissonPointNoise {
         output[1] = candidate.z;
     }
 
-    private synchronized Candidate[] region(int queryCellX, int queryCellZ) {
+    private Candidate[] region(int queryCellX, int queryCellZ) {
+        RegionLookup lookup = lastRegion.get();
+        if (lookup.candidates != null && lookup.x == queryCellX && lookup.z == queryCellZ) return lookup.candidates;
         long key = cellKey(queryCellX, queryCellZ);
-        Candidate[] cached = regions.get(key);
+        Candidate[] cached = regions.getIfPresent(key);
         if (cached != null) {
+            lookup.x = queryCellX;
+            lookup.z = queryCellZ;
+            lookup.candidates = cached;
             return cached;
         }
 
@@ -154,36 +164,48 @@ public class PoissonPointNoise {
             double unsearchedDistance = ring * cellSize;
             if (!accepted.isEmpty() && unsearchedDistance * unsearchedDistance >= upperBoundSquared) {
                 Candidate[] result = accepted.toArray(new Candidate[accepted.size()]);
-                regions.put(key, result);
-                return result;
+                Candidate[] raced = regions.asMap().putIfAbsent(key, result);
+                lookup.x = queryCellX;
+                lookup.z = queryCellZ;
+                lookup.candidates = raced == null ? result : raced;
+                return lookup.candidates;
             }
         }
     }
 
-    private boolean isAccepted(Candidate candidate) {
-        if (candidate.accepted != 0) {
-            return candidate.accepted > 0;
-        }
-        if (!isClearOfEarlierRounds(candidate)) {
-            candidate.accepted = -1;
-            return false;
-        }
+    private static final class RegionLookup {
 
-        for (int offsetZ = -neighbourCells; offsetZ <= neighbourCells; offsetZ++) {
-            for (int offsetX = -neighbourCells; offsetX <= neighbourCells; offsetX++) {
-                if (offsetX == 0 && offsetZ == 0) {
-                    continue;
-                }
-                Candidate neighbour = candidate(candidate.cellX + offsetX, candidate.cellZ + offsetZ, candidate.round);
-                if (withinDistance(candidate, neighbour) && lowerPriority(neighbour, candidate)
-                        && isClearOfEarlierRounds(neighbour)) {
-                    candidate.accepted = -1;
-                    return false;
+        int x;
+        int z;
+        Candidate[] candidates;
+    }
+
+    private boolean isAccepted(Candidate candidate) {
+        if (candidate.accepted != 0) return candidate.accepted > 0;
+        synchronized (candidate) {
+            if (candidate.accepted != 0) return candidate.accepted > 0;
+            if (!isClearOfEarlierRounds(candidate)) {
+                candidate.accepted = -1;
+                return false;
+            }
+
+            for (int offsetZ = -neighbourCells; offsetZ <= neighbourCells; offsetZ++) {
+                for (int offsetX = -neighbourCells; offsetX <= neighbourCells; offsetX++) {
+                    if (offsetX == 0 && offsetZ == 0) continue;
+                    Candidate neighbour = candidate(
+                            candidate.cellX + offsetX,
+                            candidate.cellZ + offsetZ,
+                            candidate.round);
+                    if (withinDistance(candidate, neighbour) && lowerPriority(neighbour, candidate)
+                            && isClearOfEarlierRounds(neighbour)) {
+                        candidate.accepted = -1;
+                        return false;
+                    }
                 }
             }
+            candidate.accepted = 1;
+            return true;
         }
-        candidate.accepted = 1;
-        return true;
     }
 
     private boolean isClearOfEarlierRounds(Candidate candidate) {
@@ -213,21 +235,24 @@ public class PoissonPointNoise {
 
     private Candidate candidate(int cellX, int cellZ, int round) {
         long key = cellKey(cellX, cellZ);
-        Cell cell = cells.get(key);
+        Cell cell = cells.getIfPresent(key);
         if (cell == null) {
-            if (cells.size() >= CELL_CACHE_LIMIT) {
-                cells.clear();
-            }
-            cell = new Cell(rounds);
-            cells.put(key, cell);
+            Cell created = new Cell(rounds);
+            Cell raced = cells.asMap().putIfAbsent(key, created);
+            cell = raced == null ? created : raced;
         }
         Candidate candidate = cell.candidates[round];
         if (candidate == null) {
-            int salt = round * 3;
-            double x = (cellX + unit(hash(cellX, cellZ, salt))) * cellSize;
-            double z = (cellZ + unit(hash(cellX, cellZ, salt + 1))) * cellSize;
-            candidate = new Candidate(cellX, cellZ, round, x, z, hash(cellX, cellZ, salt + 2));
-            cell.candidates[round] = candidate;
+            synchronized (cell) {
+                candidate = cell.candidates[round];
+                if (candidate == null) {
+                    int salt = round * 3;
+                    double x = (cellX + unit(hash(cellX, cellZ, salt))) * cellSize;
+                    double z = (cellZ + unit(hash(cellX, cellZ, salt + 1))) * cellSize;
+                    candidate = new Candidate(cellX, cellZ, round, x, z, hash(cellX, cellZ, salt + 2));
+                    cell.candidates[round] = candidate;
+                }
+            }
         }
         return candidate;
     }
@@ -284,7 +309,7 @@ public class PoissonPointNoise {
         private final double x;
         private final double z;
         private final long priority;
-        private byte accepted;
+        private volatile byte accepted;
 
         private Candidate(int cellX, int cellZ, int round, double x, double z, long priority) {
             this.cellX = cellX;
@@ -295,4 +320,5 @@ public class PoissonPointNoise {
             this.priority = priority;
         }
     }
+
 }

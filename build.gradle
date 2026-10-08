@@ -12,7 +12,7 @@ sourceSets {
 }
 
 dependencies {
-    compileOnly('com.falsepattern:endlessids-mc1.7.10:1.7.4:dev')
+    api('com.falsepattern:endlessids-mc1.7.10:1.7.4:dev')
     api('ganymedes01.etfuturum:Et-Futurum-Requiem:2.6.58-GTNH:dev')
     api('com.github.GTNewHorizons:LootGames:2.2.14:dev')
     api('com.github.GTNewHorizons:Natura:2.8.24:dev')
@@ -54,15 +54,117 @@ tasks.register('runPreview', JavaExec) {
     dependsOn previewClasses
     classpath = sourceSets.preview.runtimeClasspath
     mainClass = 'rwg.world.RWGPreviewTool'
+    workingDir = project.projectDir
     maxHeapSize = '1g'
 }
 
-tasks.register('calibrateOceanCoverage', JavaExec) {
+tasks.register('debug_probeBlendedChunk', JavaExec) {
+    group = 'verification'
+    description = 'Prints the active pipeline result for a chunk (-Pchunk=x,z)'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.RWGPreviewTool'
+    workingDir = project.projectDir
+    maxHeapSize = '1g'
+    args "--probe-blended-chunk=${project.findProperty('chunk') ?: '0,0'}"
+}
+
+tasks.register('debug_probePoint', JavaExec) {
+    group = 'verification'
+    description = 'Prints the active pipeline result for a point (-Ppoint=x,z)'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.RWGPreviewTool'
+    workingDir = project.projectDir
+    maxHeapSize = '1g'
+    args "--probe-point=${project.findProperty('point') ?: '0,0'}"
+}
+
+tasks.register('debug_verifyNoiseDeterminism', JavaExec) {
+    group = 'verification'
+    description = 'Temporary refactor guard for serial/parallel noise determinism and golden outputs'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.util.TemporaryNoiseVerification'
+    workingDir = project.projectDir
+    maxHeapSize = '1g'
+}
+
+tasks.register('debug_verifyBiomeRegistry', JavaExec) {
+    group = 'verification'
+    description = 'Verifies legacy built-in biome registry parity and grid surface behavior'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.registry.BuiltinBiomeRegistrationVerification'
+    workingDir = project.projectDir
+}
+
+tasks.register('debug_verifyValleys', JavaExec) {
+    group = 'verification'
+    description = 'Verifies junction-valley terrain fields and category resolution'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.ValleyMorphologyVerification'
+    workingDir = project.projectDir
+    maxHeapSize = '1g'
+}
+
+tasks.register('debug_verifyCanyons', JavaExec) {
+    group = 'verification'
+    description = 'Verifies plateau-side river-canyon category resolution'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.CanyonMorphologyVerification'
+    workingDir = project.projectDir
+    maxHeapSize = '1g'
+}
+
+tasks.register('debug_verifyRiverCarvers', JavaExec) {
+    group = 'verification'
+    description = 'Verifies final-height river carving and underground river junction chambers'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.RiverCarverVerification'
+    workingDir = project.projectDir
+    maxHeapSize = '1g'
+}
+
+tasks.register('debug_verifyHills', JavaExec) {
+    group = 'verification'
+    description = 'Verifies the regional base-height threshold for hill categories'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.HillCategoryVerification'
+    workingDir = project.projectDir
+    maxHeapSize = '1g'
+}
+
+tasks.register('debug_verifyTerrainProfiles', JavaExec) {
+    group = 'verification'
+    description = 'Verifies shared hill/mountain detail and the coreward-steepening regional profile'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.terrain.RegionalTerrainProfileVerification'
+    workingDir = project.projectDir
+}
+
+tasks.register('debug_performanceScore', JavaExec) {
+    group = 'verification'
+    description = 'Reports deterministic preview-point and base-chunk throughput scores'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.WorldgenPerformanceScore'
+    workingDir = project.projectDir
+    maxHeapSize = '1g'
+}
+
+tasks.register('debug_calibrateOceanCoverage', JavaExec) {
     group = 'verification'
     description = 'Samples ocean coverage for the configured continent geometry and target fractions'
     dependsOn previewClasses
     classpath = sourceSets.preview.runtimeClasspath
     mainClass = 'rwg.world.OceanCoverageCalibration'
+    workingDir = project.projectDir
     maxHeapSize = '1g'
     systemProperties System.properties.findAll { key, value -> key.toString().startsWith('rwg.') }
 }
@@ -80,7 +182,7 @@ def asyncProfilerTools = layout.buildDirectory.dir('tools')
 def asyncProfilerDirectory = layout.buildDirectory.dir(
     "tools/async-profiler-${asyncProfilerVersion}-${asyncProfilerPlatform}")
 
-def downloadAsyncProfiler = tasks.register('downloadAsyncProfiler', DownloadProfilerArchive) {
+def downloadAsyncProfiler = tasks.register('debug_downloadAsyncProfiler', DownloadProfilerArchive) {
     group = 'verification'
     description = 'Downloads the async-profiler native distribution archive'
     if (asyncProfilerPlatform == null) {
@@ -90,19 +192,20 @@ def downloadAsyncProfiler = tasks.register('downloadAsyncProfiler', DownloadProf
     destination = asyncProfilerArchive
 }
 
-tasks.register('installAsyncProfiler', Sync) {
+def installAsyncProfiler = tasks.register('debug_installAsyncProfiler', Sync) {
     group = 'verification'
-    description = 'Extracts the async-profiler native distribution used by runPerfCheck'
+    description = 'Extracts the async-profiler native distribution used by debug_profilePreview'
     dependsOn downloadAsyncProfiler
     from(hostOs.contains('mac') ? zipTree(asyncProfilerArchive) : tarTree(resources.gzip(asyncProfilerArchive)))
     into(asyncProfilerTools)
 }
 
-tasks.register('runPerfCheck', JavaExec) {
+tasks.register('debug_profilePreview', JavaExec) {
     group = 'verification'
     description = 'Profiles preview world generation and opens an async-profiler flame graph'
     dependsOn previewClasses, installAsyncProfiler
     classpath = sourceSets.preview.runtimeClasspath
+    workingDir = project.projectDir
     mainClass = 'rwg.world.RWGPreviewTool'
     maxHeapSize = '1g'
     args '--instrument'
@@ -137,5 +240,38 @@ tasks.register('runPerfCheck', JavaExec) {
         } catch (Exception exception) {
             println 'Desktop browsing is unavailable; open the flame graph manually.'
         }
+    }
+}
+
+tasks.register('debug_profileChunkGeneration', JavaExec) {
+    group = 'verification'
+    description = 'Profiles headless sampleChunk + fillBaseChunk generation and opens an async-profiler flame graph'
+    dependsOn previewClasses, installAsyncProfiler
+    classpath = sourceSets.preview.runtimeClasspath
+    workingDir = project.projectDir
+    mainClass = 'rwg.world.WorldgenPerformanceScore'
+    maxHeapSize = '1g'
+    args '--profile-chunks'
+
+    def profileTimestamp = new java.text.SimpleDateFormat("dd.MM.yyyy_HH'h'mm").format(new Date())
+    def flameGraph = layout.buildDirectory.file("profiles/rwg-chunks_${profileTimestamp}.html")
+    doFirst {
+        def profile = flameGraph.get().asFile
+        profile.parentFile.mkdirs()
+        if (profile.exists() && !profile.delete()) {
+            throw new GradleException("Could not replace old flame graph at ${profile}")
+        }
+        def libraryName = hostOs.contains('mac') ? 'libasyncProfiler.dylib' : 'libasyncProfiler.so'
+        def library = new File(asyncProfilerDirectory.get().asFile, "lib/${libraryName}")
+        if (!library.isFile()) throw new GradleException("async-profiler library not found at ${library}")
+        systemProperty 'rwg.asyncProfilerOutput', profile.absolutePath
+        jvmArgs "-agentpath:${library}=start,event=cpu,interval=1ms"
+    }
+    doLast {
+        def profile = flameGraph.get().asFile
+        if (!profile.isFile() || profile.length() == 0) {
+            throw new GradleException("async-profiler did not create the flame graph at ${profile}")
+        }
+        println "async-profiler flame graph: ${profile}"
     }
 }
