@@ -71,15 +71,14 @@ future roof-aware snow must remain a clipped, order-independent plan rather than
 
 Generated cubes now publish one conservative sealed bit per face. The six-bit mask is persisted by CubicChunks and
 ordinary boundary mutations only clear bits; unknown generators and old saves therefore default safely to all-open.
-Cube-local population and worldgen writes use the same invalidation path. A pure 4x4x4 regional primitive propagates
-reachability with six `long` face masks and exports edge seeds to adjacent regions.
+Cube-local population and worldgen writes use the same invalidation path.
 
 Player-view eager loads are tagged separately from explicit block access, tickets, spawn requirements, and immediate
 player-neighborhood requests. The latter always bypass connectivity. Visible cubes are first generated, then an
 incremental frontier promotes only transmissible cubes and the first opaque blocker around them to population and
 lighting. Generation completion and cleared faces cost at most six neighbor checks, so this event-driven path avoids
-the snapshot publication and stale-result handling of a dedicated selector thread. The 4x4x4 bitwise primitive remains
-available for bulk frontier rebuilds after profiling login and teleport behavior.
+the snapshot publication and stale-result handling of a dedicated selector thread. Do not add a regional bitset index
+unless profiling demonstrates that incremental frontier selection itself is material.
 
 A blocker is loaded but does not propagate through its sealed entry face. This one-cube halo keeps opaque walls present
 on the client and lets mining open the next frontier naturally. A cleared face immediately reconsiders its cube.
