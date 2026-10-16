@@ -12,14 +12,17 @@ import rwg.world.CubicWorldSettings;
 public final class PopulationPlan {
 
     private final List<PlannedFeature> features;
+    private final List<PlannedStructure> structures;
     private final SurfaceHeightMap surfaceHeights;
 
-    PopulationPlan(List<PlannedFeature> features) {
-        this(features, SurfaceHeightMap.empty());
+    PopulationPlan(List<PlannedFeature> features, List<PlannedStructure> structures) {
+        this(features, structures, SurfaceHeightMap.empty());
     }
 
-    private PopulationPlan(List<PlannedFeature> features, SurfaceHeightMap surfaceHeights) {
+    private PopulationPlan(List<PlannedFeature> features, List<PlannedStructure> structures,
+            SurfaceHeightMap surfaceHeights) {
         this.features = Collections.unmodifiableList(new ArrayList<PlannedFeature>(features));
+        this.structures = Collections.unmodifiableList(new ArrayList<PlannedStructure>(structures));
         this.surfaceHeights = surfaceHeights;
     }
 
@@ -27,12 +30,16 @@ public final class PopulationPlan {
         return features;
     }
 
+    List<PlannedStructure> structures() {
+        return structures;
+    }
+
     SurfaceHeightLookup surfaceHeights() {
         return new SurfaceHeightLookup(surfaceHeights);
     }
 
     PopulationPlan resolveSurfaceHeights(ColumnPlanCache columns) {
-        if (features.isEmpty()) return this;
+        if (features.isEmpty() && structures.isEmpty()) return this;
         int minimumX = Integer.MAX_VALUE;
         int minimumZ = Integer.MAX_VALUE;
         int maximumX = Integer.MIN_VALUE;
@@ -42,6 +49,12 @@ public final class PopulationPlan {
             minimumZ = Math.min(minimumZ, feature.bounds().minimumZ);
             maximumX = Math.max(maximumX, feature.bounds().maximumX);
             maximumZ = Math.max(maximumZ, feature.bounds().maximumZ);
+        }
+        for (PlannedStructure structure : structures) {
+            minimumX = Math.min(minimumX, structure.bounds().minimumX);
+            minimumZ = Math.min(minimumZ, structure.bounds().minimumZ);
+            maximumX = Math.max(maximumX, structure.bounds().maximumX);
+            maximumZ = Math.max(maximumZ, structure.bounds().maximumZ);
         }
         int width = maximumX - minimumX + 1;
         int depth = maximumZ - minimumZ + 1;
@@ -71,6 +84,11 @@ public final class PopulationPlan {
                     ((FeatureInvocation) feature)
                             .withBounds(bounds.withVerticalRange(resolvedMinimum, resolvedMaximum)));
         }
-        return new PopulationPlan(resolved, surfaceMap);
+        List<PlannedStructure> resolvedStructures = new ArrayList<PlannedStructure>(structures.size());
+        for (PlannedStructure structure : structures) {
+            PlannedStructure resolvedStructure = structure.resolve(surfaceMap);
+            if (resolvedStructure != null) resolvedStructures.add(resolvedStructure);
+        }
+        return new PopulationPlan(resolved, resolvedStructures, surfaceMap);
     }
 }

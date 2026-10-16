@@ -23,6 +23,7 @@ import com.cardinalstar.cubicchunks.world.cube.Cube;
 import rwg.world.population.CubePopulationPipeline;
 import rwg.world.population.PopulationPlanCache;
 import rwg.world.population.PopulationPlanner;
+import rwg.world.population.StructureLocator;
 
 /**
  * CubicChunks world-generator entry point.
@@ -39,6 +40,7 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
     private final CubeTerrainPipeline terrain;
     private final PopulationPlanCache populationPlans;
     private final CubePopulationPipeline population;
+    private final StructureLocator structures;
 
     public CCRealisticWorldGenerator(World world) {
         if (world == null) throw new NullPointerException("world");
@@ -50,6 +52,7 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
         columnPlans = new ColumnPlanCache(new ColumnPlanner(world.getSeed(), manager.worldgenSelector()));
         populationPlans = new PopulationPlanCache(new PopulationPlanner(world.getSeed()), columnPlans);
         population = new CubePopulationPipeline(world);
+        structures = new StructureLocator(world.getSeed(), columnPlans);
     }
 
     @Override
@@ -111,7 +114,7 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
     @Override
     @Nullable
     public ChunkPosition getNearestStructure(String name, int x, int y, int z) {
-        return null;
+        return "Stronghold".equals(name) ? structures.nearestStronghold(x, z) : null;
     }
 
     private Chunk createColumn(int columnX, int columnZ, ColumnPlan plan) {

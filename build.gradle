@@ -159,6 +159,15 @@ tasks.register('debug_verifyCubicTerrainPipeline', JavaExec) {
     workingDir = project.projectDir
 }
 
+tasks.register('debug_verifyStructurePlanning', JavaExec) {
+    group = 'verification'
+    description = 'Verifies deterministic native cubic structure ownership and surface resolution'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.population.StructurePlanningVerification'
+    workingDir = project.projectDir
+}
+
 tasks.register('debug_performanceScore', JavaExec) {
     group = 'verification'
     description = 'Reports deterministic preview-point and base-chunk throughput scores'

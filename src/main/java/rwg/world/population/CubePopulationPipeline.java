@@ -36,6 +36,11 @@ public final class CubePopulationPipeline {
                 "requires:rwg:ores-complete",
                 "required-by:rwg:underground-decoration-complete");
         stages.addObject(
+                "rwg:native-structures",
+                new NativeStructurePopulationStep(),
+                "requires:rwg:underground-decoration-complete",
+                "required-by:rwg:structures-complete");
+        stages.addObject(
                 "rwg:surface-features",
                 new PlannedFeaturePopulationStep(),
                 "requires:rwg:structures-complete",
@@ -93,6 +98,14 @@ public final class CubePopulationPipeline {
                         feature.strength(),
                         feature.river());
             }
+        }
+    }
+
+    private static final class NativeStructurePopulationStep implements PopulationStep {
+
+        @Override
+        public void populate(CubePopulationContext context) {
+            for (PlannedStructure structure : context.plan.structures()) structure.place(context);
         }
     }
 }

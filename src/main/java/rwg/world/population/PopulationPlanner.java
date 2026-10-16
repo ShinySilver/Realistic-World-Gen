@@ -12,9 +12,11 @@ import rwg.world.sample.BiomeBlendSample;
 public final class PopulationPlanner {
 
     private final long seed;
+    private final StructurePlanner structures;
 
     public PopulationPlanner(long seed) {
         this.seed = seed;
+        structures = new StructurePlanner(seed);
     }
 
     public PopulationPlan plan(int columnX, int columnZ, ColumnPlan column) {
@@ -38,6 +40,6 @@ public final class PopulationPlanner {
                 if (result != null) planned.add(result);
             }
         }
-        return new PopulationPlan(planned);
+        return new PopulationPlan(planned, structures.plan(columnX, columnZ));
     }
 }

@@ -33,6 +33,12 @@ Structure plans may be computed early, but structure blocks are placed late so o
 them. Stable dependency-graph targets should mark completed carvers, terrain, structures, and population. Compatibility
 with fixed-height third-party generators remains disabled until the native cubic pipeline is correct.
 
+Native structures use sparse region-owned layouts. Planning resolves immutable bounds, elevation, and shape from the
+world seed and column plans; population reproduces only the part intersecting its current cube and never loads a
+neighbor. Villages reject steep sites, while mineshafts and strongholds follow the local surface to remain meaningful
+in tall terrain. The current compact templates intentionally prioritize the cubic ownership contract over vanilla
+piece parity; richer component sets must preserve the same stateless layout and clipped-placement rules.
+
 ## Population plans
 
 Population planning has its own bounded, in-flight-deduplicating cache; it does not extend the lifetime or scope of
@@ -53,8 +59,10 @@ If underground population or lighting becomes traversal-bound, test a deliberate
 building a precise graph. During off-thread cube planning, count solid opaque blocks on each of the six faces (or keep
 a few face bitsets packed into `long`s). A completely sealed face may stop propagation; every uncertain case remains
 open. The only correctness invariant is one-sided error: false positives merely do extra work, while a false negative
-must never hide reachable generation. Incremental bitwise flood propagation should target the common sealed-cube case,
-not reconstruct exact interior connectivity. Add this only after profiling representative underground stages.
+must never hide reachable generation. Incremental bitwise flood propagation should target the common sealed-cube case.
+Exact interior connectivity is not worth its storage, planning cost, or invalidation complexity; consider a coarse
+interior summary only if profiling shows that face-only rejection leaves substantial work on the table. Add this only
+after profiling representative underground stages.
 
 ### Future ores
 
@@ -129,5 +137,6 @@ random mutation. The fixed-height painter API and unsupported compatibility regi
 6. Geology, caves, and underground rivers. (native cube stages complete; gameplay tuning remains)
 7. Planned biome features and population stages. (built-in surface recipes and native underground lakes complete;
    large-vein ores and final snow/ice remain)
-8. Late structure placement.
+8. Late structure placement. (native villages, mineshafts, strongholds, and stronghold lookup complete; template
+   variety remains)
 9. Optional compatibility integrations.
