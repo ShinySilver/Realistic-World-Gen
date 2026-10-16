@@ -344,7 +344,7 @@ public final class RWGPreviewTool {
             CompletableFuture<?>[] jobs = new CompletableFuture[WORKERS];
             AtomicInteger rows = new AtomicInteger();
             ChunkManager manager = new ChunkManager(target.seed, true, registry);
-            WorldGenerator generator = new WorldGenerator(target.seed, manager.worldgenSelector());
+            ColumnPlanner generator = new ColumnPlanner(target.seed, manager.worldgenSelector());
             try {
                 for (int worker = 0; worker < WORKERS; worker++) {
                     final int firstRow = worker;
@@ -356,7 +356,7 @@ public final class RWGPreviewTool {
                                 if (!full && target.valid[index]) continue;
                                 int worldX = (int) Math.floor(target.originX + (x + .5d) * target.scale);
                                 int worldZ = (int) Math.floor(target.originZ + (z + .5d) * target.scale);
-                                WorldGenerator.PreviewColumn column = generator.samplePreviewPoint(worldX, worldZ);
+                                ColumnPlanner.PreviewColumn column = generator.samplePreviewPoint(worldX, worldZ);
                                 float undergroundRiverStrength = column.sample.morphology.mountainStrength > .10f
                                         ? manager.getRiverTunnelStrength(worldX, worldZ)
                                         : 0f;
@@ -439,7 +439,7 @@ public final class RWGPreviewTool {
                 ChunkManager manager = new ChunkManager(target.seed, true, registry);
                 int sampleX = (int) Math.floor(worldX);
                 int sampleZ = (int) Math.floor(worldZ);
-                WorldGenerator.PreviewColumn column = new WorldGenerator(target.seed, manager.worldgenSelector())
+                ColumnPlanner.PreviewColumn column = new ColumnPlanner(target.seed, manager.worldgenSelector())
                         .samplePreviewPoint(sampleX, sampleZ);
                 if (hoverGeneration.get() != request) return;
                 float undergroundRiverStrength = column.sample.morphology.mountainStrength > .10f
@@ -702,7 +702,7 @@ public final class RWGPreviewTool {
             }
         }
 
-        private void set(int index, WorldGenerator.PreviewColumn column, float undergroundRiverStrength, Layer layer) {
+        private void set(int index, ColumnPlanner.PreviewColumn column, float undergroundRiverStrength, Layer layer) {
             heights[index] = column.height;
             baseHeights[index] = column.baseHeight;
             registrations[index] = (short) column.sample.biome.registration.id;
@@ -888,20 +888,23 @@ public final class RWGPreviewTool {
         int chunkX = Integer.parseInt(parts[0]);
         int chunkZ = Integer.parseInt(parts[1]);
         ChunkManager manager = new ChunkManager(DEFAULT_SEED, true, registry);
-        WorldGenerator.ChunkTerrain chunk = new WorldGenerator(DEFAULT_SEED, manager.worldgenSelector())
-                .sampleChunk(chunkX, chunkZ);
+        ColumnPlan chunk = new ColumnPlanner(DEFAULT_SEED, manager.worldgenSelector()).plan(chunkX, chunkZ);
         float minimum = Float.POSITIVE_INFINITY;
         float maximum = Float.NEGATIVE_INFINITY;
         float baseMinimum = Float.POSITIVE_INFINITY;
         float baseMaximum = Float.NEGATIVE_INFINITY;
         long fingerprint = 0xcbf29ce484222325L;
-        for (int index = 0; index < chunk.heights.length; index++) {
-            minimum = Math.min(minimum, chunk.heights[index]);
-            maximum = Math.max(maximum, chunk.heights[index]);
-            baseMinimum = Math.min(baseMinimum, chunk.baseHeights[index]);
-            baseMaximum = Math.max(baseMaximum, chunk.baseHeights[index]);
-            fingerprint = (fingerprint ^ Float.floatToIntBits(chunk.heights[index])) * 0x100000001b3L;
-            fingerprint = (fingerprint ^ chunk.registrations[index].id) * 0x100000001b3L;
+        for (int localX = 0; localX < ColumnPlan.SIZE; localX++) {
+            for (int localZ = 0; localZ < ColumnPlan.SIZE; localZ++) {
+                float height = chunk.height(localX, localZ);
+                float baseHeight = chunk.baseHeight(localX, localZ);
+                minimum = Math.min(minimum, height);
+                maximum = Math.max(maximum, height);
+                baseMinimum = Math.min(baseMinimum, baseHeight);
+                baseMaximum = Math.max(baseMaximum, baseHeight);
+                fingerprint = (fingerprint ^ Float.floatToIntBits(height)) * 0x100000001b3L;
+                fingerprint = (fingerprint ^ chunk.registration(localX, localZ).id) * 0x100000001b3L;
+            }
         }
         System.out.println("RWG component registry entries=" + registry.registrations().size());
         System.out.println(
@@ -926,7 +929,7 @@ public final class RWGPreviewTool {
         int x = Integer.parseInt(parts[0]);
         int z = Integer.parseInt(parts[1]);
         ChunkManager manager = new ChunkManager(DEFAULT_SEED, true, registry);
-        WorldGenerator.PreviewColumn column = new WorldGenerator(DEFAULT_SEED, manager.worldgenSelector())
+        ColumnPlanner.PreviewColumn column = new ColumnPlanner(DEFAULT_SEED, manager.worldgenSelector())
                 .samplePreviewPoint(x, z);
         ColumnSample sample = column.sample;
         System.out.println("point=" + x + "," + z);

@@ -1,7 +1,7 @@
 # Cubic worldgen contract
 
-RWG has one production target: `CCRealisticWorldGenerator`. The fixed-height generator and its 16x16x256 arrays are
-migration inputs, not APIs to preserve.
+RWG has one production target: `CCRealisticWorldGenerator`. The fixed-height generator and its 16x16x256 arrays have
+been removed; future stages operate on immutable plans and individual cubes.
 
 ## Lifecycle
 
@@ -37,7 +37,7 @@ with fixed-height third-party generators remains disabled until the native cubic
 
 1. Empty CubicChunks world adapter.
 2. Pure `ColumnPlanner`, immutable `ColumnPlan`, bounded deduplicating cache, and parallel determinism tests.
-3. Remove the fixed-height generator and array APIs.
+3. Remove the fixed-height generator and array APIs. (complete)
 4. Base terrain, water, bedrock, simple surfaces, and empty/solid fast paths.
 5. Height-independent surface rules.
 6. Geology, caves, and underground rivers.

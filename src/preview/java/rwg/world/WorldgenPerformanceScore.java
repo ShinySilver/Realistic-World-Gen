@@ -26,45 +26,45 @@ public final class WorldgenPerformanceScore {
 
     private static void score(BiomeRegistry registry) {
         runPreviewPoints(registry, 5_000, SEED ^ 0x51A7E5L);
-        runChunks(registry, 8, SEED ^ 0xC4A11L);
+        runPlans(registry, 8, SEED ^ 0xC4A11L);
 
         long[] previewTimes = new long[ROUNDS];
-        long[] chunkTimes = new long[ROUNDS];
+        long[] planTimes = new long[ROUNDS];
         long checksum = 0L;
         for (int round = 0; round < ROUNDS; round++) {
             TimedResult preview = runPreviewPoints(registry, 20_000, SEED);
-            TimedResult chunks = runChunks(registry, 32, SEED);
+            TimedResult plans = runPlans(registry, 32, SEED);
             previewTimes[round] = preview.nanoseconds;
-            chunkTimes[round] = chunks.nanoseconds;
-            checksum ^= preview.checksum + Long.rotateLeft(chunks.checksum, round + 1);
+            planTimes[round] = plans.nanoseconds;
+            checksum ^= preview.checksum + Long.rotateLeft(plans.checksum, round + 1);
         }
         Arrays.sort(previewTimes);
-        Arrays.sort(chunkTimes);
+        Arrays.sort(planTimes);
         double previewScore = perSecond(20_000, previewTimes[ROUNDS / 2]);
-        double chunkScore = perSecond(32, chunkTimes[ROUNDS / 2]);
+        double planScore = perSecond(32, planTimes[ROUNDS / 2]);
         System.out.println(
                 String.format(
-                        "PERF_SCORE preview_points_per_second=%.1f base_chunks_per_second=%.2f checksum=0x%016X",
+                        "PERF_SCORE preview_points_per_second=%.1f column_plans_per_second=%.2f checksum=0x%016X",
                         previewScore,
-                        chunkScore,
+                        planScore,
                         checksum));
         System.out.println(
-                "base_chunks includes sampleChunk + fillBaseChunk; surfaces, structures, Forge events and "
-                        + "skylight require the live Minecraft provideChunk adapter and are intentionally excluded");
+                "column_plans includes biome blending and terrain heights; cube filling and population are "
+                        + "intentionally measured by the cubic pipeline");
     }
 
     private static void profileChunks(BiomeRegistry registry) {
-        runChunks(registry, 64, SEED ^ 0xC4A11L);
+        runPlans(registry, 64, SEED ^ 0xC4A11L);
         String output = System.getProperty("rwg.asyncProfilerOutput");
         if (output == null) throw new IllegalStateException("Missing async-profiler output path");
         try {
             AsyncProfiler.getInstance().execute("stop");
             AsyncProfiler.getInstance().execute("start,event=cpu,interval=1ms");
-            TimedResult result = runChunks(registry, 256, SEED);
+            TimedResult result = runPlans(registry, 256, SEED);
             AsyncProfiler.getInstance().execute("stop,file=" + output + ",title=RWG base chunk generation");
             System.out.println(
                     String.format(
-                            "Profiled 256 base chunks at %.2f chunks/s; checksum=0x%016X",
+                            "Profiled 256 column plans at %.2f plans/s; checksum=0x%016X",
                             perSecond(256, result.nanoseconds),
                             result.checksum));
         } catch (Exception exception) {
@@ -74,14 +74,14 @@ public final class WorldgenPerformanceScore {
 
     private static TimedResult runPreviewPoints(BiomeRegistry registry, int count, long seed) {
         ChunkManager manager = new ChunkManager(seed, true, registry);
-        WorldGenerator generator = new WorldGenerator(seed, manager.worldgenSelector());
+        ColumnPlanner generator = new ColumnPlanner(seed, manager.worldgenSelector());
         long checksum = 0xcbf29ce484222325L;
         int side = (int) Math.ceil(Math.sqrt(count));
         long started = System.nanoTime();
         for (int index = 0; index < count; index++) {
             int x = (index % side - side / 2) * 16;
             int z = (index / side - side / 2) * 16;
-            WorldGenerator.PreviewColumn column = generator.samplePreviewPoint(x, z);
+            ColumnPlanner.PreviewColumn column = generator.samplePreviewPoint(x, z);
             checksum = mix(checksum, Float.floatToIntBits(column.baseHeight));
             checksum = mix(checksum, Float.floatToIntBits(column.height));
             checksum = mix(checksum, column.sample.biome.registration.id);
@@ -91,27 +91,22 @@ public final class WorldgenPerformanceScore {
         return new TimedResult(elapsed, checksum);
     }
 
-    private static TimedResult runChunks(BiomeRegistry registry, int count, long seed) {
+    private static TimedResult runPlans(BiomeRegistry registry, int count, long seed) {
         ChunkManager manager = new ChunkManager(seed, true, registry);
-        WorldGenerator generator = new WorldGenerator(seed, manager.worldgenSelector());
+        ColumnPlanner generator = new ColumnPlanner(seed, manager.worldgenSelector());
         long checksum = 0xcbf29ce484222325L;
         int side = (int) Math.ceil(Math.sqrt(count));
         long started = System.nanoTime();
         for (int index = 0; index < count; index++) {
             int chunkX = index % side - side / 2;
             int chunkZ = index / side - side / 2;
-            WorldGenerator.ChunkTerrain terrain = generator.sampleChunk(chunkX, chunkZ);
-            WorldGenerator.ChunkBlocks blocks = generator.fillBaseChunk(terrain);
-            for (int column = 0; column < terrain.heights.length; column += 17) {
-                checksum = mix(checksum, Float.floatToIntBits(terrain.baseHeights[column]));
-                checksum = mix(checksum, Float.floatToIntBits(terrain.heights[column]));
-                checksum = mix(checksum, terrain.registrations[column].id);
-            }
-            for (int block = 0; block < blocks.blocks.length; block += 4093) {
-                checksum = mix(
-                        checksum,
-                        blocks.blocks[block] == null ? 0
-                                : net.minecraft.block.Block.getIdFromBlock(blocks.blocks[block]));
+            ColumnPlan terrain = generator.plan(chunkX, chunkZ);
+            for (int localX = 0; localX < ColumnPlan.SIZE; localX += 4) {
+                for (int localZ = 0; localZ < ColumnPlan.SIZE; localZ += 4) {
+                    checksum = mix(checksum, Float.floatToIntBits(terrain.baseHeight(localX, localZ)));
+                    checksum = mix(checksum, Float.floatToIntBits(terrain.height(localX, localZ)));
+                    checksum = mix(checksum, terrain.registration(localX, localZ).id);
+                }
             }
         }
         long elapsed = System.nanoTime() - started;

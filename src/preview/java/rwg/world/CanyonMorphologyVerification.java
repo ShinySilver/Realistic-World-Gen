@@ -82,9 +82,9 @@ public final class CanyonMorphologyVerification {
 
     /** Regression guard for a river crossing where the nearest climate edge changes at a three-climate junction. */
     private static void verifyClimateJunctionContinuity(WorldgenSelector selector) {
-        WorldGenerator generator = new WorldGenerator(SEED, selector);
-        WorldGenerator.PreviewColumn plateauEdge = generator.samplePreviewPoint(-5191, 3913);
-        WorldGenerator.PreviewColumn neighboringEdge = generator.samplePreviewPoint(-5155, 3941);
+        ColumnPlanner planner = new ColumnPlanner(SEED, selector);
+        ColumnPlanner.PreviewColumn plateauEdge = planner.samplePreviewPoint(-5191, 3913);
+        ColumnPlanner.PreviewColumn neighboringEdge = planner.samplePreviewPoint(-5155, 3941);
         require(
                 plateauEdge.sample.morphology.category == TerrainCategory.CANYON
                         && neighboringEdge.sample.morphology.category == TerrainCategory.CANYON,
@@ -94,7 +94,7 @@ public final class CanyonMorphologyVerification {
             float progress = step / 16f;
             int x = Math.round(-5191 + 36f * progress);
             int z = Math.round(3913 + 28f * progress);
-            float height = generator.samplePreviewPoint(x, z).baseHeight;
+            float height = planner.samplePreviewPoint(x, z).baseHeight;
             require(Math.abs(height - previousHeight) < 4f, "canyon erosion has a seam at a climate junction");
             previousHeight = height;
         }

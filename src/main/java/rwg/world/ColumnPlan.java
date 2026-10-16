@@ -90,26 +90,6 @@ public final class ColumnPlan {
         return biomes.clone();
     }
 
-    float[] copyHeights() {
-        return heights.clone();
-    }
-
-    float[] copyBaseHeights() {
-        return baseHeights.clone();
-    }
-
-    BiomeRegistration[] copyRegistrations() {
-        return registrations.clone();
-    }
-
-    float[] copyRiverStrengths() {
-        return riverStrengths.clone();
-    }
-
-    float[] copyMountainWeights() {
-        return mountainWeights.clone();
-    }
-
     private static int index(int localX, int localZ) {
         if ((localX | localZ) < 0 || localX >= SIZE || localZ >= SIZE)
             throw new IndexOutOfBoundsException("column coordinates " + localX + "," + localZ);

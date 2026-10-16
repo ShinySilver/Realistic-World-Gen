@@ -31,7 +31,7 @@ public class WorldType extends net.minecraft.world.WorldType implements ICubicWo
     }
 
     public IChunkProvider getChunkGenerator(World world, String generatorOptions) {
-        return new ChunkGenerator(world, world.getSeed(), continents);
+        return new CubicBootstrapChunkProvider(world);
     }
 
     @Override

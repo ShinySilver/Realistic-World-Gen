@@ -31,6 +31,34 @@ public final class ColumnPlanner {
         cellNoise = new CellNoise(seed, (short) 0, true);
     }
 
+    /** Approximate one-point view for diagnostics; exact generation uses {@link #plan(int, int)}. */
+    public PreviewColumn samplePreviewPoint(int x, int z) {
+        ColumnSample sample = selector.select(x, z);
+        BiomeRegistration registration = sample.biome.registration;
+        TerrainContext terrainContext = new TerrainContext(
+                0f,
+                sample.regional.height,
+                sample.morphology,
+                registration.category);
+        float height = selector.terrainFor(registration)
+                .generateNoise(terrainNoise, cellNoise, x, z, terrainContext, 1f);
+        height = carveRiver(x, z, height, sample.regional.erodedMountainDistance, sample.morphology.riverDistance);
+        return new PreviewColumn(sample, sample.regional.height, height);
+    }
+
+    public static final class PreviewColumn {
+
+        public final ColumnSample sample;
+        public final float baseHeight;
+        public final float height;
+
+        private PreviewColumn(ColumnSample sample, float baseHeight, float height) {
+            this.sample = sample;
+            this.baseHeight = baseHeight;
+            this.height = height;
+        }
+    }
+
     public ColumnPlan plan(int chunkX, int chunkZ) {
         int originX = chunkX * ColumnPlan.SIZE;
         int originZ = chunkZ * ColumnPlan.SIZE;
