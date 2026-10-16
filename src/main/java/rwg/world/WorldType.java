@@ -11,21 +11,12 @@ import com.cardinalstar.cubicchunks.api.worldgen.IWorldGenerator;
 
 public class WorldType extends net.minecraft.world.WorldType implements ICubicWorldType {
 
-    private final boolean continents;
-    private final boolean grid;
-
-    public WorldType(String name, boolean continents) {
-        this(name, continents, false);
-    }
-
-    public WorldType(String name, boolean continents, boolean grid) {
+    public WorldType(String name) {
         super(name);
-        this.continents = continents;
-        this.grid = grid;
     }
 
     public WorldChunkManager getChunkManager(World world) {
-        return new ChunkManager(world, continents, grid);
+        return new ChunkManager(world, true);
     }
 
     public IChunkProvider getChunkGenerator(World world, String generatorOptions) {
@@ -51,8 +42,4 @@ public class WorldType extends net.minecraft.world.WorldType implements ICubicWo
         return 256F;
     }
 
-    @Override
-    public int getSpawnFuzz() {
-        return grid ? 1 : super.getSpawnFuzz();
-    }
 }
