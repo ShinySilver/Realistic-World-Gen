@@ -108,17 +108,10 @@ public final class BasicWorldgenSelector implements WorldgenSelector {
                 valleyStrength,
                 climate.plateauSide);
         RegionalSample regional = null;
-        if (morphology == TerrainCategory.HILLS) {
-            regional = regionalTerrain.sample(
-                    x,
-                    z,
-                    continent,
-                    ocean,
-                    climate,
-                    provisionalMorphology,
-                    TerrainCategory.HILLS,
-                    uncarvedHeight);
-            if (regional.height < MorphologyRules.HILL_MINIMUM_BASE_HEIGHT) morphology = TerrainCategory.PLAIN;
+        if (morphology == TerrainCategory.HILLS || morphology == TerrainCategory.MOUNTAIN) {
+            regional = regionalTerrain
+                    .sample(x, z, continent, ocean, climate, provisionalMorphology, morphology, uncarvedHeight);
+            morphology = MorphologyRules.categoryForBaseHeight(morphology, regional.height);
         }
         boolean raised = MorphologyRules.isRaised(mountainDistance);
         boolean cliff = continent < MorphologyRules.CLIFF_WIDTH
@@ -202,10 +195,11 @@ public final class BasicWorldgenSelector implements WorldgenSelector {
                 valleyDistance,
                 valleyStrength,
                 climate.plateauSide);
-        if (landCategory == TerrainCategory.HILLS && regionalTerrain
-                .sample(x, z, continent, false, climate, provisional, TerrainCategory.HILLS, uncarvedHeight).height
-                < MorphologyRules.HILL_MINIMUM_BASE_HEIGHT)
-            landCategory = TerrainCategory.PLAIN;
+        if (landCategory == TerrainCategory.HILLS || landCategory == TerrainCategory.MOUNTAIN) {
+            float baseHeight = regionalTerrain
+                    .sample(x, z, continent, false, climate, provisional, landCategory, uncarvedHeight).height;
+            landCategory = MorphologyRules.categoryForBaseHeight(landCategory, baseHeight);
+        }
         TerrainCategory category = riverStrength > 0f ? TerrainCategory.RIVER
                 : canyon ? TerrainCategory.CANYON : valley ? TerrainCategory.VALLEY : landCategory;
         return new MorphologySample(
@@ -243,7 +237,7 @@ public final class BasicWorldgenSelector implements WorldgenSelector {
                     .valleyAdjustedMountainDistance(rawMountainDistance, valleyStrength);
             boolean valley = MorphologyRules.isValley(rawMountainDistance, valleyStrength);
             TerrainCategory morphology = MorphologyRules.category(mountainDistance, climate.plateauSide);
-            if (morphology == TerrainCategory.HILLS) {
+            if (morphology == TerrainCategory.HILLS || morphology == TerrainCategory.MOUNTAIN) {
                 float erosionSuppression = MorphologyRules.surfaceRiverErosionSuppression(rawMountainDistance, valley);
                 float riverDistance = terrain.riverDistance(x, z, riverNetworkSeed, false);
                 float riverStrength = terrain.riverStrength(riverDistance);
@@ -260,9 +254,9 @@ public final class BasicWorldgenSelector implements WorldgenSelector {
                         Float.POSITIVE_INFINITY,
                         valleyStrength,
                         climate.plateauSide);
-                if (regionalTerrain.sample(x, z, continent, false, climate, provisional, TerrainCategory.HILLS).height
-                        < MorphologyRules.HILL_MINIMUM_BASE_HEIGHT)
-                    morphology = TerrainCategory.PLAIN;
+                float baseHeight = regionalTerrain
+                        .sample(x, z, continent, false, climate, provisional, morphology).height;
+                morphology = MorphologyRules.categoryForBaseHeight(morphology, baseHeight);
             }
             boolean raised = MorphologyRules.isRaised(mountainDistance);
             boolean canyon = !valley && climate.plateauBoundaryInfluence > 0f
@@ -311,9 +305,7 @@ public final class BasicWorldgenSelector implements WorldgenSelector {
         TerrainSubcategory requestedSubcategory = subcategory == TerrainSubcategory.CORE
                 && category != TerrainCategory.SHALLOW_OCEAN
                 && category != TerrainCategory.DEEP_OCEAN
-                        && climate.category != TerrainSubcategory.CORE
-                                ? climate.category
-                                : subcategory;
+                && climate.category != TerrainSubcategory.CORE ? climate.category : subcategory;
         BiomeRegistration[] choices = pool(climate.climate, category, requestedSubcategory);
         if (choices.length == 0 && requestedSubcategory != subcategory)
             choices = pool(climate.climate, category, subcategory);

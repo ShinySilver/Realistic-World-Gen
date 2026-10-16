@@ -17,6 +17,7 @@ public final class HillCategoryVerification {
     private HillCategoryVerification() {}
 
     public static void main(String[] arguments) {
+        verifyHeightCategories();
         verifySurfaceRiverHeightFade();
         ConfigRWG.initPreview(new File(System.getProperty("rwg.previewConfig", "run/client/config/RWG.cfg")));
         BiomeRegistry registry = PreviewBiomeRegistry.create();
@@ -29,7 +30,11 @@ public final class HillCategoryVerification {
                 ColumnSample sample = selector.select(x, z);
                 float distance = sample.morphology.mountainDistance;
                 float baseHeight = sample.regional.height;
-                if (sample.biome.registration.category == TerrainCategory.HILLS) {
+                if (sample.biome.registration.category == TerrainCategory.MOUNTAIN) {
+                    require(
+                            baseHeight >= MorphologyRules.MOUNTAIN_MINIMUM_BASE_HEIGHT,
+                            "low terrain selected mountains");
+                } else if (sample.biome.registration.category == TerrainCategory.HILLS) {
                     hills++;
                     require(baseHeight >= MorphologyRules.HILL_MINIMUM_BASE_HEIGHT, "low terrain selected hills");
                 } else if (sample.biome.registration.category == TerrainCategory.PLAIN && !sample.morphology.plateauSide
@@ -44,6 +49,18 @@ public final class HillCategoryVerification {
         require(hills > 0, "verification area contains no hills");
         require(lowPlains > 0, "verification area contains no height-gated plains");
         System.out.println("RWG hill-category verification passed (hills=" + hills + ", gated=" + lowPlains + ")");
+    }
+
+    private static void verifyHeightCategories() {
+        require(
+                MorphologyRules.categoryForBaseHeight(TerrainCategory.MOUNTAIN, 145f) == TerrainCategory.MOUNTAIN,
+                "mountains must remain mountains at the height threshold");
+        require(
+                MorphologyRules.categoryForBaseHeight(TerrainCategory.MOUNTAIN, 144.99f) == TerrainCategory.HILLS,
+                "low mountains must become hills");
+        require(
+                MorphologyRules.categoryForBaseHeight(TerrainCategory.MOUNTAIN, 74.99f) == TerrainCategory.PLAIN,
+                "very low mountains must become plains");
     }
 
     private static void verifySurfaceRiverHeightFade() {

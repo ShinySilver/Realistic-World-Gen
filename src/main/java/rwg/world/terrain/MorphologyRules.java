@@ -9,6 +9,7 @@ public final class MorphologyRules {
     public static final float SURFACE_RIVER_MOUNTAIN_FADE_START = 175f;
     public static final float SURFACE_RIVER_MOUNTAIN_FADE_END = 325f;
     public static final float MOUNTAIN_INFLUENCE_RADIUS = 750f;
+    public static final float MOUNTAIN_MINIMUM_BASE_HEIGHT = 145f;
     public static final float HILL_MINIMUM_BASE_HEIGHT = 75f;
     public static final float FULL_SURFACE_RIVER_HEIGHT = HILL_MINIMUM_BASE_HEIGHT;
     public static final float MOUNTAIN_CARVER_ONLY_HEIGHT = 90f;
@@ -36,6 +37,15 @@ public final class MorphologyRules {
         if (mountainDistance <= MOUNTAIN_INFLUENCE_RADIUS)
             return plateauSide ? TerrainCategory.PLATEAU : TerrainCategory.HILLS;
         return TerrainCategory.PLAIN;
+    }
+
+    /** Downgrades raised terrain whose regional base is too low to support its nominal category. */
+    public static TerrainCategory categoryForBaseHeight(TerrainCategory category, float baseHeight) {
+        if (category == TerrainCategory.MOUNTAIN && baseHeight < MOUNTAIN_MINIMUM_BASE_HEIGHT)
+            category = TerrainCategory.HILLS;
+        if (category == TerrainCategory.HILLS && baseHeight < HILL_MINIMUM_BASE_HEIGHT)
+            category = TerrainCategory.PLAIN;
+        return category;
     }
 
     public static float mountainStrength(float mountainDistance) {

@@ -19,6 +19,8 @@ import rwg.biomes.surface.SurfaceRiverOasis;
 import rwg.biomes.terrain.TerrainCanyon;
 import rwg.biomes.terrain.TerrainConstant;
 import rwg.biomes.terrain.TerrainDuneValley;
+import rwg.biomes.terrain.TerrainGenericHills;
+import rwg.biomes.terrain.TerrainGenericMountain;
 import rwg.biomes.terrain.TerrainGrasslandHills;
 import rwg.biomes.terrain.TerrainHighland;
 import rwg.biomes.terrain.TerrainHilly;
@@ -28,8 +30,6 @@ import rwg.biomes.terrain.TerrainMountainRiver;
 import rwg.biomes.terrain.TerrainMountainSpikes;
 import rwg.biomes.terrain.TerrainSwampMountain;
 import rwg.biomes.terrain.TerrainSwampRiver;
-import rwg.biomes.terrain.TerrainGenericHills;
-import rwg.biomes.terrain.TerrainGenericMountain;
 import rwg.registry.BiomeRegistry;
 import rwg.registry.Climate;
 import rwg.registry.TerrainCategory;
@@ -68,14 +68,13 @@ public final class BiomesOPlentyBiomeRegistrations {
         // BAMBOO FOREST
         registry.register(
                 builder(BOPCBiomes.bambooForest).climate(Climate.WET).river(registry.river(Climate.WET)).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainSwampMountain(135f, 300f)).surfaces(
-                                        new SurfaceBase[] { new SurfaceMountainStone(
-                                                BOPCBiomes.bambooForest.topBlock,
-                                                BOPCBiomes.bambooForest.fillerBlock,
-                                                false,
-                                                null,
-                                                0.95f) })));
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainSwampMountain(135f, 300f)).surfaces(
+                                new SurfaceBase[] { new SurfaceMountainStone(
+                                        BOPCBiomes.bambooForest.topBlock,
+                                        BOPCBiomes.bambooForest.fillerBlock,
+                                        false,
+                                        null,
+                                        0.95f) })));
 
         // BAYOU
         registry.register(
@@ -101,7 +100,8 @@ public final class BiomesOPlentyBiomeRegistrations {
         // BOREAL FOREST
         registry.register(
                 builder(BOPCBiomes.borealForest).climate(Climate.SNOW).river(registry.river(Climate.COLD))
-                        .subcategory(TerrainSubcategory.HOT_BORDER).variant(
+                        .subcategory(TerrainSubcategory.HOT_BORDER)
+                        .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainMountainSpikes()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainSnow(
                                                 BOPCBiomes.borealForest.topBlock,
@@ -160,9 +160,8 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 Blocks.cobblestone,
                                                 13f,
                                                 0.27f) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrasslandMix1(
                                                 BOPCBiomes.brushland.topBlock,
                                                 BOPCBiomes.brushland.fillerBlock,
@@ -171,9 +170,8 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 Blocks.cobblestone,
                                                 13f,
                                                 0.27f) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrasslandMix1(
                                                 BOPCBiomes.brushland.topBlock,
                                                 BOPCBiomes.brushland.fillerBlock,
@@ -201,7 +199,8 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                         registry.hotDesert()), new SurfaceRiverOasis(), }))
                         .variant(
                                 variant(TerrainCategory.HILLS)
-                                        .terrain(new TerrainGenericHills())
+                                        .terrain(
+                                                new TerrainGenericHills())
                                         .surfaces(
                                                 new SurfaceBase[] { new SurfaceDuneValley(
                                                         BOPCBiomes.brushland.topBlock,
@@ -212,7 +211,8 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                         registry.hotDesert()), new SurfaceRiverOasis(), }))
                         .variant(
                                 variant(TerrainCategory.MOUNTAIN)
-                                        .terrain(new TerrainGenericMountain())
+                                        .terrain(
+                                                new TerrainGenericMountain())
                                         .surfaces(
                                                 new SurfaceBase[] { new SurfaceDuneValley(
                                                         BOPCBiomes.brushland.topBlock,
@@ -225,7 +225,7 @@ public final class BiomesOPlentyBiomeRegistrations {
         // CANYON
         registry.register(
                 builder(BOPCBiomes.canyon).climate(Climate.HOT).river(registry.river(Climate.HOT)).variant(
-                        variant(TerrainCategory.CANYON)
+                        variant(TerrainCategory.PLATEAU, TerrainCategory.CANYON)
                                 .terrain(new TerrainCanyon(true, 35f, 160f, 60f, 40f, 69f)).surfaces(
                                         new SurfaceBase[] { new SurfaceCanyon(
                                                 BOPCBiomes.canyon.topBlock,
@@ -236,7 +236,8 @@ public final class BiomesOPlentyBiomeRegistrations {
         // CHAPARRAL
         registry.register(
                 builder(BOPCBiomes.chaparral).climate(Climate.HOT).river(registry.river(Climate.HOT))
-                        .subcategory(TerrainSubcategory.COLD_BORDER).variant(
+                        .subcategory(TerrainSubcategory.COLD_BORDER)
+                        .variant(
                                 variant(TerrainCategory.PLAIN)
                                         .terrain(new TerrainGrasslandHills(90f, 180f, 13f, 100f, 38f, 260f, 71f))
                                         .surfaces(
@@ -249,35 +250,42 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                         26f,
                                                         0.35f) }))
                         .variant(
-                                variant(TerrainCategory.HILLS)
-                                        .terrain(new TerrainGenericHills())
-                                        .surfaces(
-                                                new SurfaceBase[] { new SurfaceGrasslandMix1(
-                                                        BOPCBiomes.chaparral.topBlock,
-                                                        BOPCBiomes.chaparral.fillerBlock,
-                                                        Blocks.sand,
-                                                        Blocks.stone,
-                                                        Blocks.cobblestone,
-                                                        26f,
-                                                        0.35f) }))
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
+                                        new SurfaceBase[] { new SurfaceGrasslandMix1(
+                                                BOPCBiomes.chaparral.topBlock,
+                                                BOPCBiomes.chaparral.fillerBlock,
+                                                Blocks.sand,
+                                                Blocks.stone,
+                                                Blocks.cobblestone,
+                                                26f,
+                                                0.35f) }))
                         .variant(
-                                variant(TerrainCategory.MOUNTAIN)
-                                        .terrain(new TerrainGenericMountain())
-                                        .surfaces(
-                                                new SurfaceBase[] { new SurfaceGrasslandMix1(
-                                                        BOPCBiomes.chaparral.topBlock,
-                                                        BOPCBiomes.chaparral.fillerBlock,
-                                                        Blocks.sand,
-                                                        Blocks.stone,
-                                                        Blocks.cobblestone,
-                                                        26f,
-                                                        0.35f) })));
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
+                                        new SurfaceBase[] { new SurfaceGrasslandMix1(
+                                                BOPCBiomes.chaparral.topBlock,
+                                                BOPCBiomes.chaparral.fillerBlock,
+                                                Blocks.sand,
+                                                Blocks.stone,
+                                                Blocks.cobblestone,
+                                                26f,
+                                                0.35f) })));
 
         // CHERRYBLOSSOM GROVE
         registry.register(
                 builder(BOPCBiomes.cherryBlossomGrove).climate(Climate.COLD).river(registry.temperateRiver()).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainHighland(6f, 120f, 65f, 200f)).surfaces(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(6f, 120f, 65f, 200f)).surfaces(
+                                new SurfaceBase[] { new SurfaceMountainStone(
+                                        BOPCBiomes.borealForest.topBlock,
+                                        BOPCBiomes.borealForest.fillerBlock,
+                                        true,
+                                        Blocks.sand,
+                                        0.45f,
+                                        1.5f,
+                                        60f,
+                                        65f,
+                                        1.5f) }))
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.borealForest.topBlock,
                                                 BOPCBiomes.borealForest.fillerBlock,
@@ -288,22 +296,8 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 60f,
                                                 65f,
                                                 1.5f) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
-                                        new SurfaceBase[] { new SurfaceMountainStone(
-                                                BOPCBiomes.borealForest.topBlock,
-                                                BOPCBiomes.borealForest.fillerBlock,
-                                                true,
-                                                Blocks.sand,
-                                                0.45f,
-                                                1.5f,
-                                                60f,
-                                                65f,
-                                                1.5f) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.borealForest.topBlock,
                                                 BOPCBiomes.borealForest.fillerBlock,
@@ -318,26 +312,19 @@ public final class BiomesOPlentyBiomeRegistrations {
         // CONIFEROUS FOREST
         registry.register(
                 builder(BOPCBiomes.coniferousForest).climate(Climate.COLD).river(registry.river(Climate.COLD)).variant(
-                        variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver())
-                                .surfaces(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver()).surfaces(
+                                new SurfaceBase[] {
+                                        new SurfaceMountainSnow(Blocks.grass, Blocks.dirt, false, null, 0.45f) }))
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainSnow(
                                                 Blocks.grass,
                                                 Blocks.dirt,
                                                 false,
                                                 null,
                                                 0.45f) }))
-                .variant(
-                        variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills())
-                                .surfaces(
-                                        new SurfaceBase[] { new SurfaceMountainSnow(
-                                                Blocks.grass,
-                                                Blocks.dirt,
-                                                false,
-                                                null,
-                                                0.45f) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain())
-                                .surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainSnow(
                                                 Blocks.grass,
                                                 Blocks.dirt,
@@ -347,53 +334,50 @@ public final class BiomesOPlentyBiomeRegistrations {
         registry.register(
                 builder(BOPCBiomes.snowyConiferousForest).climate(Climate.SNOW).river(registry.river(Climate.SNOW))
                         .variant(
-                                variant(TerrainCategory.PLAIN)
-                                        .terrain(new TerrainMountainRiver()).surfaces(
-                                                new SurfaceBase[] { new SurfaceMountainSnow(
-                                                        Blocks.grass,
-                                                        Blocks.dirt,
-                                                        false,
-                                                        null,
-                                                        0.45f,
-                                                        1.5f,
-                                                        50f,
-                                                        60f,
-                                                        0.4f,
-                                                        100f,
-                                                        50f,
-                                                        1.5f) }))
+                                variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver()).surfaces(
+                                        new SurfaceBase[] { new SurfaceMountainSnow(
+                                                Blocks.grass,
+                                                Blocks.dirt,
+                                                false,
+                                                null,
+                                                0.45f,
+                                                1.5f,
+                                                50f,
+                                                60f,
+                                                0.4f,
+                                                100f,
+                                                50f,
+                                                1.5f) }))
                         .variant(
-                                variant(TerrainCategory.HILLS)
-                                        .terrain(new TerrainGenericHills()).surfaces(
-                                                new SurfaceBase[] { new SurfaceMountainSnow(
-                                                        Blocks.grass,
-                                                        Blocks.dirt,
-                                                        false,
-                                                        null,
-                                                        0.45f,
-                                                        1.5f,
-                                                        50f,
-                                                        60f,
-                                                        0.4f,
-                                                        100f,
-                                                        50f,
-                                                        1.5f) }))
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
+                                        new SurfaceBase[] { new SurfaceMountainSnow(
+                                                Blocks.grass,
+                                                Blocks.dirt,
+                                                false,
+                                                null,
+                                                0.45f,
+                                                1.5f,
+                                                50f,
+                                                60f,
+                                                0.4f,
+                                                100f,
+                                                50f,
+                                                1.5f) }))
                         .variant(
-                                variant(TerrainCategory.MOUNTAIN)
-                                        .terrain(new TerrainGenericMountain()).surfaces(
-                                                new SurfaceBase[] { new SurfaceMountainSnow(
-                                                        Blocks.grass,
-                                                        Blocks.dirt,
-                                                        false,
-                                                        null,
-                                                        0.45f,
-                                                        1.5f,
-                                                        50f,
-                                                        60f,
-                                                        0.4f,
-                                                        100f,
-                                                        50f,
-                                                        1.5f) })));
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
+                                        new SurfaceBase[] { new SurfaceMountainSnow(
+                                                Blocks.grass,
+                                                Blocks.dirt,
+                                                false,
+                                                null,
+                                                0.45f,
+                                                1.5f,
+                                                50f,
+                                                60f,
+                                                0.4f,
+                                                100f,
+                                                50f,
+                                                1.5f) })));
 
         // DEAD FOREST
         registry.register(
@@ -405,17 +389,15 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 BOPCBiomes.deadForest.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.deadForest.topBlock,
                                                 BOPCBiomes.deadForest.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.deadForest.topBlock,
                                                 BOPCBiomes.deadForest.fillerBlock,
@@ -436,24 +418,21 @@ public final class BiomesOPlentyBiomeRegistrations {
         // DECIDUOUS FOREST
         registry.register(
                 builder(BOPCBiomes.deciduousForest).climate(Climate.HOT).river(registry.river(Climate.HOT)).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                                new SurfaceBase[] { new SurfaceGrassland(
+                                        BOPCBiomes.deciduousForest.topBlock,
+                                        BOPCBiomes.deciduousForest.fillerBlock,
+                                        Blocks.stone,
+                                        Blocks.cobblestone) }))
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.deciduousForest.topBlock,
                                                 BOPCBiomes.deciduousForest.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
-                                        new SurfaceBase[] { new SurfaceGrassland(
-                                                BOPCBiomes.deciduousForest.topBlock,
-                                                BOPCBiomes.deciduousForest.fillerBlock,
-                                                Blocks.stone,
-                                                Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.deciduousForest.topBlock,
                                                 BOPCBiomes.deciduousForest.fillerBlock,
@@ -462,27 +441,25 @@ public final class BiomesOPlentyBiomeRegistrations {
 
         // EUCALYPTUS FOREST
         registry.register(
-                builder(BOPCBiomes.eucalyptusForest).climate(Climate.WET).river(registry.river(Climate.WET)).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainSwampMountain(135f, 300f)).surfaces(
+                builder(BOPCBiomes.eucalyptusForest).climate(Climate.WET).river(registry.river(Climate.WET))
+                        .variant(
+                                variant(TerrainCategory.PLAIN).terrain(new TerrainSwampMountain(135f, 300f)).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.eucalyptusForest.topBlock,
                                                 BOPCBiomes.eucalyptusForest.fillerBlock,
                                                 false,
                                                 null,
                                                 0.95f) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.eucalyptusForest.topBlock,
                                                 BOPCBiomes.eucalyptusForest.fillerBlock,
                                                 false,
                                                 null,
                                                 0.95f) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.eucalyptusForest.topBlock,
                                                 BOPCBiomes.eucalyptusForest.fillerBlock,
@@ -493,24 +470,21 @@ public final class BiomesOPlentyBiomeRegistrations {
         // FEN
         registry.register(
                 builder(BOPCBiomes.fen).climate(Climate.HOT).river(registry.river(Climate.HOT)).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                                new SurfaceBase[] { new SurfaceGrassland(
+                                        BOPCBiomes.fen.topBlock,
+                                        BOPCBiomes.fen.fillerBlock,
+                                        Blocks.stone,
+                                        Blocks.cobblestone) }))
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.fen.topBlock,
                                                 BOPCBiomes.fen.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
-                                        new SurfaceBase[] { new SurfaceGrassland(
-                                                BOPCBiomes.fen.topBlock,
-                                                BOPCBiomes.fen.fillerBlock,
-                                                Blocks.stone,
-                                                Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.fen.topBlock,
                                                 BOPCBiomes.fen.fillerBlock,
@@ -531,24 +505,21 @@ public final class BiomesOPlentyBiomeRegistrations {
         // FROST FOREST
         registry.register(
                 builder(BOPCBiomes.frostForest).climate(Climate.SNOW).river(registry.river(Climate.SNOW)).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                                new SurfaceBase[] { new SurfaceGrassland(
+                                        BOPCBiomes.frostForest.topBlock,
+                                        BOPCBiomes.frostForest.fillerBlock,
+                                        Blocks.stone,
+                                        Blocks.cobblestone) }))
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.frostForest.topBlock,
                                                 BOPCBiomes.frostForest.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
-                                        new SurfaceBase[] { new SurfaceGrassland(
-                                                BOPCBiomes.frostForest.topBlock,
-                                                BOPCBiomes.frostForest.fillerBlock,
-                                                Blocks.stone,
-                                                Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.frostForest.topBlock,
                                                 BOPCBiomes.frostForest.fillerBlock,
@@ -557,27 +528,25 @@ public final class BiomesOPlentyBiomeRegistrations {
 
         // FUNGI FOREST
         registry.register(
-                builder(BOPCBiomes.fungiForest).climate(Climate.WET).river(registry.river(Climate.WET)).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainSwampMountain(135f, 300f)).surfaces(
+                builder(BOPCBiomes.fungiForest).climate(Climate.WET).river(registry.river(Climate.WET))
+                        .variant(
+                                variant(TerrainCategory.PLAIN).terrain(new TerrainSwampMountain(135f, 300f)).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.fungiForest.topBlock,
                                                 BOPCBiomes.fungiForest.fillerBlock,
                                                 false,
                                                 null,
                                                 0.95f) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.fungiForest.topBlock,
                                                 BOPCBiomes.fungiForest.fillerBlock,
                                                 false,
                                                 null,
                                                 0.95f) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.fungiForest.topBlock,
                                                 BOPCBiomes.fungiForest.fillerBlock,
@@ -606,24 +575,21 @@ public final class BiomesOPlentyBiomeRegistrations {
         // GROVE
         registry.register(
                 builder(BOPCBiomes.grove).climate(Climate.COLD).river(registry.temperateRiver()).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainHighland(0f, 140f, 68f, 200f, .3f)).surfaces(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 140f, 68f, 200f, .3f)).surfaces(
+                                new SurfaceBase[] { new SurfaceGrassland(
+                                        BOPCBiomes.grove.topBlock,
+                                        BOPCBiomes.grove.fillerBlock,
+                                        Blocks.stone,
+                                        Blocks.cobblestone) }))
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.grove.topBlock,
                                                 BOPCBiomes.grove.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
-                                        new SurfaceBase[] { new SurfaceGrassland(
-                                                BOPCBiomes.grove.topBlock,
-                                                BOPCBiomes.grove.fillerBlock,
-                                                Blocks.stone,
-                                                Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.grove.topBlock,
                                                 BOPCBiomes.grove.fillerBlock,
@@ -650,7 +616,8 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                         registry.hotDesert()), new SurfaceRiverOasis(), }))
                         .variant(
                                 variant(TerrainCategory.HILLS)
-                                        .terrain(new TerrainGenericHills())
+                                        .terrain(
+                                                new TerrainGenericHills())
                                         .surfaces(
                                                 new SurfaceBase[] { new SurfaceDuneValley(
                                                         BOPCBiomes.brushland.topBlock,
@@ -661,7 +628,8 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                         registry.hotDesert()), new SurfaceRiverOasis(), }))
                         .variant(
                                 variant(TerrainCategory.MOUNTAIN)
-                                        .terrain(new TerrainGenericMountain())
+                                        .terrain(
+                                                new TerrainGenericMountain())
                                         .surfaces(
                                                 new SurfaceBase[] { new SurfaceDuneValley(
                                                         BOPCBiomes.brushland.topBlock,
@@ -674,8 +642,19 @@ public final class BiomesOPlentyBiomeRegistrations {
         // HIGHLAND
         registry.register(
                 builder(BOPCBiomes.highland).climate(Climate.COLD).river(registry.temperateRiver()).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainHighland(0f, 140f, 68f, 150f)).surfaces(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 140f, 68f, 150f)).surfaces(
+                                new SurfaceBase[] { new SurfaceMountainStone(
+                                        BOPCBiomes.highland.topBlock,
+                                        BOPCBiomes.highland.fillerBlock,
+                                        false,
+                                        null,
+                                        1f,
+                                        1.5f,
+                                        85f,
+                                        20f,
+                                        4f) }))
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.highland.topBlock,
                                                 BOPCBiomes.highland.fillerBlock,
@@ -686,22 +665,8 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 85f,
                                                 20f,
                                                 4f) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
-                                        new SurfaceBase[] { new SurfaceMountainStone(
-                                                BOPCBiomes.highland.topBlock,
-                                                BOPCBiomes.highland.fillerBlock,
-                                                false,
-                                                null,
-                                                1f,
-                                                1.5f,
-                                                85f,
-                                                20f,
-                                                4f) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.highland.topBlock,
                                                 BOPCBiomes.highland.fillerBlock,
@@ -716,7 +681,8 @@ public final class BiomesOPlentyBiomeRegistrations {
         // JADE CLIFFS
         registry.register(
                 builder(BOPCBiomes.jadeCliffs).climate(Climate.COLD).river(registry.river(Climate.HOT))
-                        .subcategory(TerrainSubcategory.HOT_BORDER).variant(
+                        .subcategory(TerrainSubcategory.HOT_BORDER)
+                        .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 0f)).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.jadeCliffs.topBlock,
@@ -741,27 +707,25 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 null,
                                                 0.95f) })));
         registry.register(
-                builder(BOPCBiomes.jadeCliffs).climate(Climate.COLD).river(registry.river(Climate.HOT)).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainHilly(230f, 120f, 0f)).surfaces(
+                builder(BOPCBiomes.jadeCliffs).climate(Climate.COLD).river(registry.river(Climate.HOT))
+                        .variant(
+                                variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 0f)).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.jadeCliffs.topBlock,
                                                 BOPCBiomes.jadeCliffs.fillerBlock,
                                                 false,
                                                 null,
                                                 0.95f) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.jadeCliffs.topBlock,
                                                 BOPCBiomes.jadeCliffs.fillerBlock,
                                                 false,
                                                 null,
                                                 0.95f) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.jadeCliffs.topBlock,
                                                 BOPCBiomes.jadeCliffs.fillerBlock,
@@ -781,7 +745,8 @@ public final class BiomesOPlentyBiomeRegistrations {
         // LAND OF LAKES MARSH
         registry.register(
                 builder(BOPCBiomes.landOfLakesMarsh).climate(Climate.HOT).river(registry.river(Climate.WET))
-                        .subcategory(TerrainSubcategory.HOT_BORDER).variant(
+                        .subcategory(TerrainSubcategory.HOT_BORDER)
+                        .variant(
                                 variant(TerrainCategory.PLAIN)
                                         .terrain(new TerrainGrasslandHills(90f, 180f, 13f, 100f, 38f, 260f, 71f))
                                         .surfaces(
@@ -791,47 +756,41 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                         Blocks.stone,
                                                         Blocks.cobblestone) }))
                         .variant(
-                                variant(TerrainCategory.HILLS)
-                                        .terrain(new TerrainGenericHills())
-                                        .surfaces(
-                                                new SurfaceBase[] { new SurfaceGrassland(
-                                                        BOPCBiomes.landOfLakesMarsh.topBlock,
-                                                        BOPCBiomes.landOfLakesMarsh.fillerBlock,
-                                                        Blocks.stone,
-                                                        Blocks.cobblestone) }))
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
+                                        new SurfaceBase[] { new SurfaceGrassland(
+                                                BOPCBiomes.landOfLakesMarsh.topBlock,
+                                                BOPCBiomes.landOfLakesMarsh.fillerBlock,
+                                                Blocks.stone,
+                                                Blocks.cobblestone) }))
                         .variant(
-                                variant(TerrainCategory.MOUNTAIN)
-                                        .terrain(new TerrainGenericMountain())
-                                        .surfaces(
-                                                new SurfaceBase[] { new SurfaceGrassland(
-                                                        BOPCBiomes.landOfLakesMarsh.topBlock,
-                                                        BOPCBiomes.landOfLakesMarsh.fillerBlock,
-                                                        Blocks.stone,
-                                                        Blocks.cobblestone) })));
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
+                                        new SurfaceBase[] { new SurfaceGrassland(
+                                                BOPCBiomes.landOfLakesMarsh.topBlock,
+                                                BOPCBiomes.landOfLakesMarsh.fillerBlock,
+                                                Blocks.stone,
+                                                Blocks.cobblestone) })));
 
         // LAVENDER FIELDS
         registry.register(
-                builder(BOPCBiomes.lavenderFields).climate(Climate.COLD).river(registry.temperateRiver()).variant(
-                        variant(TerrainCategory.PLAIN).terrain(new TerrainMountainSpikes())
-                                .surfaces(
+                builder(BOPCBiomes.lavenderFields).climate(Climate.COLD).river(registry.temperateRiver())
+                        .variant(
+                                variant(TerrainCategory.PLAIN).terrain(new TerrainMountainSpikes()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.lavenderFields.topBlock,
                                                 BOPCBiomes.lavenderFields.fillerBlock,
                                                 false,
                                                 null,
                                                 1.2f) }))
-                .variant(
-                        variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills())
-                                .surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.lavenderFields.topBlock,
                                                 BOPCBiomes.lavenderFields.fillerBlock,
                                                 false,
                                                 null,
                                                 1.2f) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain())
-                                .surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.lavenderFields.topBlock,
                                                 BOPCBiomes.lavenderFields.fillerBlock,
@@ -848,17 +807,15 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 BOPCBiomes.lushDesert.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.lushDesert.topBlock,
                                                 BOPCBiomes.lushDesert.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.lushDesert.topBlock,
                                                 BOPCBiomes.lushDesert.fillerBlock,
@@ -879,24 +836,21 @@ public final class BiomesOPlentyBiomeRegistrations {
         // MAPLE WOODS
         registry.register(
                 builder(BOPCBiomes.mapleWoods).climate(Climate.COLD).river(registry.temperateRiver()).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                                new SurfaceBase[] { new SurfaceGrassland(
+                                        BOPCBiomes.mapleWoods.topBlock,
+                                        BOPCBiomes.mapleWoods.fillerBlock,
+                                        Blocks.stone,
+                                        Blocks.cobblestone) }))
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.mapleWoods.topBlock,
                                                 BOPCBiomes.mapleWoods.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
-                                        new SurfaceBase[] { new SurfaceGrassland(
-                                                BOPCBiomes.mapleWoods.topBlock,
-                                                BOPCBiomes.mapleWoods.fillerBlock,
-                                                Blocks.stone,
-                                                Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.mapleWoods.topBlock,
                                                 BOPCBiomes.mapleWoods.fillerBlock,
@@ -917,7 +871,8 @@ public final class BiomesOPlentyBiomeRegistrations {
         // MEADOW
         registry.register(
                 builder(BOPCBiomes.meadow).climate(Climate.COLD).river(registry.temperateRiver())
-                        .subcategory(TerrainSubcategory.COLD_BORDER).variant(
+                        .subcategory(TerrainSubcategory.COLD_BORDER)
+                        .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainMountainSpikes()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.meadow.topBlock,
@@ -944,25 +899,23 @@ public final class BiomesOPlentyBiomeRegistrations {
 
         // GARDEN (MOOR TERRAIN)
         registry.register(
-                builder(BOPCBiomes.garden).climate(Climate.WET).river(registry.river(Climate.WET)).variant(
-                        variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver())
-                                .surfaces(
+                builder(BOPCBiomes.garden).climate(Climate.WET).river(registry.river(Climate.WET))
+                        .variant(
+                                variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.garden.topBlock,
                                                 BOPCBiomes.garden.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills())
-                                .surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.garden.topBlock,
                                                 BOPCBiomes.garden.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain())
-                                .surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.garden.topBlock,
                                                 BOPCBiomes.garden.fillerBlock,
@@ -973,27 +926,25 @@ public final class BiomesOPlentyBiomeRegistrations {
 
         // MOUNTAIN
         registry.register(
-                builder(BOPCBiomes.mountain).climate(Climate.HOT).river(registry.river(Climate.HOT)).variant(
-                        variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver())
-                                .surfaces(
+                builder(BOPCBiomes.mountain).climate(Climate.HOT).river(registry.river(Climate.HOT))
+                        .variant(
+                                variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.mountain.topBlock,
                                                 BOPCBiomes.mountain.fillerBlock,
                                                 true,
                                                 Blocks.sand,
                                                 0.75f) }))
-                .variant(
-                        variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills())
-                                .surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.mountain.topBlock,
                                                 BOPCBiomes.mountain.fillerBlock,
                                                 true,
                                                 Blocks.sand,
                                                 0.75f) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain())
-                                .surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.mountain.topBlock,
                                                 BOPCBiomes.mountain.fillerBlock,
@@ -1035,7 +986,8 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                         registry.hotDesert()), new SurfaceRiverOasis(), }))
                         .variant(
                                 variant(TerrainCategory.HILLS)
-                                        .terrain(new TerrainGenericHills())
+                                        .terrain(
+                                                new TerrainGenericHills())
                                         .surfaces(
                                                 new SurfaceBase[] { new SurfaceDuneValley(
                                                         BOPCBiomes.outback.topBlock,
@@ -1046,7 +998,8 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                         registry.hotDesert()), new SurfaceRiverOasis(), }))
                         .variant(
                                 variant(TerrainCategory.MOUNTAIN)
-                                        .terrain(new TerrainGenericMountain())
+                                        .terrain(
+                                                new TerrainGenericMountain())
                                         .surfaces(
                                                 new SurfaceBase[] { new SurfaceDuneValley(
                                                         BOPCBiomes.outback.topBlock,
@@ -1066,17 +1019,15 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 BOPCBiomes.prairie.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.prairie.topBlock,
                                                 BOPCBiomes.prairie.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.prairie.topBlock,
                                                 BOPCBiomes.prairie.fillerBlock,
@@ -1117,18 +1068,16 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 false,
                                                 null,
                                                 0.4f) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.redwoodForest.topBlock,
                                                 BOPCBiomes.redwoodForest.fillerBlock,
                                                 false,
                                                 null,
                                                 0.4f) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.redwoodForest.topBlock,
                                                 BOPCBiomes.redwoodForest.fillerBlock,
@@ -1139,24 +1088,21 @@ public final class BiomesOPlentyBiomeRegistrations {
         // SACRED SPRINGS
         registry.register(
                 builder(BOPCBiomes.sacredSprings).climate(Climate.WET).river(registry.river(Climate.WET)).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainHighland(0f, 120f, 68f, 200f)).surfaces(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 120f, 68f, 200f)).surfaces(
+                                new SurfaceBase[] { new SurfaceGrassland(
+                                        BOPCBiomes.sacredSprings.topBlock,
+                                        BOPCBiomes.sacredSprings.fillerBlock,
+                                        Blocks.stone,
+                                        Blocks.cobblestone) }))
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.sacredSprings.topBlock,
                                                 BOPCBiomes.sacredSprings.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
-                                        new SurfaceBase[] { new SurfaceGrassland(
-                                                BOPCBiomes.sacredSprings.topBlock,
-                                                BOPCBiomes.sacredSprings.fillerBlock,
-                                                Blocks.stone,
-                                                Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.sacredSprings.topBlock,
                                                 BOPCBiomes.sacredSprings.fillerBlock,
@@ -1166,24 +1112,21 @@ public final class BiomesOPlentyBiomeRegistrations {
         // SEASONAL FOREST
         registry.register(
                 builder(BOPCBiomes.seasonalForest).climate(Climate.COLD).river(registry.temperateRiver()).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                                new SurfaceBase[] { new SurfaceGrassland(
+                                        BOPCBiomes.seasonalForest.topBlock,
+                                        BOPCBiomes.seasonalForest.fillerBlock,
+                                        Blocks.stone,
+                                        Blocks.cobblestone) }))
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.seasonalForest.topBlock,
                                                 BOPCBiomes.seasonalForest.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
-                                        new SurfaceBase[] { new SurfaceGrassland(
-                                                BOPCBiomes.seasonalForest.topBlock,
-                                                BOPCBiomes.seasonalForest.fillerBlock,
-                                                Blocks.stone,
-                                                Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.seasonalForest.topBlock,
                                                 BOPCBiomes.seasonalForest.fillerBlock,
@@ -1200,17 +1143,15 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 BOPCBiomes.shield.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.shield.topBlock,
                                                 BOPCBiomes.shield.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.shield.topBlock,
                                                 BOPCBiomes.shield.fillerBlock,
@@ -1227,17 +1168,15 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 BOPCBiomes.shrubland.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.shrubland.topBlock,
                                                 BOPCBiomes.shrubland.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.shrubland.topBlock,
                                                 BOPCBiomes.shrubland.fillerBlock,
@@ -1257,27 +1196,25 @@ public final class BiomesOPlentyBiomeRegistrations {
 
         // TEMPERATE RAINFOREST
         registry.register(
-                builder(BOPCBiomes.temperateRainforest).climate(Climate.WET).river(registry.river(Climate.WET)).variant(
-                        variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver())
-                                .surfaces(
+                builder(BOPCBiomes.temperateRainforest).climate(Climate.WET).river(registry.river(Climate.WET))
+                        .variant(
+                                variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.temperateRainforest.topBlock,
                                                 BOPCBiomes.temperateRainforest.fillerBlock,
                                                 false,
                                                 null,
                                                 0.45f) }))
-                .variant(
-                        variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills())
-                                .surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.temperateRainforest.topBlock,
                                                 BOPCBiomes.temperateRainforest.fillerBlock,
                                                 false,
                                                 null,
                                                 0.45f) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain())
-                                .surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceMountainStone(
                                                 BOPCBiomes.temperateRainforest.topBlock,
                                                 BOPCBiomes.temperateRainforest.fillerBlock,
@@ -1288,7 +1225,8 @@ public final class BiomesOPlentyBiomeRegistrations {
         // TROPICAL RAINFOREST
         registry.register(
                 builder(BOPCBiomes.tropicalRainforest).climate(Climate.WET).river(registry.river(Climate.WET))
-                        .subcategory(TerrainSubcategory.COLD_BORDER).variant(
+                        .subcategory(TerrainSubcategory.COLD_BORDER)
+                        .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 140f, 68f, 200f))
                                         .surfaces(
                                                 new SurfaceBase[] { new SurfaceGrassland(
@@ -1297,21 +1235,19 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                         Blocks.stone,
                                                         Blocks.cobblestone) }))
                         .variant(
-                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills())
-                                        .surfaces(
-                                                new SurfaceBase[] { new SurfaceGrassland(
-                                                        BOPCBiomes.tropicalRainforest.topBlock,
-                                                        BOPCBiomes.tropicalRainforest.fillerBlock,
-                                                        Blocks.stone,
-                                                        Blocks.cobblestone) }))
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
+                                        new SurfaceBase[] { new SurfaceGrassland(
+                                                BOPCBiomes.tropicalRainforest.topBlock,
+                                                BOPCBiomes.tropicalRainforest.fillerBlock,
+                                                Blocks.stone,
+                                                Blocks.cobblestone) }))
                         .variant(
-                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain())
-                                        .surfaces(
-                                                new SurfaceBase[] { new SurfaceGrassland(
-                                                        BOPCBiomes.tropicalRainforest.topBlock,
-                                                        BOPCBiomes.tropicalRainforest.fillerBlock,
-                                                        Blocks.stone,
-                                                        Blocks.cobblestone) })));
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
+                                        new SurfaceBase[] { new SurfaceGrassland(
+                                                BOPCBiomes.tropicalRainforest.topBlock,
+                                                BOPCBiomes.tropicalRainforest.fillerBlock,
+                                                Blocks.stone,
+                                                Blocks.cobblestone) })));
 
         // TROPICS
         registry.register(
@@ -1370,17 +1306,15 @@ public final class BiomesOPlentyBiomeRegistrations {
                                                 BOPCBiomes.tundra.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.tundra.topBlock,
                                                 BOPCBiomes.tundra.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.tundra.topBlock,
                                                 BOPCBiomes.tundra.fillerBlock,
@@ -1400,24 +1334,21 @@ public final class BiomesOPlentyBiomeRegistrations {
         // WOODLAND
         registry.register(
                 builder(BOPCBiomes.woodland).climate(Climate.COLD).river(registry.temperateRiver()).variant(
-                        variant(TerrainCategory.PLAIN)
-                                .terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 140f, 68f, 200f)).surfaces(
+                                new SurfaceBase[] { new SurfaceGrassland(
+                                        BOPCBiomes.woodland.topBlock,
+                                        BOPCBiomes.woodland.fillerBlock,
+                                        Blocks.stone,
+                                        Blocks.cobblestone) }))
+                        .variant(
+                                variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.woodland.topBlock,
                                                 BOPCBiomes.woodland.fillerBlock,
                                                 Blocks.stone,
                                                 Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.HILLS)
-                                .terrain(new TerrainGenericHills()).surfaces(
-                                        new SurfaceBase[] { new SurfaceGrassland(
-                                                BOPCBiomes.woodland.topBlock,
-                                                BOPCBiomes.woodland.fillerBlock,
-                                                Blocks.stone,
-                                                Blocks.cobblestone) }))
-                .variant(
-                        variant(TerrainCategory.MOUNTAIN)
-                                .terrain(new TerrainGenericMountain()).surfaces(
+                        .variant(
+                                variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         new SurfaceBase[] { new SurfaceGrassland(
                                                 BOPCBiomes.woodland.topBlock,
                                                 BOPCBiomes.woodland.fillerBlock,

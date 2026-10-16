@@ -11,17 +11,25 @@ public class TerrainMesa extends TerrainBase {
     @Override
     public float generateNoise(NoiseGenerator perlin, CellNoise cell, int x, int y, TerrainContext context,
             float border) {
-        float base = terracedBase(perlin, x, y, context.baseHeight);
-        return base + mesaRelief(perlin, cell, x, y, border, context.riverTerrainFactor);
+        float height = context.baseHeight + mesaRelief(
+                perlin,
+                cell,
+                x,
+                y,
+                border,
+                context.riverTerrainFactor,
+                context.baseHeight - TerrainCanyon.STEP_DATUM);
+        return TerrainCanyon.reboundHeight(height);
     }
 
     @Override
     public float generateNoise(NoiseGenerator perlin, CellNoise cell, int x, int y, float ocean, float border,
             float river) {
-        return 74f + mesaRelief(perlin, cell, x, y, border, river);
+        return TerrainCanyon.reboundHeight(74f + mesaRelief(perlin, cell, x, y, border, river, 5f));
     }
 
-    private float mesaRelief(NoiseGenerator perlin, CellNoise cell, int x, int y, float border, float river) {
+    private float mesaRelief(NoiseGenerator perlin, CellNoise cell, int x, int y, float border, float river,
+            float baseRelief) {
         float b = perlin.noise2(x / 130f, y / 130f) * 50f * river;
         b *= b / 40f;
 
@@ -37,17 +45,7 @@ public class TerrainMesa extends TerrainBase {
 
         b = b < 0.1f ? 0.1f : b;
 
-        float c1 = 0f;
-        if (b > 1f) {
-            c1 = b > 5.5f ? 4.5f : b - 1f;
-            c1 *= 3;
-        }
-
-        float c2 = 0f;
-        if (b > 5.5f && border > 0.95f + hn * 0.09f) {
-            c2 = b > 6f ? 0.5f : b - 5.5f;
-            c2 *= 35;
-        }
+        float steps = TerrainCanyon.coreStepHeight(baseRelief + b, border, hn * 0.5f, 35f);
 
         float bn = 0f;
         if (b < 7f) {
@@ -59,25 +57,9 @@ public class TerrainMesa extends TerrainBase {
         float w = perlin.noise2(x / 80f, y / 80f) * 25f;
         w *= w / 25f;
 
-        b += c1 + c2 + bn - w;
+        b += steps + bn - w;
 
         return b;
     }
 
-    private static float terracedBase(NoiseGenerator perlin, int x, int y, float baseHeight) {
-        float step = 4f;
-        float offset = perlin.noise2((x + 1877f) / 95f, (y - 2917f) / 95f) * 1.1f;
-        float shifted = baseHeight - 62f + offset;
-        float level = (float) Math.floor(shifted / step);
-        float fraction = shifted / step - level;
-        float stair = 62f + level * step - offset;
-        // Preserve short ramps at each riser so surface painting does not produce one-block numerical chatter.
-        if (fraction > .82f) stair += step * smoothstep((fraction - .82f) / .18f);
-        return stair;
-    }
-
-    private static float smoothstep(float value) {
-        value = Math.max(0f, Math.min(1f, value));
-        return value * value * (3f - 2f * value);
-    }
 }

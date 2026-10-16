@@ -76,7 +76,7 @@ public final class RegionalTerrainSampler {
         float mountain = clamp(MorphologyRules.mountainStrength(mountainDistance));
         if (mountain > 0f) {
             float envelope = mountainEnvelope(mountain);
-            base += (250f - base) * envelope;
+            base += (245f - base) * envelope;
             // Confine detail to the flanks so it cannot blunt the regional ridge line.
             float transition = (float) Math.sin(Math.PI * mountain);
             transition *= transition;

@@ -29,12 +29,16 @@ public class TerrainGenericHills extends TerrainBase {
         shape *= shape;
 
         float uplift = shape * 12f * river;
+        float baseVariation = (perlin.noise2((x - 1381f) / 20f, (z + 2377f) / 20f) * 5f
+                + perlin.noise2((x + 2719f) / 12f, (z - 1871f) / 12f) * 3f
+                + perlin.noise2((x - 3917f) / 5f, (z + 1013f) / 5f) * 1.5f) * river;
         float thresholdOffset = cell.noise(x / 340D, z / 340D, 1D) * 1.25f * river;
-        float terrace = softTerrace(uplift + thresholdOffset, TERRACE_HEIGHT) - thresholdOffset;
-        float height = lerp(uplift, terrace, .3f);
+        float unsculptedHeight = baseHeight + baseVariation + uplift;
+        float terrace = softTerrace(unsculptedHeight + thresholdOffset, TERRACE_HEIGHT) - thresholdOffset;
+        float height = lerp(unsculptedHeight, terrace, .3f);
         float detail = perlin.noise2((x + 919f) / 32f, (z - 613f) / 32f) * 1.2f
                 + perlin.noise2(x / 17f, z / 17f) * .35f;
-        return baseHeight + height + detail * shape * river;
+        return height + detail * shape * river;
     }
 
     private static float softTerrace(float height, float step) {

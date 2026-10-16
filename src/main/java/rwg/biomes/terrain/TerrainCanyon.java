@@ -2,12 +2,16 @@ package rwg.biomes.terrain;
 
 import rwg.util.CellNoise;
 import rwg.util.NoiseGenerator;
+import rwg.world.sample.TerrainContext;
 
 public class TerrainCanyon extends TerrainBase {
 
+    static final float STEP_DATUM = 69f;
+    private static final float MAXIMUM_SCULPTED_HEIGHT = 245f;
+    private static final float[] CORE_STEPS = { 5.0f, 0.5f, 12.5f, 0.5f, 18.0f, 0.5f, 40.0f, 0.5f, 70.0f, 0.5f, 105.0f,
+            0.5f, 145.0f, 0.5f, 175.0f, 0.5f };
+
     private boolean smallRiver;
-    private float[] height;
-    private int heightLength;
     private float strength;
     private float cWidth;
     private float cHeigth;
@@ -23,9 +27,7 @@ public class TerrainCanyon extends TerrainBase {
     public TerrainCanyon(boolean riverGen, float heightStrength, float canyonWidth, float canyonHeight,
             float canyonStrength, float baseHeight) {
         smallRiver = riverGen;
-        height = new float[] { 5.0f, 0.5f, 12.5f, 0.5f, 18.0f, 0.5f };
         strength = heightStrength;
-        heightLength = height.length;
         cWidth = canyonWidth;
         cHeigth = canyonHeight;
         cStrength = canyonStrength;
@@ -33,8 +35,18 @@ public class TerrainCanyon extends TerrainBase {
     }
 
     @Override
+    public float generateNoise(NoiseGenerator perlin, CellNoise cell, int x, int y, TerrainContext context,
+            float border) {
+        return generateFromBase(perlin, x, y, border, context.riverTerrainFactor, context.baseHeight);
+    }
+
+    @Override
     public float generateNoise(NoiseGenerator perlin, CellNoise cell, int x, int y, float ocean, float border,
             float river) {
+        return generateFromBase(perlin, x, y, border, river, base);
+    }
+
+    private float generateFromBase(NoiseGenerator perlin, int x, int y, float border, float river, float baseHeight) {
         // float b = perlin.noise2(x / cWidth, y / cWidth) * cHeigth * river;
         // b *= b / cStrength;
         river *= 1.3f;
@@ -52,17 +64,7 @@ public class TerrainCanyon extends TerrainBase {
         }
         b += sb;
 
-        float cTotal = 0f;
-        float cTemp = 0f;
-
-        for (int i = 0; i < heightLength; i += 2) {
-            cTemp = 0;
-            if (b > height[i] && border > 0.6f + (height[i] * 0.015f) + hn * 0.2f) {
-                cTemp = b > height[i] + height[i + 1] ? height[i + 1] : b - height[i];
-                cTemp *= strength;
-            }
-            cTotal += cTemp;
-        }
+        float cTotal = coreStepHeight(baseHeight - STEP_DATUM + b, border, hn, strength);
 
         float bn = 0f;
         if (smallRiver) {
@@ -78,6 +80,22 @@ public class TerrainCanyon extends TerrainBase {
 
         b += cTotal - bn;
 
-        return base + b;
+        return reboundHeight(baseHeight + b);
+    }
+
+    static float coreStepHeight(float terrainHeight, float border, float stepNoise, float stepStrength) {
+        float result = 0f;
+        for (int i = 0; i < CORE_STEPS.length; i += 2) {
+            float borderThreshold = 0.6f + Math.min(CORE_STEPS[i], 18f) * 0.015f + stepNoise * 0.2f;
+            if (terrainHeight > CORE_STEPS[i] && border > borderThreshold) {
+                float rise = Math.min(CORE_STEPS[i + 1], terrainHeight - CORE_STEPS[i]);
+                result += rise * stepStrength;
+            }
+        }
+        return result;
+    }
+
+    static float reboundHeight(float height) {
+        return height > MAXIMUM_SCULPTED_HEIGHT ? MAXIMUM_SCULPTED_HEIGHT * 2f - height : height;
     }
 }

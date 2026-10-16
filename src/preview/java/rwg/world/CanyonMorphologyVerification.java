@@ -89,9 +89,15 @@ public final class CanyonMorphologyVerification {
                 plateauEdge.sample.morphology.category == TerrainCategory.CANYON
                         && neighboringEdge.sample.morphology.category == TerrainCategory.CANYON,
                 "canyon ended at a three-climate junction");
-        require(
-                Math.abs(plateauEdge.baseHeight - neighboringEdge.baseHeight) < 10f,
-                "canyon erosion has a seam at a three-climate junction");
+        float previousHeight = plateauEdge.baseHeight;
+        for (int step = 1; step <= 16; step++) {
+            float progress = step / 16f;
+            int x = Math.round(-5191 + 36f * progress);
+            int z = Math.round(3913 + 28f * progress);
+            float height = generator.samplePreviewPoint(x, z).baseHeight;
+            require(Math.abs(height - previousHeight) < 4f, "canyon erosion has a seam at a climate junction");
+            previousHeight = height;
+        }
     }
 
     private static void verifyCanyon(ColumnSample canyon) {

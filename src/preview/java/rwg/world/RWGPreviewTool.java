@@ -75,6 +75,7 @@ public final class RWGPreviewTool {
     private static final int[] CLIMATE_COLORS = { 0xE8F4FF, 0x74B86A, 0xD6A34A, 0x286B3A };
     private static final int CLIMATE_OCEAN_COLOR = 0x287EAE;
     private static final int CLIMATE_RIVER_COLOR = 0x3C91BE;
+    private static final int UNDERGROUND_RIVER_COLOR = 0x1687E0;
     private static final int CLIMATE_JUNCTION_COLOR = 0xE02020;
     private static final int MOUNTAIN_RIDGE_COLOR = 0xFF2020;
     private static final int HEIGHT_LAND_COLOR = 0x68A94F;
@@ -353,10 +354,13 @@ public final class RWGPreviewTool {
                             for (int x = 0; x < target.width; x++) {
                                 int index = z * target.width + x;
                                 if (!full && target.valid[index]) continue;
-                                WorldGenerator.PreviewColumn column = generator.samplePreviewPoint(
-                                        (int) Math.floor(target.originX + (x + .5d) * target.scale),
-                                        (int) Math.floor(target.originZ + (z + .5d) * target.scale));
-                                target.set(index, column, layer);
+                                int worldX = (int) Math.floor(target.originX + (x + .5d) * target.scale);
+                                int worldZ = (int) Math.floor(target.originZ + (z + .5d) * target.scale);
+                                WorldGenerator.PreviewColumn column = generator.samplePreviewPoint(worldX, worldZ);
+                                float undergroundRiverStrength = column.sample.morphology.mountainStrength > .10f
+                                        ? manager.getRiverTunnelStrength(worldX, worldZ)
+                                        : 0f;
+                                target.set(index, column, undergroundRiverStrength, layer);
                             }
                             if ((rows.incrementAndGet() & 15) == 0)
                                 SwingUtilities.invokeLater(() -> { if (generation.get() == request) repaint(); });
@@ -433,10 +437,15 @@ public final class RWGPreviewTool {
             hoverCoordinator.getQueue().clear();
             hoverCoordinator.execute(() -> {
                 ChunkManager manager = new ChunkManager(target.seed, true, registry);
+                int sampleX = (int) Math.floor(worldX);
+                int sampleZ = (int) Math.floor(worldZ);
                 WorldGenerator.PreviewColumn column = new WorldGenerator(target.seed, manager.worldgenSelector())
-                        .samplePreviewPoint((int) Math.floor(worldX), (int) Math.floor(worldZ));
+                        .samplePreviewPoint(sampleX, sampleZ);
                 if (hoverGeneration.get() != request) return;
-                if (index >= 0 && canvas == target) target.set(index, column, layer);
+                float undergroundRiverStrength = column.sample.morphology.mountainStrength > .10f
+                        ? manager.getRiverTunnelStrength(sampleX, sampleZ)
+                        : 0f;
+                if (index >= 0 && canvas == target) target.set(index, column, undergroundRiverStrength, layer);
                 SwingUtilities.invokeLater(() -> {
                     if (hoverGeneration.get() != request) return;
                     pendingHoverCanvas = null;
@@ -609,13 +618,13 @@ public final class RWGPreviewTool {
         private final float[] baseHeights;
         private final short[] registrations;
         private final byte[] categories;
-        private final byte[] hostCategories;
         private final byte[] climates;
         private final byte[] climateCategories;
         private final float[] rawMountainDistances;
         private final float[] mountainDistances;
         private final float[] valleyDistances;
         private final float[] valleyStrengths;
+        private final float[] undergroundRiverStrengths;
         private final boolean[] valid;
         private final BufferedImage image;
         private final int[] pixels;
@@ -631,13 +640,13 @@ public final class RWGPreviewTool {
             baseHeights = new float[width * height];
             registrations = new short[width * height];
             categories = new byte[width * height];
-            hostCategories = new byte[width * height];
             climates = new byte[width * height];
             climateCategories = new byte[width * height];
             rawMountainDistances = new float[width * height];
             mountainDistances = new float[width * height];
             valleyDistances = new float[width * height];
             valleyStrengths = new float[width * height];
+            undergroundRiverStrengths = new float[width * height];
             valid = new boolean[width * height];
             image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
             pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
@@ -682,29 +691,29 @@ public final class RWGPreviewTool {
                 System.arraycopy(source.baseHeights, from, baseHeights, to, copyWidth);
                 System.arraycopy(source.registrations, from, registrations, to, copyWidth);
                 System.arraycopy(source.categories, from, categories, to, copyWidth);
-                System.arraycopy(source.hostCategories, from, hostCategories, to, copyWidth);
                 System.arraycopy(source.climates, from, climates, to, copyWidth);
                 System.arraycopy(source.climateCategories, from, climateCategories, to, copyWidth);
                 System.arraycopy(source.rawMountainDistances, from, rawMountainDistances, to, copyWidth);
                 System.arraycopy(source.mountainDistances, from, mountainDistances, to, copyWidth);
                 System.arraycopy(source.valleyDistances, from, valleyDistances, to, copyWidth);
                 System.arraycopy(source.valleyStrengths, from, valleyStrengths, to, copyWidth);
+                System.arraycopy(source.undergroundRiverStrengths, from, undergroundRiverStrengths, to, copyWidth);
                 System.arraycopy(source.valid, from, valid, to, copyWidth);
             }
         }
 
-        private void set(int index, WorldGenerator.PreviewColumn column, Layer layer) {
+        private void set(int index, WorldGenerator.PreviewColumn column, float undergroundRiverStrength, Layer layer) {
             heights[index] = column.height;
             baseHeights[index] = column.baseHeight;
             registrations[index] = (short) column.sample.biome.registration.id;
             categories[index] = (byte) column.sample.morphology.category.ordinal();
-            hostCategories[index] = (byte) column.sample.biome.registration.category.ordinal();
             climates[index] = (byte) column.sample.climate.climate.ordinal();
             climateCategories[index] = (byte) column.sample.climate.category.ordinal();
             rawMountainDistances[index] = column.sample.morphology.rawMountainDistance;
             mountainDistances[index] = column.sample.morphology.mountainDistance;
             valleyDistances[index] = column.sample.morphology.valleyDistance;
             valleyStrengths[index] = column.sample.morphology.valleyStrength;
+            undergroundRiverStrengths[index] = undergroundRiverStrength;
             valid[index] = true;
             pixels[index] = color(index, layer);
             refreshSlopeDependents(index, layer);
@@ -751,14 +760,11 @@ public final class RWGPreviewTool {
                     else if (category == TerrainSubcategory.HOT_BORDER && climate + 1 < CLIMATE_COLORS.length)
                         color = mix(color, CLIMATE_COLORS[climate + 1], .33f);
                 }
-            } else if (layer == Layer.CATEGORY && rawMountainDistances[index] <= Math.max(1d, scale * .75d)) {
-                return MOUNTAIN_RIDGE_COLOR;
             } else if (layer == Layer.CATEGORY) {
                 int category = categories[index] & 255;
-                if (category == TerrainCategory.RIVER.ordinal() && elevation >= 63f) {
-                    category = hostCategories[index] & 255;
-                }
-                color = CATEGORY_COLORS[category];
+                color = category == TerrainCategory.RIVER.ordinal() ? CATEGORY_COLORS[category]
+                        : rawMountainDistances[index] <= Math.max(1d, scale * .75d) ? MOUNTAIN_RIDGE_COLOR
+                                : CATEGORY_COLORS[category];
             } else {
                 color = biomeColor(registrations[index] & 65535, elevation);
             }
@@ -772,7 +778,8 @@ public final class RWGPreviewTool {
             int east = z * width + eastX;
             int north = northZ * width + x;
             int south = southZ * width + x;
-            if (!valid[west] || !valid[east] || !valid[north] || !valid[south]) return color;
+            if (!valid[west] || !valid[east] || !valid[north] || !valid[south])
+                return undergroundRiverColor(index, x, z, color);
             float[] shadingHeights = regionalLayer ? baseHeights : heights;
             float referenceSpan = SHADING_RADIUS * 2f;
             float dx = (shadingHeights[east] - shadingHeights[west]) * referenceSpan
@@ -783,7 +790,12 @@ public final class RWGPreviewTool {
             float light = .78f + .40f * directional;
             if (elevation >= 63f) light += clamp((elevation - 63f) / 120f, 0f, 1f) * .14f;
             color = shade(color, clamp(light, .55f, 1.45f));
-            return contour(color, index, elevation, shadingHeights);
+            color = contour(color, index, elevation, shadingHeights);
+            return undergroundRiverColor(index, x, z, color);
+        }
+
+        private int undergroundRiverColor(int index, int x, int z, int color) {
+            return undergroundRiverStrengths[index] > 0f && ((x + z) & 3) == 0 ? UNDERGROUND_RIVER_COLOR : color;
         }
 
         private int contour(int color, int index, float elevation, float[] contourHeights) {

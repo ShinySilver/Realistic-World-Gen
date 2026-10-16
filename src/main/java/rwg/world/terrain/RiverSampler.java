@@ -42,7 +42,10 @@ public final class RiverSampler {
         return rivers.erosionDistance(x, z, riverNetworkSeed, mountainSuppression);
     }
 
-    /** Distance to the nearest river edge selected by the edge-level 50/50 mountain-carving decision. */
+    /**
+     * Shared warped, width-scaled erosion distance for canyon placement, restricted by the edge-level 50/50
+     * mountain-carving decision.
+     */
     public float mountainCarvingRiverDistance(int x, int z, long riverNetworkSeed) {
         return rivers.erosionDistance(x, z, riverNetworkSeed, 1f);
     }

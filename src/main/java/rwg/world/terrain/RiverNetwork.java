@@ -25,8 +25,12 @@ final class RiverNetwork {
     private static final int LINK_COUNT = 3;
     private static final double RIVER_WIDTH = 12D;
     private static final double VALLEY_INFLUENCE = 72D;
-    private static final double EROSION_INFLUENCE = 256D;
+    private static final double EROSION_INFLUENCE = 320D;
     private static final double EROSION_MERGE_SMOOTHING = 48D;
+    private static final float EROSION_WARP_SCALE = 180f;
+    private static final float EROSION_WARP_STRENGTH = 64f;
+    private static final float EROSION_WIDTH_SCALE = 220f;
+    private static final float EROSION_WIDTH_VARIATION = .18f;
     private static final double JUNCTION_VALLEY_RADIUS = 208D;
     private static final double JUNCTION_CENTER_OFFSET = JUNCTION_VALLEY_RADIUS * .5D;
     private static final float JUNCTION_WARP_SCALE = 180f;
@@ -44,13 +48,12 @@ final class RiverNetwork {
     private static final double MEANDER_AMPLITUDE = 25.2D;
     private static final double MEANDER_WAVELENGTH = 240D;
     private static final double MEANDER_SAMPLE_SPACING = 16D;
-    private static final double MOUNTAIN_SAMPLE_SPACING = 64D;
-    private static final double MOUNTAIN_STRAIGHTENING_DISTANCE = 750D;
     private static final double TAU = Math.PI * 2D;
 
     private final long seed;
     private final MountainDistanceSampler mountains;
     private final NoiseGenerator junctionWarp;
+    private final NoiseGenerator erosionVariation;
     private final Cache<NodeKey, NodeKey> canonicalNodes = CacheBuilder.newBuilder().maximumSize(32768)
             .concurrencyLevel(4).build();
     private final Cache<NodeKey, Node> nodes = CacheBuilder.newBuilder().maximumSize(32768).concurrencyLevel(4).build();
@@ -89,6 +92,7 @@ final class RiverNetwork {
         this.seed = seed;
         this.mountains = mountains;
         junctionWarp = NoiseSelector.createNoiseGenerator(seed ^ 0x6A09E667F3BCC909L);
+        erosionVariation = NoiseSelector.createNoiseGenerator(seed ^ 0x3C6EF372FE94F82BL);
     }
 
     float strength(int x, int z, long networkSeed, boolean suppressSurface) {
@@ -163,9 +167,8 @@ final class RiverNetwork {
                 MorphologyRules.MAXIMUM_SURFACE_RIVER_WIDTH,
                 mountainSuppression);
         float distance = Math.min(suppressedOrdinaryDistance, mountainCarverDistance);
-        float surfaceStrength = Math.max(
-                strength(allDistance) * (1f - mountainSuppression),
-                strength(mountainCarverDistance));
+        float surfaceStrength = Math
+                .max(strength(allDistance) * (1f - mountainSuppression), strength(mountainCarverDistance));
         return packSurfaceSample(distance, surfaceStrength);
     }
 
@@ -236,10 +239,15 @@ final class RiverNetwork {
         double secondNearestMountainCarver = nearest;
         boolean needAllRivers = mountainSuppression < 1f;
         boolean needMountainCarvers = mountainSuppression > 0f;
+        double warpedX = x
+                + erosionVariation.noise2(x / EROSION_WARP_SCALE, z / EROSION_WARP_SCALE) * EROSION_WARP_STRENGTH;
+        double warpedZ = z + erosionVariation.noise2(
+                (x + 1877f) / EROSION_WARP_SCALE,
+                (z - 2903f) / EROSION_WARP_SCALE) * EROSION_WARP_STRENGTH;
         for (ErosionCurve curve : nearby) {
             double distanceSquared = EROSION_INFLUENCE * EROSION_INFLUENCE;
             for (Segment segment : curve.segments)
-                distanceSquared = Math.min(distanceSquared, segment.distanceSquared(x, z));
+                distanceSquared = Math.min(distanceSquared, segment.distanceSquared(warpedX, warpedZ));
             if (needAllRivers) {
                 if (distanceSquared < nearest) {
                     secondNearest = nearest;
@@ -266,9 +274,15 @@ final class RiverNetwork {
                         Math.sqrt(secondNearestMountainCarver),
                         EROSION_MERGE_SMOOTHING)
                 : 0f;
-        if (!needAllRivers) return mountainCarvers;
-        if (!needMountainCarvers) return allRivers;
-        return lerp(allRivers, mountainCarvers, mountainSuppression);
+        float distance = !needAllRivers ? mountainCarvers
+                : !needMountainCarvers ? allRivers : lerp(allRivers, mountainCarvers, mountainSuppression);
+        // Two untouched search-radius sentinels blend to this value; never turn that into a false valley by scaling it.
+        if (distance >= EROSION_INFLUENCE - EROSION_MERGE_SMOOTHING * .25D) return distance;
+        float widthScale = 1f + erosionVariation.noise2(
+                (x - 1213f) / EROSION_WIDTH_SCALE,
+                (z + 2671f) / EROSION_WIDTH_SCALE) * EROSION_WIDTH_VARIATION;
+        widthScale = Math.max(1f - EROSION_WIDTH_VARIATION, Math.min(1f + EROSION_WIDTH_VARIATION, widthScale));
+        return distance / widthScale;
     }
 
     /** Compact polynomial blend: identical to min when the distances differ by at least smoothing. */
@@ -286,10 +300,11 @@ final class RiverNetwork {
 
                 @Override
                 public ErosionCurve[] call() {
-                    double minimumX = regionX * (double) REGION_SIZE - EROSION_INFLUENCE;
-                    double minimumZ = regionZ * (double) REGION_SIZE - EROSION_INFLUENCE;
-                    double maximumX = (regionX + 1D) * REGION_SIZE + EROSION_INFLUENCE;
-                    double maximumZ = (regionZ + 1D) * REGION_SIZE + EROSION_INFLUENCE;
+                    double discoveryMargin = EROSION_INFLUENCE + EROSION_WARP_STRENGTH;
+                    double minimumX = regionX * (double) REGION_SIZE - discoveryMargin;
+                    double minimumZ = regionZ * (double) REGION_SIZE - discoveryMargin;
+                    double maximumX = (regionX + 1D) * REGION_SIZE + discoveryMargin;
+                    double maximumZ = (regionZ + 1D) * REGION_SIZE + discoveryMargin;
                     int firstCellX = floor(minimumX / NODE_SPACING) - 2;
                     int firstCellZ = floor(minimumZ / NODE_SPACING) - 2;
                     int lastCellX = floor(maximumX / NODE_SPACING) + 2;
@@ -816,7 +831,6 @@ final class RiverNetwork {
         long phaseSeed = hash(key.first.networkSeed, key.first.cellX, key.first.cellZ, 11)
                 ^ Long.rotateLeft(hash(key.second.networkSeed, key.second.cellX, key.second.cellZ, 17), 29);
         double initialPhase = unit(mix(phaseSeed)) * TAU;
-        double[] mountainEnvelopes = mountainEnvelopes(guide, totalLength);
         double travelled = 0D;
         double previousX = guide.get(0).x;
         double previousZ = guide.get(0).z;
@@ -834,7 +848,6 @@ final class RiverNetwork {
                 double u = Math.min(1D, distance / totalLength);
                 double envelope = Math.sin(Math.PI * u);
                 envelope *= envelope;
-                envelope *= interpolateMountainEnvelope(mountainEnvelopes, distance, totalLength);
                 double phase = initialPhase + TAU * distance / MEANDER_WAVELENGTH;
                 double lateralOffset = Math.sin(phase) * MEANDER_AMPLITUDE * envelope;
                 double x = segment.x + segment.dx * along + normalX * lateralOffset;
@@ -846,39 +859,6 @@ final class RiverNetwork {
             travelled += segmentLength;
         }
         return result.toArray(new Segment[result.size()]);
-    }
-
-    private double[] mountainEnvelopes(List<Segment> guide, double totalLength) {
-        if (mountains == null) return new double[] { 1D };
-        int intervals = Math.max(1, (int) Math.ceil(totalLength / MOUNTAIN_SAMPLE_SPACING));
-        double[] result = new double[intervals + 1];
-        int segmentIndex = 0;
-        double segmentStart = 0D;
-        for (int index = 0; index <= intervals; index++) {
-            double distance = totalLength * index / intervals;
-            Segment segment = guide.get(segmentIndex);
-            double segmentLength = Math.sqrt(segment.lengthSquared);
-            while (segmentIndex + 1 < guide.size() && distance > segmentStart + segmentLength) {
-                segmentStart += segmentLength;
-                segment = guide.get(++segmentIndex);
-                segmentLength = Math.sqrt(segment.lengthSquared);
-            }
-            double along = segmentLength == 0D ? 0D : (distance - segmentStart) / segmentLength;
-            int x = (int) Math.round(segment.x + segment.dx * along);
-            int z = (int) Math.round(segment.z + segment.dz * along);
-            double strength = mountains.distanceAt(x, z) / MOUNTAIN_STRAIGHTENING_DISTANCE;
-            strength = Math.max(0D, Math.min(1D, strength));
-            result[index] = strength * strength * (3D - 2D * strength);
-        }
-        return result;
-    }
-
-    private static double interpolateMountainEnvelope(double[] samples, double distance, double totalLength) {
-        if (samples.length == 1) return samples[0];
-        double position = distance / totalLength * (samples.length - 1);
-        int first = Math.min(samples.length - 2, (int) position);
-        double fraction = position - first;
-        return samples[first] + (samples[first + 1] - samples[first]) * fraction;
     }
 
     private static void flatten(double x0, double z0, double x1, double z1, double x2, double z2, double x3, double z3,
