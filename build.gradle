@@ -11,11 +11,13 @@ sourceSets {
     }
 }
 
-def cubicChunksDependencyCoordinate = project.findProperty('cubicChunksDependency')
-    ?: 'com.github.ShinySilver:CubicChunks1710:97cb376343:dev'
+def localCubicChunks = fileTree('../CubicChunks1710/build/libs') {
+    include '*-dev.jar'
+}
 
 dependencies {
-    api(cubicChunksDependencyCoordinate)
+    api(localCubicChunks)
+    api('com.github.GTNewHorizons:RegionLib:v0.1.0-GTNH:dev')
     api('com.falsepattern:endlessids-mc1.7.10:1.7.4:dev')
     api('ganymedes01.etfuturum:Et-Futurum-Requiem:2.6.58-GTNH:dev')
     api('com.github.GTNewHorizons:LootGames:2.2.14:dev')
@@ -23,6 +25,18 @@ dependencies {
     api('com.github.GTNewHorizons:twilightforest:2.7.40:dev')
     api(rfg.deobf('curse.maven:witchery-69673:2234410'))
     previewRuntimeOnly('it.unimi.dsi:fastutil:8.5.18')
+}
+
+tasks.register('buildLocalCubicChunks', Exec) {
+    group = 'build setup'
+    description = 'Builds the sibling CubicChunks development jar used by this checkout'
+    workingDir = file('../CubicChunks1710')
+    commandLine './gradlew', 'shadowJar', '--quiet', '--no-daemon'
+    environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
+}
+
+tasks.named('compileJava') {
+    dependsOn tasks.named('buildLocalCubicChunks')
 }
 
 tasks.register('runPreview', JavaExec) {
@@ -235,13 +249,29 @@ tasks.register('debug_profileWorldgen', Exec) {
         './gradlew',
         'runServer',
         '-PrwgWorldgenProfileRun',
-        "-PcubicChunksDependency=${cubicChunksDependencyCoordinate}",
         "-PrwgProfileRadius=${project.findProperty('rwgProfileRadius') ?: '16'}",
         "-PrwgProfileVerticalRadius=${project.findProperty('rwgProfileVerticalRadius') ?: '16'}",
         '--no-daemon')
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
+    File profileLog = worldgenProfileRoot.get().file('profile.log').asFile
+    ignoreExitValue = true
+    doFirst {
+        profileLog.parentFile.mkdirs()
+        ext.profileLogStream = new FileOutputStream(profileLog)
+        standardOutput = ext.profileLogStream
+        errorOutput = ext.profileLogStream
+    }
     doLast {
-        println "RWG worldgen profiles: ${worldgenProfileOutput.get().asFile}"
+        ext.profileLogStream.close()
+        if (executionResult.get().exitValue != 0) {
+            println profileLog.readLines().takeRight(80).join(System.lineSeparator())
+            throw new GradleException("RWG worldgen profile failed; full log: ${profileLog}")
+        }
+        File newest = worldgenProfileOutput.get().asFile.listFiles()
+            ?.findAll { it.name.endsWith('.json') }
+            ?.max { it.lastModified() }
+        println "RWG worldgen profile: ${newest ?: worldgenProfileOutput.get().asFile}"
+        println "Full server log: ${profileLog}"
     }
 }
 
