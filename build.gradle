@@ -36,9 +36,16 @@ tasks.register('buildLocalCubicChunks', Exec) {
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
 }
 
+def cleanLocalAngelicaDevJars = tasks.register('cleanLocalAngelicaDevJars', Delete) {
+    delete fileTree(localAngelicaRoot.toPath().resolve('build/libs')) {
+        include '*-dev.jar'
+    }
+}
+
 tasks.register('buildLocalAngelica', Exec) {
     group = 'build setup'
     description = 'Builds the sibling Angelica checkout used by the development client'
+    dependsOn cleanLocalAngelicaDevJars
     workingDir = localAngelicaRoot
     commandLine './gradlew', 'assemble', '--quiet', '--no-daemon'
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
@@ -48,13 +55,9 @@ def syncLocalAngelica = tasks.register('syncLocalAngelica', Copy) {
     group = 'build setup'
     description = 'Copies the sibling Angelica development jar into the local runtime classpath'
     dependsOn tasks.named('buildLocalAngelica')
-    from({
-        def libs = localAngelicaRoot.toPath().resolve('build/libs')
-        def dirtyJar = fileTree(libs) { include '*-dirty-dev.jar' }
-        dirtyJar.empty ? fileTree(libs) {
-            include '*-dev.jar'
-            exclude '*-dirty-dev.jar', '*-preshadow.jar'
-        } : dirtyJar
+    from(fileTree(localAngelicaRoot.toPath().resolve('build/libs')) {
+        include '*-dev.jar'
+        exclude '*-preshadow.jar'
     })
     into(localAngelicaJar.map { it.asFile.parentFile })
     rename { 'angelica-dev.jar' }
