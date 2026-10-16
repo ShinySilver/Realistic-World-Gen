@@ -83,12 +83,10 @@ Start with the smallest rule contract that can replace the built-in surfaces. Sp
 only when their visible behavior is still wanted; fixed-height compatibility signatures are deleted rather than
 wrapped.
 
-Implementation handoff: `ColumnPlan` now resolves one `SurfaceRule` per X/Z and records the largest declared depth;
-the cube pipeline consumes only that contract and absolute Y. `SurfaceBase` is temporarily the registration adapter
-and supplies the basic top/filler rule. The next surface pass must replace selected built-in adapters with native
-rules (including any required metadata and planner-derived boundary signals), then delete the unused fixed-height
-`paintTerrain` API and unported painters. Do not call those painters from the cube pipeline or add a second surface
-cache.
+`ColumnPlan` resolves one composed `SurfaceRule` per X/Z and records the largest declared depth. Its one-block planning
+halo supplies seam-free slope, while world-seeded variation signals are cached with the other column inputs. Rules
+return shared block-and-metadata materials; cube painting performs no allocation, registry lookup, neighbor fetch, or
+random mutation. The fixed-height painter API and unsupported compatibility registrations have been removed.
 
 ## Migration
 
@@ -96,7 +94,7 @@ cache.
 2. Pure `ColumnPlanner`, immutable `ColumnPlan`, bounded deduplicating cache, and parallel determinism tests.
 3. Remove the fixed-height generator and array APIs. (complete)
 4. Base terrain, water, bedrock, simple surfaces, and empty/solid fast paths. (complete)
-5. Height-independent surface rules. (core contract and cube pipeline complete; specialized rules remain)
+5. Height-independent surface rules. (complete)
 6. Geology, caves, and underground rivers. (native cube stages complete; gameplay tuning remains)
 7. Planned decorators and population stages.
 8. Late structure placement.

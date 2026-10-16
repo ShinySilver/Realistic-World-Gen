@@ -882,7 +882,6 @@ public final class BuiltinBiomes {
                                                 surfaces(
                                                         new SurfaceMesa(Blocks.sand, Blocks.sand, (byte) 1),
                                                         new SurfaceRiverOasis()))));
-        registry.finishBuiltinRegistrations();
     }
 
     private static SurfaceBase grass(BiomeGenBase biome) {

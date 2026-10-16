@@ -1,70 +1,37 @@
 package rwg.biomes.surface;
 
-import java.util.Random;
-
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
-import net.minecraft.world.World;
 import net.minecraft.world.biome.BiomeGenBase;
 
-import rwg.util.CellNoise;
-import rwg.util.NoiseGenerator;
+/** Dune/valley transition rule; biome identity remains a planner responsibility. */
+public final class SurfaceDuneValley extends SurfaceBase {
 
-public class SurfaceDuneValley extends SurfaceBase {
+    private static final SurfaceMaterial SAND = new SurfaceMaterial(Blocks.sand);
+    private static final SurfaceMaterial SANDSTONE = new SurfaceMaterial(Blocks.sandstone);
+    private static final SurfaceMaterial COARSE_DIRT = new SurfaceMaterial(Blocks.dirt, 1);
+    private final boolean dirt;
+    private final boolean mix;
 
-    private float valley;
-    private boolean dirt;
-    private boolean mix;
-    private final BiomeGenBase sandBiome;
-
-    public SurfaceDuneValley(Block top, Block fill, float valleySize, boolean d, boolean m, BiomeGenBase sandBiome) {
+    public SurfaceDuneValley(Block top, Block fill, float valleySize, boolean dirt, boolean mix,
+            BiomeGenBase sandBiome) {
         super(top, fill);
-
-        valley = valleySize;
-        dirt = d;
-        mix = m;
-        this.sandBiome = sandBiome;
+        this.dirt = dirt;
+        this.mix = mix;
     }
 
     @Override
-    public void paintTerrain(Block[] blocks, byte[] metadata, int i, int j, int x, int y, int depth, World world,
-            Random rand, NoiseGenerator perlin, CellNoise cell, float[] noise, float river, BiomeGenBase[] base) {
-        float h = (perlin.noise2(i / valley, j / valley) + 0.25f) * 65f;
-        h = h < 1f ? 1f : h;
-        float m = perlin.noise2(i / 12f, j / 12f);
-        boolean sand = false;
+    public int maximumDepth() {
+        return 5;
+    }
 
-        Block b;
-        for (int k = 255; k > -1; k--) {
-            b = blocks[(y * 16 + x) * 256 + k];
-            if (b == Blocks.air) {
-                depth = -1;
-            } else if (b == Blocks.stone) {
-                depth++;
-
-                if (depth == 0) {
-                    if (k > 90f + perlin.noise2(i / 24f, j / 24f) * 10f - h || (m < -0.28f && mix)) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.sand;
-                        base[x * 16 + y] = sandBiome;
-                        sand = true;
-                    } else if (dirt && m < 0.22f || k < 62) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.dirt;
-                        metadata[(y * 16 + x) * 256 + k] = 1;
-                    } else {
-                        blocks[(y * 16 + x) * 256 + k] = topBlock;
-                    }
-                } else if (depth < 6) {
-                    if (sand) {
-                        if (depth < 4) {
-                            blocks[(y * 16 + x) * 256 + k] = Blocks.sand;
-                        } else {
-                            blocks[(y * 16 + x) * 256 + k] = Blocks.sandstone;
-                        }
-                    } else {
-                        blocks[(y * 16 + x) * 256 + k] = fillerBlock;
-                    }
-                }
-            }
-        }
+    @Override
+    public SurfaceMaterial materialAt(int worldX, int worldZ, int surfaceY, int depth, float riverStrength,
+            float mountainWeight, float slope, float variation, float broadVariation) {
+        float valleyRelief = Math.max(1f, (broadVariation + .25f) * 65f);
+        boolean sandy = surfaceY > 90f + variation * 10f - valleyRelief || mix && variation < -.28f;
+        if (sandy) return depth < 4 ? SAND : SANDSTONE;
+        if (dirt && variation < .22f || surfaceY < 62) return COARSE_DIRT;
+        return depth == 0 ? topMaterial : fillerMaterial;
     }
 }

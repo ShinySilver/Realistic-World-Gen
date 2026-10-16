@@ -28,10 +28,4 @@ public class SurfaceBase implements SurfaceRule {
             float mountainWeight, float slope, float variation, float broadVariation) {
         return depth == 0 ? topMaterial : fillerMaterial;
     }
-
-    /** Migration-only reference implementation; native rules replace and then delete this fixed-height API. */
-    @Deprecated
-    public void paintTerrain(Block[] blocks, byte[] metadata, int i, int j, int x, int y, int depth,
-            net.minecraft.world.World world, java.util.Random rand, rwg.util.NoiseGenerator perlin,
-            rwg.util.CellNoise cell, float[] noise, float river, net.minecraft.world.biome.BiomeGenBase[] base) {}
 }

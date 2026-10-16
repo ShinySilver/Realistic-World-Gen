@@ -13,7 +13,6 @@ import net.minecraft.world.biome.BiomeGenBase;
 
 import rwg.biomes.poi.PointOfInterestSet;
 import rwg.biomes.surface.SurfaceBase;
-import rwg.biomes.surface.SurfaceNativeBiome;
 import rwg.biomes.terrain.TerrainBase;
 import rwg.biomes.terrain.TerrainConstant;
 import rwg.biomes.terrain.TerrainMarsh;
@@ -61,8 +60,8 @@ public final class GridWorldgenSelector implements WorldgenSelector {
         IdentityHashMap<BiomeGenBase, Boolean> represented = new IdentityHashMap<BiomeGenBase, Boolean>();
         for (Climate climate : Climate.values()) byClimate.put(climate, new ArrayList<BiomeRegistration>());
         for (BiomeRegistration registration : registry.registrations()) {
-            if (registration.selectable && (registration.builtin || !represented.containsKey(registration.biome))) {
-                if (!registration.builtin) represented.put(registration.biome, Boolean.TRUE);
+            if (registration.selectable && !represented.containsKey(registration.biome)) {
+                represented.put(registration.biome, Boolean.TRUE);
                 byClimate.get(registration.climate).add(registration);
                 if (fallback == null) fallback = registration;
             }
@@ -93,14 +92,13 @@ public final class GridWorldgenSelector implements WorldgenSelector {
                 registry.plains(),
                 registry.river(Climate.WET),
                 flatTerrain,
-                new SurfaceBase[] { new SurfaceNativeBiome(registry.plains()) },
+                new SurfaceBase[] { new SurfaceBase(registry.plains().topBlock, registry.plains().fillerBlock) },
                 null,
                 Climate.WET,
                 TerrainCategory.PLAIN,
                 TerrainSubcategory.CORE,
                 1,
-                false,
-                true);
+                false);
 
         riverRegistrations = new BiomeRegistration[registry.registrations().size()];
         for (List<BiomeRegistration> entries : byClimate.values()) {

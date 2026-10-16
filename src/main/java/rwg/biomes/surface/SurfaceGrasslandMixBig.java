@@ -1,80 +1,39 @@
 package rwg.biomes.surface;
 
-import java.util.Random;
-
 import net.minecraft.block.Block;
-import net.minecraft.init.Blocks;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.BiomeGenBase;
 
-import rwg.util.CellNoise;
-import rwg.util.CliffCalculator;
-import rwg.util.NoiseGenerator;
+/** Broad alternate grassland patches with matching top and filler materials. */
+public final class SurfaceGrasslandMixBig extends SurfaceGrassland {
 
-public class SurfaceGrasslandMixBig extends SurfaceBase {
-
-    private Block mixBlockTop;
-    private Block mixBlockFill;
-    private Block cliffBlock1;
-    private Block cliffBlock2;
-    private float width;
-    private float height;
-    private float smallW;
-    private float smallS;
+    private final SurfaceMaterial mixTop;
+    private final SurfaceMaterial mixFiller;
+    private final float threshold;
+    private final float detailStrength;
 
     public SurfaceGrasslandMixBig(Block top, Block filler, Block mixTop, Block mixFill, Block cliff1, Block cliff2,
             float mixWidth, float mixHeight, float smallWidth, float smallStrength) {
-        super(top, filler);
-
-        mixBlockTop = mixTop;
-        mixBlockFill = mixFill;
-        cliffBlock1 = cliff1;
-        cliffBlock2 = cliff2;
-
-        width = mixWidth;
-        height = mixHeight;
-        smallW = smallWidth;
-        smallS = smallStrength;
+        super(top, filler, cliff1, cliff2);
+        this.mixTop = new SurfaceMaterial(mixTop);
+        mixFiller = new SurfaceMaterial(mixFill);
+        threshold = mixHeight;
+        detailStrength = smallStrength;
     }
 
     @Override
-    public void paintTerrain(Block[] blocks, byte[] metadata, int i, int j, int x, int y, int depth, World world,
-            Random rand, NoiseGenerator perlin, CellNoise cell, float[] noise, float river, BiomeGenBase[] base) {
-        float c = CliffCalculator.calc(x, y, noise);
-        boolean cliff = c > 1.4f ? true : false;
-        boolean mix = false;
-
-        for (int k = 255; k > -1; k--) {
-            Block b = blocks[(y * 16 + x) * 256 + k];
-            if (b == Blocks.air) {
-                depth = -1;
-            } else if (b == Blocks.stone) {
-                depth++;
-
-                if (cliff) {
-                    if (depth > -1 && depth < 2) {
-                        blocks[(y * 16 + x) * 256 + k] = rand.nextInt(3) == 0 ? cliffBlock2 : cliffBlock1;
-                    } else if (depth < 10) {
-                        blocks[(y * 16 + x) * 256 + k] = cliffBlock1;
-                    }
-                } else {
-                    if (depth == 0 && k > 61) {
-                        if (perlin.noise2(i / width, j / width) + perlin.noise2(i / smallW, j / smallW) * smallS
-                                > height) {
-                            blocks[(y * 16 + x) * 256 + k] = mixBlockTop;
-                            mix = true;
-                        } else {
-                            blocks[(y * 16 + x) * 256 + k] = topBlock;
-                        }
-                    } else if (depth < 4) {
-                        if (mix) {
-                            blocks[(y * 16 + x) * 256 + k] = mixBlockFill;
-                        } else {
-                            blocks[(y * 16 + x) * 256 + k] = fillerBlock;
-                        }
-                    }
-                }
-            }
-        }
+    public SurfaceMaterial materialAt(int worldX, int worldZ, int surfaceY, int depth, float riverStrength,
+            float mountainWeight, float slope, float variation, float broadVariation) {
+        if (slope > 1.4f) return super.materialAt(
+                worldX,
+                worldZ,
+                surfaceY,
+                depth,
+                riverStrength,
+                mountainWeight,
+                slope,
+                variation,
+                broadVariation);
+        boolean mixed = broadVariation + variation * detailStrength > threshold;
+        if (mixed) return depth == 0 ? mixTop : mixFiller;
+        return depth == 0 ? topMaterial : fillerMaterial;
     }
 }

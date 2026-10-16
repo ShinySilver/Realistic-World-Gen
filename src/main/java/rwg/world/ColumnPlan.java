@@ -70,7 +70,7 @@ public final class ColumnPlan {
                 biomes[localZ * SIZE + localX] = this.riverStrengths[sampleIndex] > 0f ? registration.riverBiome
                         : registration.biome;
                 // Resolve once during X/Z planning. Cube generation performs no registry lookup or rule selection.
-                SurfaceRule surfaceRule = registration.surfaceRules[0];
+                SurfaceRule surfaceRule = registration.surfaceRule;
                 if (surfaceRule.maximumDepth() < 0)
                     throw new IllegalArgumentException("negative surface depth for registration " + registration.id);
                 surfaceRules[localZ * SIZE + localX] = surfaceRule;

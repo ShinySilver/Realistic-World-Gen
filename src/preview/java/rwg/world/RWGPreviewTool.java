@@ -47,9 +47,7 @@ import rwg.ConfigRWG;
 import rwg.biomes.surface.SurfaceCanyon;
 import rwg.biomes.surface.SurfaceDesert;
 import rwg.biomes.surface.SurfaceDesertMountain;
-import rwg.biomes.surface.SurfaceIslandMountainStone;
 import rwg.biomes.surface.SurfaceMesa;
-import rwg.biomes.surface.SurfaceMountainPolar;
 import rwg.biomes.surface.SurfaceMountainSnow;
 import rwg.biomes.surface.SurfaceMountainStone;
 import rwg.biomes.surface.SurfaceMountainStoneMix1;
@@ -499,7 +497,6 @@ public final class RWGPreviewTool {
                         + ")"
                         + "<br>Registry entry: #"
                         + registration.id
-                        + (registration.builtin ? " (built-in)" : " (integration)")
                         + "<br>Terrain base: "
                         + registration.terrain.getClass().getSimpleName()
                         + "<br>Surface: "
@@ -985,8 +982,7 @@ public final class RWGPreviewTool {
         registrationColors = new int[registry.registrations().size()];
         for (BiomeRegistration registration : registry.registrations()) {
             int color = registration.biome.getBiomeGrassColor(0, 64, 0) & 0xffffff;
-            if (registration.builtin) {
-                for (SurfaceRule surface : registration.surfaceRules) {
+            for (SurfaceRule surface : registration.surfaceRules) {
                     if (surface instanceof SurfaceRedDesert || surface instanceof SurfaceCanyon
                             || surface instanceof SurfaceMesa) {
                         color = RED_SAND_COLOR;
@@ -996,17 +992,14 @@ public final class RWGPreviewTool {
                         color = SAND_COLOR;
                         break;
                     }
-                    if (surface instanceof SurfacePolar || surface instanceof SurfaceMountainSnow
-                            || surface instanceof SurfaceMountainPolar) {
+                    if (surface instanceof SurfacePolar || surface instanceof SurfaceMountainSnow) {
                         color = SNOW_COLOR;
                         break;
                     }
-                    if (surface instanceof SurfaceMountainStone || surface instanceof SurfaceMountainStoneMix1
-                            || surface instanceof SurfaceIslandMountainStone) {
+                    if (surface instanceof SurfaceMountainStone || surface instanceof SurfaceMountainStoneMix1) {
                         color = STONE_COLOR;
                         break;
                     }
-                }
             }
             registrationColors[registration.id] = color;
         }

@@ -1,84 +1,38 @@
 package rwg.biomes.surface;
 
-import java.util.Random;
-
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.BiomeGenBase;
 
-import rwg.util.CellNoise;
-import rwg.util.CliffCalculator;
-import rwg.util.NoiseGenerator;
+import rwg.world.CubicWorldSettings;
 
-public class SurfaceTundra extends SurfaceBase {
+/** Wind-scoured tundra with gravel beaches, rocky cliffs, podzol patches, and high snow. */
+public final class SurfaceTundra extends SurfaceBase {
+
+    private static final SurfaceMaterial GRASS = new SurfaceMaterial(Blocks.grass);
+    private static final SurfaceMaterial DIRT = new SurfaceMaterial(Blocks.dirt);
+    private static final SurfaceMaterial PODZOL = new SurfaceMaterial(Blocks.dirt, 2);
+    private static final SurfaceMaterial GRAVEL = new SurfaceMaterial(Blocks.gravel);
+    private static final SurfaceMaterial STONE = new SurfaceMaterial(Blocks.stone);
+    private static final SurfaceMaterial CLAY = new SurfaceMaterial(Blocks.stained_hardened_clay, 9);
+    private static final SurfaceMaterial SNOW = new SurfaceMaterial(Blocks.snow);
 
     public SurfaceTundra(Block top, Block fill) {
         super(top, fill);
     }
 
     @Override
-    public void paintTerrain(Block[] blocks, byte[] metadata, int i, int j, int x, int y, int depth, World world,
-            Random rand, NoiseGenerator perlin, CellNoise cell, float[] noise, float river, BiomeGenBase[] base) {
-        float p = perlin.noise2(i / 8f, j / 8f) * 0.5f;
-        float c = CliffCalculator.calc(x, y, noise);
-        int cliff = 0;
-        boolean gravel = false;
+    public int maximumDepth() {
+        return 5;
+    }
 
-        Block b;
-        for (int k = 255; k > -1; k--) {
-            b = blocks[(y * 16 + x) * 256 + k];
-            if (b == Blocks.air) {
-                depth = -1;
-            } else if (b == Blocks.stone) {
-                depth++;
-
-                if (depth == 0) {
-                    if (k < 63) {
-                        gravel = true;
-                    }
-
-                    if (c > 0.45f && c > 1.5f - ((k - 60f) / 65f) + p) {
-                        cliff = 1;
-                    }
-                    if (c > 1.5f) {
-                        cliff = 2;
-                    }
-                    if (k > 110 + (p * 4) && c < 0.3f + ((k - 100f) / 50f) + p) {
-                        cliff = 3;
-                    }
-
-                    if (cliff == 1) {
-                        blocks[(y * 16 + x) * 256 + k] = rand.nextInt(3) == 0 ? Blocks.cobblestone : Blocks.stone;
-                    } else if (cliff == 2) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.stained_hardened_clay;
-                        metadata[(y * 16 + x) * 256 + k] = 9;
-                    } else if (cliff == 3) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.snow;
-                    } else if (perlin.noise2(i / 50f, j / 50f) + p * 0.6f > 0.24f) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.dirt;
-                        metadata[(y * 16 + x) * 256 + k] = 2;
-                    } else if (k < 63) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.gravel;
-                        gravel = true;
-                    } else {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.grass;
-                    }
-                } else if (depth < 6) {
-                    if (cliff == 1) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.stone;
-                    } else if (cliff == 2) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.stained_hardened_clay;
-                        metadata[(y * 16 + x) * 256 + k] = 9;
-                    } else if (cliff == 3) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.snow;
-                    } else if (gravel) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.gravel;
-                    } else {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.dirt;
-                    }
-                }
-            }
-        }
+    @Override
+    public SurfaceMaterial materialAt(int worldX, int worldZ, int surfaceY, int depth, float riverStrength,
+            float mountainWeight, float slope, float variation, float broadVariation) {
+        if (surfaceY > 110 + variation * 4f && slope < .3f + (surfaceY - 100f) / 50f + variation * .5f) return SNOW;
+        if (slope > 1.5f) return CLAY;
+        if (slope > Math.max(.45f, 1.5f - (surfaceY - 60f) / 65f + variation * .5f)) return STONE;
+        if (surfaceY < CubicWorldSettings.SEA_LEVEL) return GRAVEL;
+        if (depth == 0 && broadVariation + variation * .3f > .24f) return PODZOL;
+        return depth == 0 ? GRASS : DIRT;
     }
 }

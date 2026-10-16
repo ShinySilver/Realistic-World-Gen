@@ -1,108 +1,55 @@
 package rwg.biomes.surface;
 
-import java.util.Random;
-
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.BiomeGenBase;
 
-import rwg.util.CellNoise;
-import rwg.util.CliffCalculator;
-import rwg.util.NoiseGenerator;
+import rwg.world.CubicWorldSettings;
 
+/** Grass or biome material on gentle terrain, with beaches and exposed mountain rock. */
 public class SurfaceMountainStone extends SurfaceBase {
 
-    private boolean beach;
-    private Block beachBlock;
-    private float min;
+    private static final SurfaceMaterial STONE = new SurfaceMaterial(Blocks.stone);
+    private static final SurfaceMaterial COBBLESTONE = new SurfaceMaterial(Blocks.cobblestone);
+    private static final SurfaceMaterial CLAY = new SurfaceMaterial(Blocks.stained_hardened_clay, 9);
 
-    private float sCliff = 1.5f;
-    private float sHeight = 60f;
-    private float sStrength = 65f;
-    private float cCliff = 1.5f;
+    private final SurfaceMaterial beach;
+    private final float minimumCliff;
+    private final float stoneCliff;
+    private final float stoneHeight;
+    private final float stoneStrength;
+    private final float clayCliff;
+    private final SurfaceMaterial[] topMaterials = new SurfaceMaterial[16];
+    public byte topByte;
 
-    public byte topByte = 0;
-
-    public SurfaceMountainStone(Block top, Block fill, boolean genBeach, Block genBeachBlock, float minCliff) {
-        super(top, fill);
-        beach = genBeach;
-        beachBlock = genBeachBlock;
-        min = minCliff;
+    public SurfaceMountainStone(Block top, Block fill, boolean generateBeach, Block beachBlock, float minimumCliff) {
+        this(top, fill, generateBeach, beachBlock, minimumCliff, 1.5f, 60f, 65f, 1.5f);
     }
 
-    public SurfaceMountainStone(Block top, Block fill, boolean genBeach, Block genBeachBlock, float minCliff,
+    public SurfaceMountainStone(Block top, Block fill, boolean generateBeach, Block beachBlock, float minimumCliff,
             float stoneCliff, float stoneHeight, float stoneStrength, float clayCliff) {
-        this(top, fill, genBeach, genBeachBlock, minCliff);
-
-        sCliff = stoneCliff;
-        sHeight = stoneHeight;
-        sStrength = stoneStrength;
-        cCliff = clayCliff;
+        super(top, fill);
+        beach = generateBeach && beachBlock != null ? new SurfaceMaterial(beachBlock) : null;
+        this.minimumCliff = minimumCliff;
+        this.stoneCliff = stoneCliff;
+        this.stoneHeight = stoneHeight;
+        this.stoneStrength = stoneStrength;
+        this.clayCliff = clayCliff;
+        for (int metadata = 0; metadata < topMaterials.length; metadata++)
+            topMaterials[metadata] = new SurfaceMaterial(top, metadata);
     }
 
     @Override
-    public void paintTerrain(Block[] blocks, byte[] metadata, int i, int j, int x, int y, int depth, World world,
-            Random rand, NoiseGenerator perlin, CellNoise cell, float[] noise, float river, BiomeGenBase[] base) {
-        float c = CliffCalculator.calc(x, y, noise);
-        int cliff = 0;
-        boolean gravel = false;
+    public int maximumDepth() {
+        return 5;
+    }
 
-        Block b;
-        for (int k = 255; k > -1; k--) {
-            b = blocks[(y * 16 + x) * 256 + k];
-            if (b == Blocks.air) {
-                depth = -1;
-            } else if (b == Blocks.stone) {
-                depth++;
-
-                if (depth == 0) {
-                    if (k < 63) {
-                        if (beach) {
-                            gravel = true;
-                        }
-                    }
-
-                    float p = perlin.noise3(i / 8f, j / 8f, k / 8f) * 0.5f;
-                    if (c > min && c > sCliff - ((k - sHeight) / sStrength) + p) {
-                        cliff = 1;
-                    }
-                    if (c > cCliff) {
-                        cliff = 2;
-                    }
-
-                    if (cliff == 1) {
-                        blocks[(y * 16 + x) * 256 + k] = rand.nextInt(3) == 0 ? Blocks.cobblestone : Blocks.stone;
-                    } else if (cliff == 2) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.stained_hardened_clay;
-                        metadata[(y * 16 + x) * 256 + k] = 9;
-                    } else if (k < 63) {
-                        if (beach) {
-                            blocks[(y * 16 + x) * 256 + k] = beachBlock;
-                            gravel = true;
-                        } else if (k < 62) {
-                            blocks[(y * 16 + x) * 256 + k] = fillerBlock;
-                        } else {
-                            blocks[(y * 16 + x) * 256 + k] = topBlock;
-                            metadata[(y * 16 + x) * 256 + k] = topByte;
-                        }
-                    } else {
-                        blocks[(y * 16 + x) * 256 + k] = topBlock;
-                        metadata[(y * 16 + x) * 256 + k] = topByte;
-                    }
-                } else if (depth < 6) {
-                    if (cliff == 1) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.stone;
-                    } else if (cliff == 2) {
-                        blocks[(y * 16 + x) * 256 + k] = Blocks.stained_hardened_clay;
-                        metadata[(y * 16 + x) * 256 + k] = 9;
-                    } else if (gravel) {
-                        blocks[(y * 16 + x) * 256 + k] = beachBlock;
-                    } else {
-                        blocks[(y * 16 + x) * 256 + k] = fillerBlock;
-                    }
-                }
-            }
-        }
+    @Override
+    public SurfaceMaterial materialAt(int worldX, int worldZ, int surfaceY, int depth, float riverStrength,
+            float mountainWeight, float slope, float variation, float broadVariation) {
+        if (slope > clayCliff) return CLAY;
+        if (slope > minimumCliff && slope > stoneCliff - (surfaceY - stoneHeight) / stoneStrength + variation * .5f)
+            return depth == 0 && ((worldX * 73428767 ^ worldZ * 912931) & 3) == 0 ? COBBLESTONE : STONE;
+        if (beach != null && surfaceY < CubicWorldSettings.SEA_LEVEL) return beach;
+        return depth == 0 ? topMaterials[topByte & 15] : fillerMaterial;
     }
 }

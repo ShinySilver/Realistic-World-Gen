@@ -1,55 +1,29 @@
 package rwg.biomes.surface;
 
-import java.util.Random;
-
 import net.minecraft.block.Block;
-import net.minecraft.init.Blocks;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.BiomeGenBase;
 
-import rwg.util.CellNoise;
-import rwg.util.CliffCalculator;
-import rwg.util.NoiseGenerator;
-
+/** Grass/filler surface with deterministic rocky cliff faces. */
 public class SurfaceGrassland extends SurfaceBase {
 
-    private Block cliffBlock1;
-    private Block cliffBlock2;
+    protected final SurfaceMaterial cliff;
+    protected final SurfaceMaterial cliffAccent;
 
     public SurfaceGrassland(Block top, Block filler, Block cliff1, Block cliff2) {
         super(top, filler);
-
-        cliffBlock1 = cliff1;
-        cliffBlock2 = cliff2;
+        cliff = new SurfaceMaterial(cliff1);
+        cliffAccent = new SurfaceMaterial(cliff2 == null ? cliff1 : cliff2);
     }
 
     @Override
-    public void paintTerrain(Block[] blocks, byte[] metadata, int i, int j, int x, int y, int depth, World world,
-            Random rand, NoiseGenerator perlin, CellNoise cell, float[] noise, float river, BiomeGenBase[] base) {
-        float c = CliffCalculator.calc(x, y, noise);
-        boolean cliff = c > 1.4f ? true : false;
+    public int maximumDepth() {
+        return 9;
+    }
 
-        for (int k = 255; k > -1; k--) {
-            Block b = blocks[(y * 16 + x) * 256 + k];
-            if (b == Blocks.air) {
-                depth = -1;
-            } else if (b == Blocks.stone) {
-                depth++;
-
-                if (cliff) {
-                    if (depth > -1 && depth < 2) {
-                        blocks[(y * 16 + x) * 256 + k] = rand.nextInt(3) == 0 ? cliffBlock2 : cliffBlock1;
-                    } else if (depth < 10) {
-                        blocks[(y * 16 + x) * 256 + k] = cliffBlock1;
-                    }
-                } else {
-                    if (depth == 0 && k > 61) {
-                        blocks[(y * 16 + x) * 256 + k] = topBlock;
-                    } else if (depth < 4) {
-                        blocks[(y * 16 + x) * 256 + k] = fillerBlock;
-                    }
-                }
-            }
-        }
+    @Override
+    public SurfaceMaterial materialAt(int worldX, int worldZ, int surfaceY, int depth, float riverStrength,
+            float mountainWeight, float slope, float variation, float broadVariation) {
+        if (slope > 1.4f)
+            return depth < 2 && ((worldX * 73428767 ^ worldZ * 912931) & 3) == 0 ? cliffAccent : cliff;
+        return depth == 0 ? topMaterial : fillerMaterial;
     }
 }

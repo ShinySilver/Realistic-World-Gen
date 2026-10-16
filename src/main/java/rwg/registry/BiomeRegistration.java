@@ -8,6 +8,7 @@ import net.minecraft.world.biome.BiomeGenBase;
 
 import rwg.biomes.decorators.BiomeDecorator;
 import rwg.biomes.surface.SurfaceRule;
+import rwg.biomes.surface.SurfaceRuleSequence;
 import rwg.biomes.terrain.TerrainBase;
 
 public final class BiomeRegistration {
@@ -17,17 +18,17 @@ public final class BiomeRegistration {
     public final BiomeGenBase riverBiome;
     public final TerrainBase terrain;
     public final SurfaceRule[] surfaceRules;
+    public final SurfaceRule surfaceRule;
     public final BiomeDecorator[] decorators;
     public final Climate climate;
     public final TerrainCategory category;
     public final TerrainSubcategory subcategory;
     public final int weight;
     public final boolean selectable;
-    public final boolean builtin;
 
     public BiomeRegistration(int id, BiomeGenBase biome, BiomeGenBase riverBiome, TerrainBase terrain,
             SurfaceRule[] surfaceRules, BiomeDecorator[] decorators, Climate climate, TerrainCategory category,
-            TerrainSubcategory subcategory, int weight, boolean selectable, boolean builtin) {
+            TerrainSubcategory subcategory, int weight, boolean selectable) {
         if (biome == null || riverBiome == null
                 || terrain == null
                 || surfaceRules == null
@@ -41,13 +42,13 @@ public final class BiomeRegistration {
         this.riverBiome = riverBiome;
         this.terrain = terrain;
         this.surfaceRules = surfaceRules.clone();
+        this.surfaceRule = new SurfaceRuleSequence(this.surfaceRules);
         this.decorators = decorators == null ? new BiomeDecorator[0] : decorators.clone();
         this.climate = climate;
         this.category = category;
         this.subcategory = subcategory;
         this.weight = weight;
         this.selectable = selectable;
-        this.builtin = builtin;
     }
 
     public static Builder builder(BiomeGenBase biome) {

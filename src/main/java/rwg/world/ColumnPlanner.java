@@ -155,8 +155,10 @@ public final class ColumnPlanner {
             }
         }
 
-        BiomeRegistration[] blendRegistrations = new BiomeRegistration[activeCount];
-        float[] blendWeights = new float[activeCount];
+        int blendCount = 0;
+        for (int index = 0; index < activeCount; index++) if (chunkWeights[activeIds[index]] > 0f) blendCount++;
+        BiomeRegistration[] blendRegistrations = new BiomeRegistration[blendCount];
+        float[] blendWeights = new float[blendCount];
         float[] surfaceSlopes = new float[ColumnPlan.COLUMN_COUNT];
         float[] surfaceVariations = new float[ColumnPlan.COLUMN_COUNT];
         float[] broadSurfaceVariations = new float[ColumnPlan.COLUMN_COUNT];
@@ -180,10 +182,12 @@ public final class ColumnPlanner {
         }
         float totalWeight = 0f;
         for (int index = 0; index < activeCount; index++) totalWeight += chunkWeights[activeIds[index]];
+        int blendIndex = 0;
         for (int index = 0; index < activeCount; index++) {
             int id = activeIds[index];
-            blendRegistrations[index] = selector.registration(id);
-            blendWeights[index] = chunkWeights[id] / totalWeight;
+            if (chunkWeights[id] <= 0f) continue;
+            blendRegistrations[blendIndex] = selector.registration(id);
+            blendWeights[blendIndex++] = chunkWeights[id] / totalWeight;
         }
         return new ColumnPlan(
                 heights,

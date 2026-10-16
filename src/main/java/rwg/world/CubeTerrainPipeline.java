@@ -211,6 +211,10 @@ final class CubeTerrainPipeline {
                     for (int depth = 0; depth <= rule.maximumDepth(); depth++) {
                         int blockY = surfaceY - depth;
                         if (blockY < context.minimumBlockY || blockY > context.maximumBlockY) continue;
+                        int localY = blockY - context.minimumBlockY;
+                        Block current = context.blocks.getBlock(localX, localY, localZ);
+                        if (current == Blocks.air || current == Blocks.water || current == Blocks.flowing_water)
+                            continue;
                         SurfaceMaterial material = surfaceY < CubicWorldSettings.SEA_LEVEL - 1
                                 ? SAND_SURFACE
                                 : rule.materialAt(
@@ -227,7 +231,7 @@ final class CubeTerrainPipeline {
                             material = depth == 0 ? GRASS_SURFACE : DIRT_SURFACE;
                         context.blocks.setBlock(
                                 localX,
-                                blockY - context.minimumBlockY,
+                                localY,
                                 localZ,
                                 material.block,
                                 material.metadata);

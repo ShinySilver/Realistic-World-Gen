@@ -8,7 +8,6 @@ import java.util.List;
 import net.minecraft.world.biome.BiomeGenBase;
 
 import rwg.biomes.decorators.BiomeDecorator;
-import rwg.biomes.decorators.NativeBiomeDecorator;
 
 /** Immutable-after-freeze biome metadata and selection pools. */
 public final class BiomeRegistry {
@@ -20,14 +19,9 @@ public final class BiomeRegistry {
     private BiomeGenBase oasisRiver;
     private BiomeGenBase hotDesert;
     private BiomeGenBase plains;
-    private boolean registeringBuiltins = true;
     private boolean frozen;
 
-    /**
-     * Registers a complete biome variant. Integrations retain the legacy {@code RealisticBiomeSupport} behavior by
-     * receiving a native-biome decorator before their compatibility edits; built-ins declare their decorators
-     * explicitly because their legacy implementations did not invoke {@link BiomeGenBase#decorate}.
-     */
+    /** Registers a complete built-in biome variant. */
     public void register(BiomeRegistration.Builder builder) {
         if (frozen) throw new IllegalStateException("biome registry is frozen");
         if (builder == null) throw new NullPointerException("biome registration builder");
@@ -45,16 +39,6 @@ public final class BiomeRegistry {
             BiomeRegistration.Variant variant) {
         BiomeGenBase riverBiome = builder.riverBiome == null ? river(builder.climate) : builder.riverBiome;
         BiomeDecorator[] registeredDecorators = variant.decorators == null ? builder.decorators : variant.decorators;
-        if (!registeringBuiltins && category != TerrainCategory.SHALLOW_OCEAN
-                && category != TerrainCategory.DEEP_OCEAN) {
-            int editCount = registeredDecorators == null ? 0 : registeredDecorators.length;
-            registeredDecorators = new BiomeDecorator[editCount + 1];
-            registeredDecorators[0] = new NativeBiomeDecorator(builder.biome);
-            if (editCount != 0) {
-                BiomeDecorator[] configured = variant.decorators == null ? builder.decorators : variant.decorators;
-                System.arraycopy(configured, 0, registeredDecorators, 1, editCount);
-            }
-        }
         TerrainSubcategory subcategory = variant.subcategory == null ? builder.subcategory : variant.subcategory;
         int weight = variant.weight == null ? builder.weight : variant.weight;
         boolean selectable = variant.selectable == null ? builder.selectable : variant.selectable;
@@ -70,8 +54,7 @@ public final class BiomeRegistry {
                         category,
                         subcategory,
                         weight,
-                        selectable,
-                        registeringBuiltins));
+                        selectable));
     }
 
     <T extends BiomeGenBase> T registerOwned(T biome) {
@@ -121,10 +104,6 @@ public final class BiomeRegistry {
 
     public BiomeGenBase plains() {
         return plains;
-    }
-
-    void finishBuiltinRegistrations() {
-        registeringBuiltins = false;
     }
 
     public List<BiomeRegistration> entries(Climate climate, TerrainCategory category, TerrainSubcategory subcategory) {

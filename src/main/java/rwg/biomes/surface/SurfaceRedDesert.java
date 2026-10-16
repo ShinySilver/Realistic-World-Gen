@@ -1,59 +1,27 @@
 package rwg.biomes.surface;
 
-import java.util.Random;
-
-import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.BiomeGenBase;
 
-import rwg.util.CellNoise;
-import rwg.util.CliffCalculator;
-import rwg.util.NoiseGenerator;
+/** Red sand with sandstone subsoil and hardened-clay cliff faces. */
+public final class SurfaceRedDesert extends SurfaceBase {
 
-public class SurfaceRedDesert extends SurfaceBase {
-
-    private Block cliffBlock1;
-    private Block cliffBlock2;
-    private Block bottomBlock;
+    private static final SurfaceMaterial RED_SAND = new SurfaceMaterial(Blocks.sand, 1);
+    private static final SurfaceMaterial RED_CLAY = new SurfaceMaterial(Blocks.stained_hardened_clay, 14);
+    private static final SurfaceMaterial SANDSTONE = new SurfaceMaterial(Blocks.sandstone);
 
     public SurfaceRedDesert() {
         super(Blocks.sand, Blocks.sand);
-
-        bottomBlock = Blocks.sandstone;
-        cliffBlock1 = Blocks.stained_hardened_clay;
     }
 
     @Override
-    public void paintTerrain(Block[] blocks, byte[] metadata, int i, int j, int x, int y, int depth, World world,
-            Random rand, NoiseGenerator perlin, CellNoise cell, float[] noise, float river, BiomeGenBase[] base) {
-        float c = CliffCalculator.calc(x, y, noise);
-        boolean cliff = c > 1.4f ? true : false;
+    public int maximumDepth() {
+        return 5;
+    }
 
-        for (int k = 255; k > -1; k--) {
-            Block b = blocks[(y * 16 + x) * 256 + k];
-            if (b == Blocks.air) {
-                depth = -1;
-            } else if (b == Blocks.stone) {
-                depth++;
-
-                if (cliff) {
-                    if (depth < 6) {
-                        blocks[(y * 16 + x) * 256 + k] = cliffBlock1;
-                        metadata[(y * 16 + x) * 256 + k] = (byte) 14;
-                    }
-                } else if (depth < 6) {
-                    if (depth == 0 && k > 61) {
-                        blocks[(y * 16 + x) * 256 + k] = topBlock;
-                        metadata[(y * 16 + x) * 256 + k] = (byte) 1;
-                    } else if (depth < 4) {
-                        blocks[(y * 16 + x) * 256 + k] = fillerBlock;
-                        metadata[(y * 16 + x) * 256 + k] = (byte) 1;
-                    } else {
-                        blocks[(y * 16 + x) * 256 + k] = bottomBlock;
-                    }
-                }
-            }
-        }
+    @Override
+    public SurfaceMaterial materialAt(int worldX, int worldZ, int surfaceY, int depth, float riverStrength,
+            float mountainWeight, float slope, float variation, float broadVariation) {
+        if (slope > 1.4f) return RED_CLAY;
+        return depth < 4 ? RED_SAND : SANDSTONE;
     }
 }

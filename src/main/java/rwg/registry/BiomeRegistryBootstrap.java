@@ -1,10 +1,5 @@
 package rwg.registry;
 
-import cpw.mods.fml.common.Loader;
-import rwg.support.BiomesOPlentyBiomeRegistrations;
-import rwg.support.ExtrabiomesBiomeRegistrations;
-import rwg.support.ThaumcraftBiomeRegistrations;
-
 /** Assembles the immutable biome registry during mod post-initialization. */
 public final class BiomeRegistryBootstrap {
 
@@ -23,11 +18,6 @@ public final class BiomeRegistryBootstrap {
     }
 
     public static void finish(BiomeRegistry registry, boolean loadIntegrations) {
-        if (loadIntegrations) {
-            if (Loader.isModLoaded("BiomesOPlenty")) BiomesOPlentyBiomeRegistrations.register(registry);
-            if (Loader.isModLoaded("ExtrabiomesXL")) ExtrabiomesBiomeRegistrations.register(registry);
-            if (Loader.isModLoaded("Thaumcraft")) ThaumcraftBiomeRegistrations.register(registry);
-        }
         registry.freeze();
     }
 }
