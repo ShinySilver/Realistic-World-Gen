@@ -5,6 +5,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import net.minecraft.entity.EnumCreatureType;
+import net.minecraft.world.ChunkCoordIntPair;
 import net.minecraft.world.ChunkPosition;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.BiomeGenBase;
@@ -13,40 +14,49 @@ import net.minecraft.world.chunk.Chunk;
 import com.cardinalstar.cubicchunks.api.ICube;
 import com.cardinalstar.cubicchunks.api.worldgen.GenerationResult;
 import com.cardinalstar.cubicchunks.api.worldgen.IWorldGenerator;
+import com.cardinalstar.cubicchunks.server.chunkio.CubeInitLevel;
+import com.cardinalstar.cubicchunks.server.chunkio.IPreloadFailureDelegate;
+import com.cardinalstar.cubicchunks.util.CubePos;
 import com.cardinalstar.cubicchunks.world.core.IColumnInternal;
 import com.cardinalstar.cubicchunks.world.cube.Cube;
 
 /**
  * CubicChunks world-generator entry point.
  *
- * <p>The lifecycle, concurrency invariants, stage order, and migration milestones are specified in
- * {@code CUBIC_WORLDGEN.md}. Keep this adapter thin: pure planning and bounded in-progress caches belong
- * behind dedicated abstractions, while cube mutation and world-mutating population remain separate ordered stages.
+ * <p>
+ * The lifecycle, concurrency invariants, stage order, and migration milestones are specified in
+ * {@code CUBIC_WORLDGEN.md}. Keep this adapter thin: pure planning and bounded in-progress caches belong behind
+ * dedicated abstractions, while cube mutation and world-mutating population remain separate ordered stages.
  */
-public final class CCRealisticWorldGenerator implements IWorldGenerator {
+public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloadFailureDelegate {
 
     private final World world;
+    private final ColumnPlanCache columnPlans;
 
     public CCRealisticWorldGenerator(World world) {
         if (world == null) throw new NullPointerException("world");
         this.world = world;
+        if (!(world.getWorldChunkManager() instanceof ChunkManager))
+            throw new IllegalStateException("RWG cubic worlds require the RWG chunk manager");
+        ChunkManager manager = (ChunkManager) world.getWorldChunkManager();
+        columnPlans = new ColumnPlanCache(new ColumnPlanner(world.getSeed(), manager.worldgenSelector()));
     }
 
     @Override
     public GenerationResult<Chunk> provideColumn(World requestedWorld, int columnX, int columnZ) {
         if (requestedWorld != world) throw new IllegalArgumentException("column requested for a different world");
 
-        // Milestone 2 replaces this direct biome query with the shared immutable ColumnPlan. Never generate cubes here.
+        ColumnPlan plan = columnPlans.get(columnX, columnZ);
         Chunk column = new Chunk(world, columnX, columnZ);
-        BiomeGenBase[] biomes = world.getWorldChunkManager()
-                .loadBlockGeneratorData(null, columnX * 16, columnZ * 16, 16, 16);
-        ChunkBiomeArrayCompat.setBiomes(column, biomes);
+        ChunkBiomeArrayCompat.setBiomes(column, plan.copyBiomes());
         ((IColumnInternal) column).setColumn(true);
         return new GenerationResult<Chunk>(column);
     }
 
     @Override
     public GenerationResult<Cube> provideCube(@Nullable Chunk column, int cubeX, int cubeY, int cubeZ) {
+        // Join the same X/Z-only plan used by provideColumn. Milestone 4 will consume it in ordered cube stages.
+        columnPlans.get(cubeX, cubeZ);
         // Generate only this cube. The future terrain path must share one in-progress plan per X/Z column and retain
         // empty/solid fast paths instead of materializing a full vertical column as side effects.
         if (column == null) {
@@ -57,6 +67,19 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator {
         if (column.xPosition != cubeX || column.zPosition != cubeZ)
             throw new IllegalArgumentException("cube coordinates do not match the supplied column");
         return new GenerationResult<Cube>(new Cube(column, cubeY));
+    }
+
+    @Override
+    public void onColumnPreloadFailed(ChunkCoordIntPair pos) {
+        columnPlans.precalculate(pos.chunkXPos, pos.chunkZPos);
+    }
+
+    @Override
+    public void onCubePreloadFailed(CubePos pos, CubeInitLevel actual, CubeInitLevel wanted) {
+        if (actual.ordinal() < CubeInitLevel.Generated.ordinal()
+                && wanted.ordinal() >= CubeInitLevel.Generated.ordinal())
+            columnPlans.precalculate(pos.getX(), pos.getZ());
+        // Population planning is added with the population pipeline; it must remain separate from ColumnPlan.
     }
 
     @Override

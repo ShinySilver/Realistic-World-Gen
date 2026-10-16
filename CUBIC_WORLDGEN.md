@@ -5,15 +5,18 @@ migration inputs, not APIs to preserve.
 
 ## Lifecycle
 
-- `pregenerate` and `prepopulate` are speculative background work. They may publish immutable plans, but must not read
-  or mutate world blocks.
+- CubicChunks calls `IPreloadFailureDelegate` on its background I/O workers when requested column/cube data is absent.
+  RWG forwards generation misses into column precalculation and will forward population misses into feature planning.
+  These callbacks may publish immutable plans, but must not read or mutate world blocks.
 - `provideColumn` installs column-global data such as biomes. It never generates the vertical cube stack.
 - `provideCube` generates exactly one requested cube without world block access.
 - `populate` places a prepared feature plan into the world without causing cascading generation.
 
-One bounded cache entry per X/Z column holds the in-progress `ColumnPlan` future. This deduplicates simultaneous
-vertical requests. Eviction, worker count, traversal order, and speculative cache misses must not change output. Never
-return a complete vertical column as `GenerationResult` side effects.
+A bounded cache holds completed plans, while a separate concurrent map holds computations only until they finish. This
+prevents bounded-cache eviction from duplicating simultaneous work for one X/Z column. Eviction, worker count,
+traversal order, and speculative cache misses must not change output. Never return a complete vertical column as
+`GenerationResult` side effects. `provideColumn` and `provideCube` remain synchronous consumers: they join the same
+in-progress computation when background precalculation has not finished.
 
 `provideCube` first chooses an empty, solid, surface, or carver-intersecting path. Empty and solid cubes avoid detailed
 block work. Random streams are derived independently from the world seed, stable stage ID, and coordinates; stages do
