@@ -12,8 +12,8 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.IChunkProvider;
 
 /**
- * Non-generating bootstrap object required by Minecraft before CubicChunks installs the real {@link
- * CCRealisticWorldGenerator}. Any attempt to use it for terrain generation is a lifecycle error.
+ * Non-generating bootstrap object required by Minecraft before CubicChunks installs the real
+ * {@link CCRealisticWorldGenerator}. Any attempt to use it for terrain generation is a lifecycle error.
  */
 final class CubicBootstrapChunkProvider implements IChunkProvider {
 

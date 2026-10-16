@@ -22,8 +22,7 @@ public class SurfaceGrassland extends SurfaceBase {
     @Override
     public SurfaceMaterial materialAt(int worldX, int worldZ, int surfaceY, int depth, float riverStrength,
             float mountainWeight, float slope, float variation, float broadVariation) {
-        if (slope > 1.4f)
-            return depth < 2 && ((worldX * 73428767 ^ worldZ * 912931) & 3) == 0 ? cliffAccent : cliff;
+        if (slope > 1.4f) return depth < 2 && ((worldX * 73428767 ^ worldZ * 912931) & 3) == 0 ? cliffAccent : cliff;
         return depth == 0 ? topMaterial : fillerMaterial;
     }
 }

@@ -13,8 +13,7 @@ final class RWGCubicCaveGenerator extends MapGenCavesCubic {
     static final int FEATURE_RANGE_CUBES = 8;
 
     static boolean mayIntersect(int cubeY) {
-        return cubeY >= MINIMUM_SEED_CUBE_Y - FEATURE_RANGE_CUBES
-                && cubeY <= MAXIMUM_SEED_CUBE_Y + FEATURE_RANGE_CUBES;
+        return cubeY >= MINIMUM_SEED_CUBE_Y - FEATURE_RANGE_CUBES && cubeY <= MAXIMUM_SEED_CUBE_Y + FEATURE_RANGE_CUBES;
     }
 
     @Override

@@ -6,7 +6,7 @@ been removed; future stages operate on immutable plans and individual cubes.
 ## Lifecycle
 
 - CubicChunks calls `IPreloadFailureDelegate` on its background I/O workers when requested column/cube data is absent.
-  RWG forwards generation misses into column precalculation and will forward population misses into feature planning.
+  RWG forwards generation misses into column precalculation and population misses into feature planning.
   These callbacks may publish immutable plans, but must not read or mutate world blocks.
 - `provideColumn` installs column-global data such as biomes. It never generates the vertical cube stack.
 - `provideCube` generates exactly one requested cube without world block access.
@@ -32,6 +32,20 @@ population: ores -> underground decoration -> structures -> surface features -> 
 Structure plans may be computed early, but structure blocks are placed late so ores and stone veins cannot overwrite
 them. Stable dependency-graph targets should mark completed carvers, terrain, structures, and population. Compatibility
 with fixed-height third-party generators remains disabled until the native cubic pipeline is correct.
+
+## Population plans
+
+Population planning has its own bounded, in-flight-deduplicating cache; it does not extend the lifetime or scope of
+`ColumnPlan`. A `CubicFeature` receives pure column/blend inputs and returns an immutable `PlannedFeature`, or `null`
+when it has no work. Every plan has a stable owner cube, deterministic seed, population stage, and conservative block
+bounds. The owner rule makes output independent of which intersecting cube is requested first. Bounds let population
+prepare affected terrain once before any legacy Minecraft `WorldGenerator` reads or writes across a cube edge.
+
+The built-in biome recipes now use this contract and no fixed-height `BiomeDecorator.decorate` entry point remains.
+Their default plan is deliberately small: one immutable invocation per blended biome recipe. `PlannedFeature` is an
+interface so expensive or large features can later publish more specific candidate/component plans without changing
+the scheduler. Placement remains on the population thread; planning never reads or mutates world blocks. Vanilla's
+monolithic biome decoration adapter was removed because it mixes ores and surface features and cannot obey this graph.
 
 ## Cube-generation invariants
 
@@ -96,6 +110,7 @@ random mutation. The fixed-height painter API and unsupported compatibility regi
 4. Base terrain, water, bedrock, simple surfaces, and empty/solid fast paths. (complete)
 5. Height-independent surface rules. (complete)
 6. Geology, caves, and underground rivers. (native cube stages complete; gameplay tuning remains)
-7. Planned decorators and population stages.
+7. Planned biome features and population stages. (built-in surface feature recipes complete; ores and final snow/ice
+   stages remain)
 8. Late structure placement.
 9. Optional compatibility integrations.

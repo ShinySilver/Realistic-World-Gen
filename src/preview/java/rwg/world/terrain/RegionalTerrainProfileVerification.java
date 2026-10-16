@@ -32,8 +32,7 @@ public final class RegionalTerrainProfileVerification {
 
         NoiseGenerator noise = NoiseSelector.createNoiseGenerator(0L);
         CellNoise cell = new CellNoise(0L, (short) 0, true);
-        MorphologySample morphology = new MorphologySample(
-                TerrainCategory.HILLS, 0f, .5f, 0f, 500f, false);
+        MorphologySample morphology = new MorphologySample(TerrainCategory.HILLS, 0f, .5f, 0f, 500f, false);
         TerrainContext context = new TerrainContext(0f, 112f, morphology);
         TerrainBase hills = new TerrainGenericHills();
         TerrainBase mountains = new TerrainGenericMountain();

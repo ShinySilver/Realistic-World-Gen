@@ -6,7 +6,7 @@ import java.util.List;
 
 import net.minecraft.world.biome.BiomeGenBase;
 
-import rwg.biomes.decorators.BiomeDecorator;
+import rwg.biomes.decorators.CubicFeature;
 import rwg.biomes.surface.SurfaceRule;
 import rwg.biomes.surface.SurfaceRuleSequence;
 import rwg.biomes.terrain.TerrainBase;
@@ -19,7 +19,7 @@ public final class BiomeRegistration {
     public final TerrainBase terrain;
     public final SurfaceRule[] surfaceRules;
     public final SurfaceRule surfaceRule;
-    public final BiomeDecorator[] decorators;
+    public final CubicFeature[] features;
     public final Climate climate;
     public final TerrainCategory category;
     public final TerrainSubcategory subcategory;
@@ -27,7 +27,7 @@ public final class BiomeRegistration {
     public final boolean selectable;
 
     public BiomeRegistration(int id, BiomeGenBase biome, BiomeGenBase riverBiome, TerrainBase terrain,
-            SurfaceRule[] surfaceRules, BiomeDecorator[] decorators, Climate climate, TerrainCategory category,
+            SurfaceRule[] surfaceRules, CubicFeature[] features, Climate climate, TerrainCategory category,
             TerrainSubcategory subcategory, int weight, boolean selectable) {
         if (biome == null || riverBiome == null
                 || terrain == null
@@ -43,7 +43,7 @@ public final class BiomeRegistration {
         this.terrain = terrain;
         this.surfaceRules = surfaceRules.clone();
         this.surfaceRule = new SurfaceRuleSequence(this.surfaceRules);
-        this.decorators = decorators == null ? new BiomeDecorator[0] : decorators.clone();
+        this.features = features == null ? new CubicFeature[0] : features.clone();
         this.climate = climate;
         this.category = category;
         this.subcategory = subcategory;
@@ -75,7 +75,7 @@ public final class BiomeRegistration {
         final BiomeGenBase biome;
         final List<Variant> variants = new ArrayList<Variant>();
         BiomeGenBase riverBiome;
-        BiomeDecorator[] decorators;
+        CubicFeature[] features;
         Climate climate;
         TerrainSubcategory subcategory = TerrainSubcategory.CORE;
         int weight = 1;
@@ -101,8 +101,8 @@ public final class BiomeRegistration {
             return this;
         }
 
-        public Builder decorators(BiomeDecorator... decorators) {
-            this.decorators = decorators == null ? null : decorators.clone();
+        public Builder features(CubicFeature... features) {
+            this.features = features == null ? null : features.clone();
             return this;
         }
 
@@ -129,7 +129,7 @@ public final class BiomeRegistration {
         final EnumSet<TerrainCategory> categories;
         TerrainBase terrain;
         SurfaceRule[] surfaceRules;
-        BiomeDecorator[] decorators;
+        CubicFeature[] features;
         TerrainSubcategory subcategory;
         Integer weight;
         Boolean selectable;
@@ -150,8 +150,8 @@ public final class BiomeRegistration {
             return this;
         }
 
-        public Variant decorators(BiomeDecorator... decorators) {
-            this.decorators = decorators == null ? null : decorators.clone();
+        public Variant features(CubicFeature... features) {
+            this.features = features == null ? null : features.clone();
             return this;
         }
 

@@ -11,6 +11,11 @@ import java.util.concurrent.Future;
 import rwg.ConfigRWG;
 import rwg.registry.BiomeRegistry;
 import rwg.registry.BiomeRegistryBootstrap;
+import rwg.world.population.FeatureBounds;
+import rwg.world.population.PlannedFeature;
+import rwg.world.population.PopulationPlan;
+import rwg.world.population.PopulationPlanCache;
+import rwg.world.population.PopulationPlanner;
 
 /** Verifies order-independent planning and exact deduplication of concurrent requests for one column. */
 public final class ColumnPlannerConcurrencyVerification {
@@ -25,6 +30,7 @@ public final class ColumnPlannerConcurrencyVerification {
         BiomeRegistry registry = BiomeRegistryBootstrap.create();
         verifyParallelDeterminism(registry);
         verifyConcurrentDeduplication(registry);
+        verifyPopulationPlanning(registry);
         System.out.println("RWG column planner concurrency verification passed");
     }
 
@@ -81,6 +87,32 @@ public final class ColumnPlannerConcurrencyVerification {
         }
     }
 
+    private static void verifyPopulationPlanning(BiomeRegistry registry) throws Exception {
+        ColumnPlanCache columns = new ColumnPlanCache(planner(registry), 8);
+        final PopulationPlanCache population = new PopulationPlanCache(new PopulationPlanner(SEED), columns);
+        PopulationPlan expected = population.get(7, -11);
+        long checksum = populationChecksum(expected);
+        require(
+                checksum == populationChecksum(new PopulationPlanner(SEED).plan(7, -11, columns.get(7, -11))),
+                "population plan changed when recomputed");
+
+        ExecutorService workers = Executors.newFixedThreadPool(8);
+        try {
+            List<Future<PopulationPlan>> results = new ArrayList<Future<PopulationPlan>>();
+            for (int index = 0; index < 32; index++) results.add(workers.submit(new Callable<PopulationPlan>() {
+
+                @Override
+                public PopulationPlan call() {
+                    return population.get(7, -11);
+                }
+            }));
+            for (Future<PopulationPlan> result : results)
+                require(result.get() == expected, "population cache did not publish one immutable plan");
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
     private static ColumnPlanner planner(BiomeRegistry registry) {
         ChunkManager manager = new ChunkManager(SEED, true, registry);
         return new ColumnPlanner(SEED, manager.worldgenSelector());
@@ -99,6 +131,27 @@ public final class ColumnPlannerConcurrencyVerification {
         }
         value = mix(value, plan.minimumSurfaceY());
         return mix(value, plan.maximumSurfaceY());
+    }
+
+    private static long populationChecksum(PopulationPlan plan) {
+        long value = 0xcbf29ce484222325L;
+        for (PlannedFeature feature : plan.features()) {
+            FeatureBounds bounds = feature.bounds();
+            value = mix(value, feature.feature().getClass().getName().hashCode());
+            value = mix(value, (int) feature.seed());
+            value = mix(value, (int) (feature.seed() >>> 32));
+            value = mix(value, feature.ownerCubeY());
+            value = mix(value, feature.stage().ordinal());
+            value = mix(value, Float.floatToIntBits(feature.strength()));
+            value = mix(value, Float.floatToIntBits(feature.river()));
+            value = mix(value, bounds.minimumX);
+            value = mix(value, bounds.minimumY);
+            value = mix(value, bounds.minimumZ);
+            value = mix(value, bounds.maximumX);
+            value = mix(value, bounds.maximumY);
+            value = mix(value, bounds.maximumZ);
+        }
+        return value;
     }
 
     private static long mix(long value, int part) {

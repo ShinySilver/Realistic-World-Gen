@@ -20,6 +20,10 @@ import com.cardinalstar.cubicchunks.util.CubePos;
 import com.cardinalstar.cubicchunks.world.core.IColumnInternal;
 import com.cardinalstar.cubicchunks.world.cube.Cube;
 
+import rwg.world.population.CubePopulationPipeline;
+import rwg.world.population.PopulationPlanCache;
+import rwg.world.population.PopulationPlanner;
+
 /**
  * CubicChunks world-generator entry point.
  *
@@ -33,6 +37,8 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
     private final World world;
     private final ColumnPlanCache columnPlans;
     private final CubeTerrainPipeline terrain;
+    private final PopulationPlanCache populationPlans;
+    private final CubePopulationPipeline population;
 
     public CCRealisticWorldGenerator(World world) {
         if (world == null) throw new NullPointerException("world");
@@ -42,6 +48,8 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
             throw new IllegalStateException("RWG cubic worlds require the RWG chunk manager");
         ChunkManager manager = (ChunkManager) world.getWorldChunkManager();
         columnPlans = new ColumnPlanCache(new ColumnPlanner(world.getSeed(), manager.worldgenSelector()));
+        populationPlans = new PopulationPlanCache(new PopulationPlanner(world.getSeed()), columnPlans);
+        population = new CubePopulationPipeline(world);
     }
 
     @Override
@@ -75,13 +83,14 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
         if (actual.ordinal() < CubeInitLevel.Generated.ordinal()
                 && wanted.ordinal() >= CubeInitLevel.Generated.ordinal())
             columnPlans.precalculate(pos.getX(), pos.getZ());
-        // Population planning is added with the population pipeline; it must remain separate from ColumnPlan.
+        if (actual.ordinal() < CubeInitLevel.Populated.ordinal()
+                && wanted.ordinal() >= CubeInitLevel.Populated.ordinal())
+            populationPlans.precalculate(pos.getX(), pos.getZ());
     }
 
     @Override
     public void populate(Cube cube) {
-        // Population will join an immutable prepopulation plan and run the documented dependency graph. Planning may
-        // run off-thread; block placement must remain here and must not trigger cascading generation.
+        population.populate(cube, populationPlans.get(cube.getX(), cube.getZ()));
         cube.markPopulated(Cube.POP_ALL);
     }
 

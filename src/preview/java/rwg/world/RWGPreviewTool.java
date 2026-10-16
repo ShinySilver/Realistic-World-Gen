@@ -983,23 +983,23 @@ public final class RWGPreviewTool {
         for (BiomeRegistration registration : registry.registrations()) {
             int color = registration.biome.getBiomeGrassColor(0, 64, 0) & 0xffffff;
             for (SurfaceRule surface : registration.surfaceRules) {
-                    if (surface instanceof SurfaceRedDesert || surface instanceof SurfaceCanyon
-                            || surface instanceof SurfaceMesa) {
-                        color = RED_SAND_COLOR;
-                        break;
-                    }
-                    if (surface instanceof SurfaceDesert || surface instanceof SurfaceDesertMountain) {
-                        color = SAND_COLOR;
-                        break;
-                    }
-                    if (surface instanceof SurfacePolar || surface instanceof SurfaceMountainSnow) {
-                        color = SNOW_COLOR;
-                        break;
-                    }
-                    if (surface instanceof SurfaceMountainStone || surface instanceof SurfaceMountainStoneMix1) {
-                        color = STONE_COLOR;
-                        break;
-                    }
+                if (surface instanceof SurfaceRedDesert || surface instanceof SurfaceCanyon
+                        || surface instanceof SurfaceMesa) {
+                    color = RED_SAND_COLOR;
+                    break;
+                }
+                if (surface instanceof SurfaceDesert || surface instanceof SurfaceDesertMountain) {
+                    color = SAND_COLOR;
+                    break;
+                }
+                if (surface instanceof SurfacePolar || surface instanceof SurfaceMountainSnow) {
+                    color = SNOW_COLOR;
+                    break;
+                }
+                if (surface instanceof SurfaceMountainStone || surface instanceof SurfaceMountainStoneMix1) {
+                    color = STONE_COLOR;
+                    break;
+                }
             }
             registrationColors[registration.id] = color;
         }

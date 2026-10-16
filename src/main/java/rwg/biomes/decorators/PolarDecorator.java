@@ -10,30 +10,31 @@ import rwg.biomes.features.BlobFeature;
 import rwg.biomes.features.SmallSpruceFeature;
 import rwg.util.CellNoise;
 import rwg.util.NoiseGenerator;
+import rwg.world.population.SurfaceHeightLookup;
 
-public final class PolarDecorator extends BiomeDecorator {
+public final class PolarDecorator extends CubicFeature {
 
     @Override
-    public void decorate(World world, Random rand, int chunkX, int chunkY, NoiseGenerator perlin, CellNoise cell,
-            float strength, float river) {
+    protected void place(World world, Random random, int chunkX, int chunkY, SurfaceHeightLookup surface,
+            NoiseGenerator noise, CellNoise cell, float strength, float river) {
         if (river > 0.86f) {
             for (int j = 0; j < 5f * strength; j++) {
-                int i1 = chunkX + rand.nextInt(16) + 8;
-                int j1 = chunkY + rand.nextInt(16) + 8;
-                int k1 = world.getHeightValue(i1, j1);
+                int i1 = chunkX + random.nextInt(16) + 8;
+                int j1 = chunkY + random.nextInt(16) + 8;
+                int k1 = surface.surfaceY(i1, j1);
                 if (k1 < 64) {
-                    (new BlobFeature(Blocks.packed_ice, 0)).generate(world, rand, i1, k1, j1);
+                    (new BlobFeature(Blocks.packed_ice, 0)).generate(world, random, i1, k1, j1);
                 }
             }
 
-            if (rand.nextInt((int) (2f / strength)) == 0) {
-                int j6 = chunkX + rand.nextInt(16) + 8;
-                int k10 = chunkY + rand.nextInt(16) + 8;
-                int z52 = world.getHeightValue(j6, k10);
+            if (random.nextInt((int) (2f / strength)) == 0) {
+                int j6 = chunkX + random.nextInt(16) + 8;
+                int k10 = chunkY + random.nextInt(16) + 8;
+                int z52 = surface.surfaceY(j6, k10);
 
-                WorldGenerator worldgenerator = new SmallSpruceFeature(rand.nextInt(2));
+                WorldGenerator worldgenerator = new SmallSpruceFeature(random.nextInt(2));
                 worldgenerator.setScale(1.0D, 1.0D, 1.0D);
-                worldgenerator.generate(world, rand, j6, z52, k10);
+                worldgenerator.generate(world, random, j6, z52, k10);
             }
         }
     }

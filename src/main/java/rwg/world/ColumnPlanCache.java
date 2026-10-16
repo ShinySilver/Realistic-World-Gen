@@ -61,8 +61,8 @@ public final class ColumnPlanCache {
     }
 
     /**
-     * Runs on the caller; CubicChunks invokes this through its background preload-failure callback. Do not add a
-     * second executor here: that would oversubscribe CC's workers and make provideCube wait through two queues.
+     * Runs on the caller; CubicChunks invokes this through its background preload-failure callback. Do not add a second
+     * executor here: that would oversubscribe CC's workers and make provideCube wait through two queues.
      */
     public void precalculate(int chunkX, int chunkZ) {
         get(chunkX, chunkZ);

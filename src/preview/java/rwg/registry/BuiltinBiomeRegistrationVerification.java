@@ -2,10 +2,7 @@ package rwg.registry;
 
 import java.io.File;
 
-import net.minecraft.world.biome.BiomeGenBase;
-
 import rwg.ConfigRWG;
-import rwg.biomes.decorators.NativeBiomeDecorator;
 import rwg.biomes.terrain.TerrainBase;
 import rwg.biomes.terrain.TerrainGenericCanyon;
 import rwg.biomes.terrain.TerrainGenericCliff;
@@ -30,7 +27,6 @@ public final class BuiltinBiomeRegistrationVerification {
         BiomeRegistry registry = BiomeRegistryBootstrap.create();
 
         int selectable = 0;
-        int nativeDecorated = 0;
         int woodHills = 0;
         int woodMountains = 0;
         int plainCore = 0;
@@ -41,20 +37,6 @@ public final class BuiltinBiomeRegistrationVerification {
         int biomeMountainVariants = 0;
         for (BiomeRegistration registration : registry.registrations()) {
             if (registration.selectable) selectable++;
-            int nativeCount = 0;
-            for (int index = 0; index < registration.decorators.length; index++) {
-                if (!(registration.decorators[index] instanceof NativeBiomeDecorator)) continue;
-                nativeCount++;
-                NativeBiomeDecorator decorator = (NativeBiomeDecorator) registration.decorators[index];
-                require(decorator.biome() == registration.biome, "native decorator wraps a different biome");
-                require(
-                        decorator.strengthThreshold() == NativeBiomeDecorator.LEGACY_STRENGTH_THRESHOLD,
-                        "native decorator threshold differs from legacy support behavior");
-                require(index == 0, "native decorator must run before compatibility edits");
-            }
-            require(nativeCount <= 1, "registration has duplicate native decorators");
-            nativeDecorated += nativeCount;
-
             if (registration.terrain instanceof TerrainGenericMountain) {
                 require(
                         registration.category == TerrainCategory.MOUNTAIN,
@@ -96,7 +78,6 @@ public final class BuiltinBiomeRegistrationVerification {
         }
 
         require(selectable == 113, "unexpected selectable built-in registration count: " + selectable);
-        require(nativeDecorated == 11, "unexpected native decorator count: " + nativeDecorated);
         for (Climate climate : Climate.values()) {
             require(
                     !registry.entries(climate, TerrainCategory.PLATEAU, TerrainSubcategory.CORE).isEmpty(),
@@ -132,8 +113,6 @@ public final class BuiltinBiomeRegistrationVerification {
             require(grid.terrainFor(registration) != null, "grid terrain is missing");
         }
 
-        // Ensure the vanilla support objects used by the four wrappers are available in this environment.
-        require(BiomeGenBase.mushroomIsland != null && BiomeGenBase.jungle != null, "vanilla support biomes missing");
         System.out.println("RWG built-in biome registry verification passed (" + selectable + " selectable entries)");
     }
 

@@ -2,17 +2,17 @@ package rwg.world;
 
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
-import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.World;
+import net.minecraft.world.chunk.Chunk;
 
 import com.cardinalstar.cubicchunks.util.DependencyGraph;
 import com.cardinalstar.cubicchunks.world.cube.Cube;
 import com.cardinalstar.cubicchunks.world.cube.blockview.UniformBlockView;
 import com.gtnewhorizon.gtnhlib.util.data.BlockMeta;
 
-import rwg.biomes.surface.SurfaceRule;
-import rwg.biomes.surface.SurfaceMaterial;
 import rwg.ConfigRWG;
+import rwg.biomes.surface.SurfaceMaterial;
+import rwg.biomes.surface.SurfaceRule;
 import rwg.util.NoiseGenerator;
 import rwg.util.NoiseSelector;
 
@@ -215,8 +215,7 @@ final class CubeTerrainPipeline {
                         Block current = context.blocks.getBlock(localX, localY, localZ);
                         if (current == Blocks.air || current == Blocks.water || current == Blocks.flowing_water)
                             continue;
-                        SurfaceMaterial material = surfaceY < CubicWorldSettings.SEA_LEVEL - 1
-                                ? SAND_SURFACE
+                        SurfaceMaterial material = surfaceY < CubicWorldSettings.SEA_LEVEL - 1 ? SAND_SURFACE
                                 : rule.materialAt(
                                         worldX,
                                         worldZ,
@@ -229,12 +228,7 @@ final class CubeTerrainPipeline {
                                         context.column.broadSurfaceVariation(localX, localZ));
                         if (material == null || material.block == null)
                             material = depth == 0 ? GRASS_SURFACE : DIRT_SURFACE;
-                        context.blocks.setBlock(
-                                localX,
-                                localY,
-                                localZ,
-                                material.block,
-                                material.metadata);
+                        context.blocks.setBlock(localX, localY, localZ, material.block, material.metadata);
                     }
                 }
             }

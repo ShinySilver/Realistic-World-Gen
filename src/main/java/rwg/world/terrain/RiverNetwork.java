@@ -241,9 +241,8 @@ final class RiverNetwork {
         boolean needMountainCarvers = mountainSuppression > 0f;
         double warpedX = x
                 + erosionVariation.noise2(x / EROSION_WARP_SCALE, z / EROSION_WARP_SCALE) * EROSION_WARP_STRENGTH;
-        double warpedZ = z + erosionVariation.noise2(
-                (x + 1877f) / EROSION_WARP_SCALE,
-                (z - 2903f) / EROSION_WARP_SCALE) * EROSION_WARP_STRENGTH;
+        double warpedZ = z + erosionVariation.noise2((x + 1877f) / EROSION_WARP_SCALE, (z - 2903f) / EROSION_WARP_SCALE)
+                * EROSION_WARP_STRENGTH;
         for (ErosionCurve curve : nearby) {
             double distanceSquared = EROSION_INFLUENCE * EROSION_INFLUENCE;
             for (Segment segment : curve.segments)
@@ -278,9 +277,9 @@ final class RiverNetwork {
                 : !needMountainCarvers ? allRivers : lerp(allRivers, mountainCarvers, mountainSuppression);
         // Two untouched search-radius sentinels blend to this value; never turn that into a false valley by scaling it.
         if (distance >= EROSION_INFLUENCE - EROSION_MERGE_SMOOTHING * .25D) return distance;
-        float widthScale = 1f + erosionVariation.noise2(
-                (x - 1213f) / EROSION_WIDTH_SCALE,
-                (z + 2671f) / EROSION_WIDTH_SCALE) * EROSION_WIDTH_VARIATION;
+        float widthScale = 1f
+                + erosionVariation.noise2((x - 1213f) / EROSION_WIDTH_SCALE, (z + 2671f) / EROSION_WIDTH_SCALE)
+                        * EROSION_WIDTH_VARIATION;
         widthScale = Math.max(1f - EROSION_WIDTH_VARIATION, Math.min(1f + EROSION_WIDTH_VARIATION, widthScale));
         return distance / widthScale;
     }

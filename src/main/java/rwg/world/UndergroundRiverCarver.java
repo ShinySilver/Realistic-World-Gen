@@ -31,8 +31,7 @@ final class UndergroundRiverCarver {
                 float tunnelCurve = (float) Math.sqrt(Math.max(0f, tunnel));
                 int floor = 62 - Math.round(tunnelCurve * 4f);
                 int ceiling = 62 + Math.round(tunnelCurve * 11f);
-                float chamberStrength = junction
-                        * smoothstep((mountainWeight - .10f) / .40f)
+                float chamberStrength = junction * smoothstep((mountainWeight - .10f) / .40f)
                         * smoothstep((surfaceY - 76f) / 24f);
                 if (chamberStrength > 0f) {
                     float chamberCurve = (float) Math.sqrt(chamberStrength);
@@ -43,9 +42,8 @@ final class UndergroundRiverCarver {
                 carveRange(context, localX, localZ, floor, ceiling);
                 if (chamberStrength > .70f && surfaceY > ceiling) {
                     int openingBottom = Math.max(ceiling + 1, CubicWorldSettings.SEA_LEVEL);
-                    for (int y = Math.max(openingBottom, context.minimumBlockY);
-                            y <= Math.min(surfaceY, context.maximumBlockY);
-                            y++) {
+                    for (int y = Math.max(openingBottom, context.minimumBlockY); y
+                            <= Math.min(surfaceY, context.maximumBlockY); y++) {
                         float fraction = (y - openingBottom) / (float) Math.max(1, surfaceY - openingBottom);
                         if (chamberStrength >= .70f + fraction * .15f) carveBlock(context, localX, localZ, y);
                     }
@@ -63,11 +61,7 @@ final class UndergroundRiverCarver {
         int localY = blockY - context.minimumBlockY;
         Block current = context.blocks.getBlock(x, localY, z);
         if (current != Blocks.stone && current != Blocks.dirt && current != Blocks.gravel) return;
-        context.blocks.setBlock(
-                x,
-                localY,
-                z,
-                blockY < CubicWorldSettings.SEA_LEVEL ? Blocks.water : Blocks.air);
+        context.blocks.setBlock(x, localY, z, blockY < CubicWorldSettings.SEA_LEVEL ? Blocks.water : Blocks.air);
     }
 
     private static float smoothstep(float value) {

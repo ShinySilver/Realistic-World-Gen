@@ -13,9 +13,9 @@ import net.minecraftforge.common.BiomeDictionary;
 import net.minecraftforge.common.BiomeDictionary.Type;
 
 import rwg.ConfigRWG;
-import rwg.biomes.decorators.BiomeDecorator;
 import rwg.biomes.decorators.CanyonDecorator;
 import rwg.biomes.decorators.CanyonForestDecorator;
+import rwg.biomes.decorators.CubicFeature;
 import rwg.biomes.decorators.DarkRedwoodDecorator;
 import rwg.biomes.decorators.DarkRedwoodPlainsDecorator;
 import rwg.biomes.decorators.DesertDecorator;
@@ -26,7 +26,6 @@ import rwg.biomes.decorators.HotForestDecorator;
 import rwg.biomes.decorators.HotRedwoodDecorator;
 import rwg.biomes.decorators.MesaDecorator;
 import rwg.biomes.decorators.MesaPlainsDecorator;
-import rwg.biomes.decorators.NativeBiomeDecorator;
 import rwg.biomes.decorators.OasisDecorator;
 import rwg.biomes.decorators.PolarDecorator;
 import rwg.biomes.decorators.RedDesertMountainsDecorator;
@@ -183,7 +182,7 @@ public final class BuiltinBiomes {
         BiomeDictionary.registerBiomeType(jungle, Type.HOT, Type.WET, Type.JUNGLE);
         BiomeDictionary.registerBiomeType(jungleMesa, Type.HOT, Type.WET, Type.JUNGLE, Type.FOREST, Type.HILLS);
         registry.register(
-                builder(snowDesert).climate(Climate.SNOW).river(riverIce).decorators(decorators(new PolarDecorator()))
+                builder(snowDesert).climate(Climate.SNOW).river(riverIce).features(features(new PolarDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainPolar())
                                         .surfaces(new SurfaceBase[] { new SurfacePolar(Blocks.snow, Blocks.snow) }))
@@ -201,15 +200,15 @@ public final class BuiltinBiomes {
                         variant(TerrainCategory.PLAIN).terrain(new TerrainMountainSpikes())
                                 .surfaces(
                                         surfaces(new SurfaceMountainSnow(Blocks.grass, Blocks.dirt, false, null, 0.2f)))
-                                .decorators(new SnowHillsDecorator()))
+                                .features(new SnowHillsDecorator()))
                         .variant(
                                 variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         surfaces(new SurfaceMountainSnow(Blocks.grass, Blocks.dirt, false, null, 0.2f)))
-                                        .decorators(new SnowHillsDecorator()))
+                                        .features(new SnowHillsDecorator()))
                         .variant(
                                 variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain()).surfaces(
                                         surfaces(new SurfaceMountainSnow(Blocks.grass, Blocks.dirt, false, null, 0.2f)))
-                                        .decorators(new SnowHillsDecorator()))
+                                        .features(new SnowHillsDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver())
                                         .surfaces(
@@ -220,7 +219,7 @@ public final class BuiltinBiomes {
                                                                 true,
                                                                 Blocks.sand,
                                                                 0.2f)))
-                                        .decorators(new SnowRiversDecorator()))
+                                        .features(new SnowRiversDecorator()))
                         .variant(
                                 variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills())
                                         .surfaces(
@@ -231,7 +230,7 @@ public final class BuiltinBiomes {
                                                                 true,
                                                                 Blocks.sand,
                                                                 0.2f)))
-                                        .decorators(new SnowRiversDecorator()))
+                                        .features(new SnowRiversDecorator()))
                         .variant(
                                 variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain())
                                         .surfaces(
@@ -242,7 +241,7 @@ public final class BuiltinBiomes {
                                                                 true,
                                                                 Blocks.sand,
                                                                 0.2f)))
-                                        .decorators(new SnowRiversDecorator()))
+                                        .features(new SnowRiversDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainFlatLakes())
                                         .surfaces(
@@ -253,7 +252,7 @@ public final class BuiltinBiomes {
                                                                 true,
                                                                 Blocks.sand,
                                                                 0.2f)))
-                                        .decorators(new SnowLakesDecorator()))
+                                        .features(new SnowLakesDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 90f))
                                         .surfaces(
@@ -264,7 +263,7 @@ public final class BuiltinBiomes {
                                                                 true,
                                                                 Blocks.sand,
                                                                 0.2f)))
-                                        .decorators(new RedwoodSnowDecorator()))
+                                        .features(new RedwoodSnowDecorator()))
                         .variant(
                                 variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills())
                                         .surfaces(
@@ -275,7 +274,7 @@ public final class BuiltinBiomes {
                                                                 true,
                                                                 Blocks.sand,
                                                                 0.2f)))
-                                        .decorators(new RedwoodSnowDecorator()))
+                                        .features(new RedwoodSnowDecorator()))
                         .variant(
                                 variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain())
                                         .surfaces(
@@ -286,7 +285,7 @@ public final class BuiltinBiomes {
                                                                 true,
                                                                 Blocks.sand,
                                                                 0.2f)))
-                                        .decorators(new RedwoodSnowDecorator()))
+                                        .features(new RedwoodSnowDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLATEAU, TerrainCategory.CANYON).terrain(new TerrainMesa())
                                         .surfaces(
@@ -297,10 +296,10 @@ public final class BuiltinBiomes {
                                                                 true,
                                                                 Blocks.sand,
                                                                 0.2f)))
-                                        .decorators(new SnowHillsDecorator())));
+                                        .features(new SnowHillsDecorator())));
         registry.register(
                 builder(coldPlains).climate(Climate.COLD).river(riverCold)
-                        .decorators(decorators(new TundraHillsDecorator()))
+                        .features(features(new TundraHillsDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainMountain())
                                         .surfaces(new SurfaceBase[] { new SurfaceTundra(Blocks.grass, Blocks.dirt) }))
@@ -318,12 +317,11 @@ public final class BuiltinBiomes {
                                         .surfaces(new SurfaceBase[] { new SurfaceTundra(Blocks.grass, Blocks.dirt) })));
         registry.register(
                 builder(coldPlains).climate(Climate.COLD).river(riverCold)
-                        .decorators(decorators(new TundraPlainsDecorator())).variant(
+                        .features(features(new TundraPlainsDecorator())).variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainFlatLakes())
                                         .surfaces(new SurfaceBase[] { new SurfaceTundra(Blocks.grass, Blocks.dirt) })));
         registry.register(
-                builder(coldForest).climate(Climate.COLD).river(riverCold)
-                        .decorators(decorators(new TaigaHillsDecorator()))
+                builder(coldForest).climate(Climate.COLD).river(riverCold).features(features(new TaigaHillsDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver()).surfaces(
                                         surfaces(
@@ -353,12 +351,11 @@ public final class BuiltinBiomes {
                                                         0.2f)))));
         registry.register(
                 builder(coldForest).climate(Climate.COLD).river(riverCold)
-                        .decorators(decorators(new TaigaPlainsDecorator())).variant(
+                        .features(features(new TaigaPlainsDecorator())).variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainFlatLakes())
                                         .surfaces(surfaces(new SurfaceTundra(Blocks.grass, Blocks.dirt)))));
         registry.register(
-                builder(coldForest).climate(Climate.COLD).river(riverCold)
-                        .decorators(decorators(new RedwoodDecorator()))
+                builder(coldForest).climate(Climate.COLD).river(riverCold).features(features(new RedwoodDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 90f)).surfaces(
                                         surfaces(
@@ -388,7 +385,7 @@ public final class BuiltinBiomes {
                                                         0.2f)))));
         registry.register(
                 builder(coldForest).climate(Climate.COLD).river(riverTemperate)
-                        .decorators(decorators(new DarkRedwoodDecorator()))
+                        .features(features(new DarkRedwoodDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 0f))
                                         .surfaces(surfaces(darkRedwoodSurface())))
@@ -400,7 +397,7 @@ public final class BuiltinBiomes {
                                         .surfaces(surfaces(darkRedwoodSurface()))));
         registry.register(
                 builder(coldForest).climate(Climate.COLD).river(riverTemperate)
-                        .decorators(decorators(new DarkRedwoodPlainsDecorator()))
+                        .features(features(new DarkRedwoodPlainsDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainGrasslandFlats())
                                         .surfaces(surfaces(stoneMix(Blocks.grass, Blocks.dirt, 0.15f))))
@@ -412,7 +409,7 @@ public final class BuiltinBiomes {
                                         .surfaces(surfaces(stoneMix(Blocks.grass, Blocks.dirt, 0.15f)))));
         registry.register(
                 builder(temperateForest).climate(Climate.COLD).river(riverTemperate)
-                        .decorators(decorators(new WoodHillsDecorator())).weight(2)
+                        .features(features(new WoodHillsDecorator())).weight(2)
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 0f)).surfaces(
                                         surfaces(
@@ -454,7 +451,7 @@ public final class BuiltinBiomes {
                                                         1.5f)))));
         registry.register(
                 builder(temperateForest).climate(Climate.COLD).river(riverTemperate)
-                        .decorators(decorators(new WoodMountainsDecorator())).weight(2)
+                        .features(features(new WoodMountainsDecorator())).weight(2)
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainMountainRiver()).surfaces(
                                         surfaces(
@@ -484,7 +481,7 @@ public final class BuiltinBiomes {
                                                         0.2f)))));
         registry.register(
                 builder(hotForest).climate(Climate.HOT).river(riverOasis)
-                        .decorators(decorators(new DuneValleyForestDecorator()))
+                        .features(features(new DuneValleyForestDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainDuneValley(220f)).surfaces(
                                         surfaces(
@@ -516,7 +513,7 @@ public final class BuiltinBiomes {
                                                         true,
                                                         hotDesert)))));
         registry.register(
-                builder(hotPlains).climate(Climate.HOT).river(riverHot).decorators(decorators(new SavannaDecorator()))
+                builder(hotPlains).climate(Climate.HOT).river(riverHot).features(features(new SavannaDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainGrasslandFlats()).surfaces(
                                         surfaces(
@@ -551,8 +548,7 @@ public final class BuiltinBiomes {
                                                         13f,
                                                         0.27f)))));
         registry.register(
-                builder(hotPlains).climate(Climate.HOT).river(riverHot)
-                        .decorators(decorators(new SavannaForestDecorator()))
+                builder(hotPlains).climate(Climate.HOT).river(riverHot).features(features(new SavannaForestDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainGrasslandMountains()).surfaces(
                                         surfaces(
@@ -581,8 +577,7 @@ public final class BuiltinBiomes {
                                                         null,
                                                         0.6f)))));
         registry.register(
-                builder(hotPlains).climate(Climate.HOT).river(riverHot)
-                        .decorators(decorators(new SavannaDunesDecorator()))
+                builder(hotPlains).climate(Climate.HOT).river(riverHot).features(features(new SavannaDunesDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainDuneValley(300f)).surfaces(
                                         surfaces(
@@ -618,7 +613,7 @@ public final class BuiltinBiomes {
                                                 new SurfaceRiverOasis()))));
         registry.register(
                 builder(hotPlains).climate(Climate.HOT).river(riverOasis)
-                        .decorators(decorators(new StoneMountainsDecorator()))
+                        .features(features(new StoneMountainsDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 0f)).surfaces(
                                         surfaces(stoneMix(Blocks.grass, Blocks.dirt, 0.08f), new SurfaceRiverOasis())))
@@ -632,7 +627,7 @@ public final class BuiltinBiomes {
                                                 new SurfaceRiverOasis()))));
         registry.register(
                 builder(hotPlains).climate(Climate.HOT).river(riverOasis)
-                        .decorators(decorators(new StoneMountainsCactusDecorator()))
+                        .features(features(new StoneMountainsCactusDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 0f)).surfaces(
                                         surfaces(stoneMix(Blocks.grass, Blocks.dirt, 0.20f), new SurfaceRiverOasis())))
@@ -645,7 +640,7 @@ public final class BuiltinBiomes {
                                                 stoneMix(Blocks.grass, Blocks.dirt, 0.20f),
                                                 new SurfaceRiverOasis()))));
         registry.register(
-                builder(hotForest).climate(Climate.HOT).river(riverHot).decorators(decorators(new HotForestDecorator()))
+                builder(hotForest).climate(Climate.HOT).river(riverHot).features(features(new HotForestDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainGrasslandFlats())
                                         .surfaces(surfaces(hotForestSurface())))
@@ -656,8 +651,7 @@ public final class BuiltinBiomes {
                                 variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain())
                                         .surfaces(surfaces(hotForestSurface()))));
         registry.register(
-                builder(hotForest).climate(Climate.HOT).river(riverHot)
-                        .decorators(decorators(new HotRedwoodDecorator()))
+                builder(hotForest).climate(Climate.HOT).river(riverHot).features(features(new HotRedwoodDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainGrasslandFlats())
                                         .surfaces(surfaces(hotForestSurface())))
@@ -669,22 +663,19 @@ public final class BuiltinBiomes {
                                         .surfaces(surfaces(hotForestSurface()))));
         registry.register(
                 builder(hotForest).climate(Climate.HOT).river(riverOasis)
-                        .decorators(decorators(new CanyonForestDecorator())).variant(
+                        .features(features(new CanyonForestDecorator())).variant(
                                 variant(TerrainCategory.PLATEAU, TerrainCategory.CANYON)
                                         .terrain(new TerrainCanyon(true, 35f, 160f, 60f, 40f, 69f)).surfaces(
                                                 surfaces(new SurfaceCanyon(Blocks.sand, Blocks.sand, (byte) 1, 47)))));
 
         // Vanilla mushroom-island support.
         registry.register(
-                builder(BiomeGenBase.mushroomIsland).climate(Climate.WET).river(riverWet)
-
-                        .decorators(decorators(new NativeBiomeDecorator(BiomeGenBase.mushroomIsland))).variant(
-                                variant(TerrainCategory.SMALL_ISLAND).terrain(new TerrainSmallIsland())
-                                        .surfaces(new SurfaceBase[] { grass(BiomeGenBase.mushroomIsland) })));
+                builder(BiomeGenBase.mushroomIsland).climate(Climate.WET).river(riverWet).variant(
+                        variant(TerrainCategory.SMALL_ISLAND).terrain(new TerrainSmallIsland())
+                                .surfaces(new SurfaceBase[] { grass(BiomeGenBase.mushroomIsland) })));
         // Vanilla jungle support.
         registry.register(
                 builder(BiomeGenBase.jungle).climate(Climate.WET).river(riverWet)
-                        .decorators(decorators(new NativeBiomeDecorator(BiomeGenBase.jungle)))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 140f, 68f, 200f))
                                         .surfaces(new SurfaceBase[] { grass(BiomeGenBase.jungle) }))
@@ -704,7 +695,6 @@ public final class BuiltinBiomes {
         // Vanilla ice-spikes support.
         registry.register(
                 builder(iceSpikes).climate(Climate.SNOW).river(riverIce).subcategory(TerrainSubcategory.SMALL)
-                        .decorators(decorators(new NativeBiomeDecorator(iceSpikes)))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHighland(0f, 140f, 68f, 200f))
                                         .surfaces(new SurfaceBase[] { grass(iceSpikes) }))
@@ -718,12 +708,11 @@ public final class BuiltinBiomes {
         // Vanilla sunflower-plains support.
         registry.register(
                 builder(sunflowerPlains).climate(Climate.COLD).river(riverTemperate)
-                        .subcategory(TerrainSubcategory.SMALL)
-                        .decorators(decorators(new NativeBiomeDecorator(sunflowerPlains))).variant(
+                        .subcategory(TerrainSubcategory.SMALL).variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainMarsh())
                                         .surfaces(new SurfaceBase[] { grass(sunflowerPlains) })));
         registry.register(
-                builder(hotPlains).climate(Climate.HOT).river(riverOasis).decorators(decorators(new CanyonDecorator()))
+                builder(hotPlains).climate(Climate.HOT).river(riverOasis).features(features(new CanyonDecorator()))
                         .variant(
                                 variant(TerrainCategory.LARGE_ISLAND)
                                         .terrain(new TerrainCanyon(true, 35f, 160f, 60f, 40f, 69f))
@@ -741,8 +730,7 @@ public final class BuiltinBiomes {
                 oceanHot,
                 oceanWet);
         registry.register(
-                builder(hotDesert).climate(Climate.HOT).river(riverHot)
-                        .decorators(decorators(new MesaPlainsDecorator()))
+                builder(hotDesert).climate(Climate.HOT).river(riverHot).features(features(new MesaPlainsDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLATEAU, TerrainCategory.CANYON).terrain(new TerrainMesa())
                                         .surfaces(surfaces(new SurfaceCanyon(Blocks.sand, Blocks.sand, (byte) 1, 20))))
@@ -750,7 +738,7 @@ public final class BuiltinBiomes {
                                 variant(TerrainCategory.CLIFF).terrain(new TerrainGenericCliff()).surfaces(
                                         surfaces(new SurfaceCanyon(Blocks.sand, Blocks.sand, (byte) 1, 20)))));
         registry.register(
-                builder(hotDesert).climate(Climate.HOT).river(riverOasis).decorators(decorators(new DesertDecorator()))
+                builder(hotDesert).climate(Climate.HOT).river(riverOasis).features(features(new DesertDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(150f, 50f, 0f))
                                         .surfaces(surfaces(desertMountain(), new SurfaceRiverOasis())))
@@ -762,7 +750,7 @@ public final class BuiltinBiomes {
                                         .surfaces(surfaces(desertMountain(), new SurfaceRiverOasis()))));
         registry.register(
                 builder(hotDesert).climate(Climate.HOT).river(riverOasis)
-                        .decorators(decorators(new DesertMountainsDecorator()))
+                        .features(features(new DesertMountainsDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 0f))
                                         .surfaces(surfaces(desertMountain(), new SurfaceRiverOasis())))
@@ -774,7 +762,7 @@ public final class BuiltinBiomes {
                                         .surfaces(surfaces(desertMountain(), new SurfaceRiverOasis()))));
         registry.register(
                 builder(hotDesert).climate(Climate.HOT).river(riverOasis)
-                        .decorators(decorators(new RedDesertMountainsDecorator()))
+                        .features(features(new RedDesertMountainsDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 0f))
                                         .surfaces(surfaces(new SurfaceRedDesert(), new SurfaceRiverOasis())))
@@ -785,8 +773,7 @@ public final class BuiltinBiomes {
                                 variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain())
                                         .surfaces(surfaces(new SurfaceRedDesert(), new SurfaceRiverOasis()))));
         registry.register(
-                builder(hotDesert).climate(Climate.HOT).river(riverOasis)
-                        .decorators(decorators(new DuneValleyDecorator()))
+                builder(hotDesert).climate(Climate.HOT).river(riverOasis).features(features(new DuneValleyDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainDunes())
                                         .surfaces(surfaces(desert(), new SurfaceRiverOasis())))
@@ -797,19 +784,17 @@ public final class BuiltinBiomes {
                                 variant(TerrainCategory.MOUNTAIN).terrain(new TerrainGenericMountain())
                                         .surfaces(surfaces(desert(), new SurfaceRiverOasis()))));
         registry.register(
-                builder(oasis).climate(Climate.HOT).river(riverOasis).decorators(decorators(new OasisDecorator()))
-                        .variant(
-                                variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 20f, 60f, 63f))
-                                        .surfaces(
-                                                surfaces(
-                                                        new SurfaceDesertOasis(
-                                                                Blocks.grass,
-                                                                Blocks.dirt,
-                                                                Blocks.stone,
-                                                                Blocks.cobblestone,
-                                                                (byte) 0,
-                                                                0),
-                                                        new SurfaceRiverOasis())))
+                builder(oasis).climate(Climate.HOT).river(riverOasis).features(features(new OasisDecorator())).variant(
+                        variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 20f, 60f, 63f)).surfaces(
+                                surfaces(
+                                        new SurfaceDesertOasis(
+                                                Blocks.grass,
+                                                Blocks.dirt,
+                                                Blocks.stone,
+                                                Blocks.cobblestone,
+                                                (byte) 0,
+                                                0),
+                                        new SurfaceRiverOasis())))
                         .variant(
                                 variant(TerrainCategory.HILLS).terrain(new TerrainGenericHills()).surfaces(
                                         surfaces(
@@ -833,7 +818,7 @@ public final class BuiltinBiomes {
                                                         0),
                                                 new SurfaceRiverOasis()))));
         registry.register(
-                builder(oasis).climate(Climate.HOT).river(riverOasis).decorators(decorators(new RedOasisDecorator()))
+                builder(oasis).climate(Climate.HOT).river(riverOasis).features(features(new RedOasisDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLAIN).terrain(new TerrainHilly(230f, 120f, 20f, 60f, 63f))
                                         .surfaces(
@@ -869,13 +854,13 @@ public final class BuiltinBiomes {
                                                         1),
                                                 new SurfaceRiverOasis()))));
         registry.register(
-                builder(hotPlains).climate(Climate.HOT).river(riverOasis).decorators(decorators(new CanyonDecorator()))
+                builder(hotPlains).climate(Climate.HOT).river(riverOasis).features(features(new CanyonDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLATEAU, TerrainCategory.CANYON)
                                         .terrain(new TerrainCanyon(true, 35f, 160f, 60f, 40f, 69f))
                                         .surfaces(surfaces(new SurfaceCanyon(Blocks.sand, Blocks.sand, (byte) 1, 0)))));
         registry.register(
-                builder(hotDesert).climate(Climate.HOT).river(riverOasis).decorators(decorators(new MesaDecorator()))
+                builder(hotDesert).climate(Climate.HOT).river(riverOasis).features(features(new MesaDecorator()))
                         .variant(
                                 variant(TerrainCategory.PLATEAU, TerrainCategory.CANYON).terrain(new TerrainMesa())
                                         .surfaces(
@@ -896,8 +881,8 @@ public final class BuiltinBiomes {
         return surfaces;
     }
 
-    private static BiomeDecorator[] decorators(BiomeDecorator... decorators) {
-        return decorators;
+    private static CubicFeature[] features(CubicFeature... features) {
+        return features;
     }
 
     private static SurfaceBase desertMountain() {

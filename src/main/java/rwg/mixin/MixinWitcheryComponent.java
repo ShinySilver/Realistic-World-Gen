@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.emoniph.witchery.worldgen.WitcheryComponent;
+
 import rwg.support.WitcheryWorldgenCompat;
 
 /** Rejects Witchery structures whose sampled footprint is unsafe in an RWG world. */

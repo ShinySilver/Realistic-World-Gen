@@ -7,7 +7,7 @@ import java.util.List;
 
 import net.minecraft.world.biome.BiomeGenBase;
 
-import rwg.biomes.decorators.BiomeDecorator;
+import rwg.biomes.decorators.CubicFeature;
 
 /** Immutable-after-freeze biome metadata and selection pools. */
 public final class BiomeRegistry {
@@ -38,7 +38,7 @@ public final class BiomeRegistry {
     private void register(TerrainCategory category, BiomeRegistration.Builder builder,
             BiomeRegistration.Variant variant) {
         BiomeGenBase riverBiome = builder.riverBiome == null ? river(builder.climate) : builder.riverBiome;
-        BiomeDecorator[] registeredDecorators = variant.decorators == null ? builder.decorators : variant.decorators;
+        CubicFeature[] registeredFeatures = variant.features == null ? builder.features : variant.features;
         TerrainSubcategory subcategory = variant.subcategory == null ? builder.subcategory : variant.subcategory;
         int weight = variant.weight == null ? builder.weight : variant.weight;
         boolean selectable = variant.selectable == null ? builder.selectable : variant.selectable;
@@ -49,7 +49,7 @@ public final class BiomeRegistry {
                         riverBiome,
                         variant.terrain,
                         variant.surfaceRules,
-                        registeredDecorators,
+                        registeredFeatures,
                         builder.climate,
                         category,
                         subcategory,

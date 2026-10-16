@@ -29,8 +29,7 @@ public final class SurfaceDesertOasis extends SurfaceBase {
     public SurfaceMaterial materialAt(int worldX, int worldZ, int surfaceY, int depth, float riverStrength,
             float mountainWeight, float slope, float variation, float broadVariation) {
         if (slope > 1.3f) {
-            if (cliffType != 1 && depth < 2 && ((worldX * 73428767 ^ worldZ * 912931) & 3) == 0)
-                return cliffAccent;
+            if (cliffType != 1 && depth < 2 && ((worldX * 73428767 ^ worldZ * 912931) & 3) == 0) return cliffAccent;
             return cliff;
         }
         boolean soil = surfaceY > 61 && variation > -.3f + (surfaceY - 61f) / 15f;
