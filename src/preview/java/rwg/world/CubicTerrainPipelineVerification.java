@@ -18,7 +18,7 @@ public final class CubicTerrainPipelineVerification {
 
     public static void main(String[] arguments) {
         ConfigRWG.initPreview(new File(System.getProperty("rwg.previewConfig", "run/client/config/RWG.cfg")));
-        BiomeRegistry registry = BiomeRegistryBootstrap.create(false);
+        BiomeRegistry registry = BiomeRegistryBootstrap.create();
         BiomeRegistration registration = registry.registrations().get(0);
         // Runtime construction is covered by the in-game smoke test because the pipeline now owns world-bound carvers.
 

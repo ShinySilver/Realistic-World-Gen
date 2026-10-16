@@ -6,7 +6,6 @@ import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.Mod.EventHandler;
 import cpw.mods.fml.common.Mod.Instance;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
-import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import rwg.biomes.villages.VillageMaterials;
 import rwg.registry.BiomeRegistry;
@@ -33,7 +32,7 @@ public class RWG {
         instance = this;
 
         ConfigRWG.init(event);
-        biomeRegistry = BiomeRegistryBootstrap.createBuiltins();
+        biomeRegistry = BiomeRegistryBootstrap.create();
 
         MinecraftForge.TERRAIN_GEN_BUS.register(new VillageMaterials());
         MinecraftForge.TERRAIN_GEN_BUS.register(new RailcraftWorldgenFilter());
@@ -41,11 +40,6 @@ public class RWG {
 
     @EventHandler
     public void Init(FMLInitializationEvent event) {}
-
-    @EventHandler
-    public void postInit(FMLPostInitializationEvent event) {
-        BiomeRegistryBootstrap.finish(biomeRegistry, true);
-    }
 
     public static BiomeRegistry biomeRegistry() {
         if (biomeRegistry == null) throw new IllegalStateException("RWG biome registry has not been initialized");

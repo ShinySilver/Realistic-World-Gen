@@ -27,7 +27,7 @@ public final class BuiltinBiomeRegistrationVerification {
 
     public static void main(String[] args) {
         ConfigRWG.initPreview(new File(System.getProperty("rwg.previewConfig", "run/client/config/RWG.cfg")));
-        BiomeRegistry registry = BiomeRegistryBootstrap.create(false);
+        BiomeRegistry registry = BiomeRegistryBootstrap.create();
 
         int selectable = 0;
         int nativeDecorated = 0;

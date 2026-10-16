@@ -5,19 +5,10 @@ public final class BiomeRegistryBootstrap {
 
     private BiomeRegistryBootstrap() {}
 
-    public static BiomeRegistry createBuiltins() {
+    public static BiomeRegistry create() {
         BiomeRegistry registry = new BiomeRegistry();
         BuiltinBiomes.register(registry);
-        return registry;
-    }
-
-    public static BiomeRegistry create(boolean loadIntegrations) {
-        BiomeRegistry registry = createBuiltins();
-        finish(registry, loadIntegrations);
-        return registry;
-    }
-
-    public static void finish(BiomeRegistry registry, boolean loadIntegrations) {
         registry.freeze();
+        return registry;
     }
 }

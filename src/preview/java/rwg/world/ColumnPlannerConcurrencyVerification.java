@@ -22,7 +22,7 @@ public final class ColumnPlannerConcurrencyVerification {
 
     public static void main(String[] arguments) throws Exception {
         ConfigRWG.initPreview(new File(System.getProperty("rwg.previewConfig", "run/client/config/RWG.cfg")));
-        BiomeRegistry registry = BiomeRegistryBootstrap.create(false);
+        BiomeRegistry registry = BiomeRegistryBootstrap.create();
         verifyParallelDeterminism(registry);
         verifyConcurrentDeduplication(registry);
         System.out.println("RWG column planner concurrency verification passed");
