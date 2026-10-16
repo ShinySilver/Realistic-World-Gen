@@ -14,16 +14,19 @@ public final class PopulationPlan {
     private final List<PlannedFeature> features;
     private final List<PlannedStructure> structures;
     private final SurfaceHeightMap surfaceHeights;
+    private final SurfaceFinishPlan surfaceFinish;
 
-    PopulationPlan(List<PlannedFeature> features, List<PlannedStructure> structures) {
-        this(features, structures, SurfaceHeightMap.empty());
+    PopulationPlan(List<PlannedFeature> features, List<PlannedStructure> structures, SurfaceFinishPlan surfaceFinish) {
+        this(features, structures, SurfaceHeightMap.empty(), surfaceFinish);
     }
 
     private PopulationPlan(List<PlannedFeature> features, List<PlannedStructure> structures,
-            SurfaceHeightMap surfaceHeights) {
+            SurfaceHeightMap surfaceHeights, SurfaceFinishPlan surfaceFinish) {
+        if (surfaceFinish == null) throw new NullPointerException("surface finish");
         this.features = Collections.unmodifiableList(new ArrayList<PlannedFeature>(features));
         this.structures = Collections.unmodifiableList(new ArrayList<PlannedStructure>(structures));
         this.surfaceHeights = surfaceHeights;
+        this.surfaceFinish = surfaceFinish;
     }
 
     public List<PlannedFeature> features() {
@@ -36,6 +39,10 @@ public final class PopulationPlan {
 
     SurfaceHeightLookup surfaceHeights() {
         return new SurfaceHeightLookup(surfaceHeights);
+    }
+
+    SurfaceFinishPlan surfaceFinish() {
+        return surfaceFinish;
     }
 
     PopulationPlan resolveSurfaceHeights(ColumnPlanCache columns) {
@@ -89,6 +96,6 @@ public final class PopulationPlan {
             PlannedStructure resolvedStructure = structure.resolve(surfaceMap);
             if (resolvedStructure != null) resolvedStructures.add(resolvedStructure);
         }
-        return new PopulationPlan(resolved, resolvedStructures, surfaceMap);
+        return new PopulationPlan(resolved, resolvedStructures, surfaceMap, surfaceFinish);
     }
 }

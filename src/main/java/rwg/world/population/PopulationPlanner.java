@@ -40,6 +40,6 @@ public final class PopulationPlanner {
                 if (result != null) planned.add(result);
             }
         }
-        return new PopulationPlan(planned, structures.plan(columnX, columnZ));
+        return new PopulationPlan(planned, structures.plan(columnX, columnZ), new SurfaceFinishPlan(column));
     }
 }

@@ -28,7 +28,8 @@ public final class CubePopulationPipeline {
         stages.addTarget("rwg:underground-decoration-complete", "requires:rwg:ores-complete");
         stages.addTarget("rwg:structures-complete", "requires:rwg:underground-decoration-complete");
         stages.addTarget("rwg:surface-features-complete", "requires:rwg:structures-complete");
-        stages.addTarget("rwg:population-complete", "requires:rwg:surface-features-complete");
+        stages.addTarget("rwg:surface-finish-complete", "requires:rwg:surface-features-complete");
+        stages.addTarget("rwg:population-complete", "requires:rwg:surface-finish-complete");
         stages.addObject("rwg:ores", new NativeOrePopulationStep(), "required-by:rwg:ores-complete");
         stages.addObject(
                 "rwg:underground-lakes",
@@ -45,6 +46,11 @@ public final class CubePopulationPipeline {
                 new PlannedFeaturePopulationStep(),
                 "requires:rwg:structures-complete",
                 "required-by:rwg:surface-features-complete");
+        stages.addObject(
+                "rwg:snow-and-ice",
+                new SnowAndIcePopulationStep(),
+                "requires:rwg:surface-features-complete",
+                "required-by:rwg:surface-finish-complete");
         stages.sorted();
     }
 

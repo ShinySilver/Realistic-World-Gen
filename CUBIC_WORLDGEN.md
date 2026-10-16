@@ -53,6 +53,11 @@ interface so expensive or large features can later publish more specific candida
 the scheduler. Placement remains on the population thread; planning never reads or mutates world blocks. Vanilla's
 monolithic biome decoration adapter was removed because it mixes ores and surface features and cannot obey this graph.
 
+Snow and ice are the final population step. A compact immutable mask records exposed terrain-or-sea height and cold-biome
+eligibility for all 256 columns. Each cube freezes or covers only its intersecting surface cells, without precipitation
+height queries or neighboring loads. Structure bounds conservatively suppress terrain-level snow inside buildings;
+future roof-aware snow must remain a clipped, order-independent plan rather than scanning mutable neighboring cubes.
+
 ### Future connectivity culling
 
 If underground population or lighting becomes traversal-bound, test a deliberately lossy cube-connectivity index before
@@ -135,8 +140,8 @@ random mutation. The fixed-height painter API and unsupported compatibility regi
 4. Base terrain, water, bedrock, simple surfaces, and empty/solid fast paths. (complete)
 5. Height-independent surface rules. (complete)
 6. Geology, caves, and underground rivers. (native cube stages complete; gameplay tuning remains)
-7. Planned biome features and population stages. (built-in surface recipes and native underground lakes complete;
-   large-vein ores and final snow/ice remain)
+7. Planned biome features and population stages. (built-in surface recipes, native underground lakes, and final
+   snow/ice complete; large-vein ores remain)
 8. Late structure placement. (native villages, mineshafts, strongholds, and stronghold lookup complete; template
    variety remains)
 9. Optional compatibility integrations.
