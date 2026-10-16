@@ -13,6 +13,8 @@ import com.gtnewhorizon.gtnhlib.util.data.BlockMeta;
 /** Ordered, cube-local terrain mutation with allocation-free classification before detailed work. */
 final class CubeTerrainPipeline {
 
+    // Milestone 5 replaces this temporary depth with the maximum declared by the frozen surface-rule set. Classification
+    // and painting must share that value so a deeper rule can never be bypassed by the solid fast path.
     private static final int SURFACE_DEPTH = 3;
     private static final UniformBlockView STONE = new UniformBlockView(new BlockMeta(Blocks.stone, 0));
     private static final UniformBlockView WATER = new UniformBlockView(new BlockMeta(Blocks.water, 0));

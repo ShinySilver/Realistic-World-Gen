@@ -35,7 +35,7 @@ with fixed-height third-party generators remains disabled until the native cubic
 
 ## Cube-generation invariants
 
-Step 4 should add one small `CubeGenerationContext` containing the cube position, absolute Y bounds, immutable
+Cube generation uses one small `CubeGenerationContext` containing the cube position, absolute Y bounds, immutable
 `ColumnPlan`, and target `Cube`. Every terrain stage receives that context; stages must not fetch the plan again, invent
 their own coordinate convention, or query world blocks.
 
@@ -57,10 +57,31 @@ uncarved. `provideCube` obtains its plan exactly once and emits no neighboring c
 null, that column is the sole allowed side effect. Stage RNGs derive from world seed, stable stage ID, and cube
 coordinates, never execution order or shared mutable state.
 
-Step 4 tests should cover a storage-free air cube, a uniform deep cube, a mixed surface cube, sea-level water, negative
+Milestone 4 tests cover a storage-free air cube, a uniform deep cube, a mixed surface cube, sea-level water, negative
 cube Y, bedrock at the configured lower bound, heights above Y=255, request-order determinism, and one plan reused by
 several vertical cubes. Keep the implementation to one context, one ordered graph, and the existing cache until
 profiling demonstrates that another abstraction is needed.
+
+## Surface-rule invariants
+
+Milestone 5 replaces the temporary simple painter without changing cube classification or adding another cache:
+
+- A surface rule receives the existing `CubeGenerationContext`, local X/Z, absolute surface Y, and resolved column
+  inputs. It never scans downward from a fixed world ceiling or reads blocks through `World`.
+- Rules paint only their declared maximum depth. The pipeline derives its solid fast-path margin from the maximum depth
+  of the frozen rule set; it is not left as an unrelated magic constant.
+- A cube paints only the surface bands that intersect its own Y range. Filler crossing a cube boundary is reproduced
+  from absolute depth, without loading or generating the neighboring cube.
+- Cliff, beach, river, and other boundary signals that require neighboring heights are computed in `ColumnPlanner`
+  from its existing halo and stored immutably in `ColumnPlan`. Surface generation never fetches neighboring plans.
+- Rule selection is resolved once per X/Z column in the plan. No per-block registry lookup, per-column rule object, or
+  shared mutable random source is introduced.
+- Preserve the storage-free air and uniform deep-cube paths. Adding a rule with a deeper reach must automatically make
+  affected cubes detailed.
+
+Start with the smallest rule contract that can replace the built-in surfaces. Specialized legacy painters are ported
+only when their visible behavior is still wanted; fixed-height compatibility signatures are deleted rather than
+wrapped.
 
 ## Migration
 
