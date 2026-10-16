@@ -12,9 +12,12 @@ sourceSets {
 }
 
 def localCubicChunksJar = file('../CubicChunks1710/build/rwg/cubicchunks-dev.jar')
+def localAngelicaRoot = file('../Angelica')
+def localAngelicaJar = layout.buildDirectory.file('local-mods/angelica-dev.jar')
 
 dependencies {
     api(files(localCubicChunksJar))
+    runtimeOnlyNonPublishable(files(localAngelicaJar))
     api('com.github.GTNewHorizons:RegionLib:v0.1.0-GTNH:dev')
     api('com.falsepattern:endlessids-mc1.7.10:1.7.4:dev')
     api('ganymedes01.etfuturum:Et-Futurum-Requiem:2.6.58-GTNH:dev')
@@ -33,8 +36,36 @@ tasks.register('buildLocalCubicChunks', Exec) {
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
 }
 
+tasks.register('buildLocalAngelica', Exec) {
+    group = 'build setup'
+    description = 'Builds the sibling Angelica checkout used by the development client'
+    workingDir = localAngelicaRoot
+    commandLine './gradlew', 'assemble', '--quiet', '--no-daemon'
+    environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
+}
+
+def syncLocalAngelica = tasks.register('syncLocalAngelica', Copy) {
+    group = 'build setup'
+    description = 'Copies the sibling Angelica development jar into the local runtime classpath'
+    dependsOn tasks.named('buildLocalAngelica')
+    from({
+        def libs = localAngelicaRoot.toPath().resolve('build/libs')
+        def dirtyJar = fileTree(libs) { include '*-dirty-dev.jar' }
+        dirtyJar.empty ? fileTree(libs) {
+            include '*-dev.jar'
+            exclude '*-dirty-dev.jar', '*-preshadow.jar'
+        } : dirtyJar
+    })
+    into(localAngelicaJar.map { it.asFile.parentFile })
+    rename { 'angelica-dev.jar' }
+}
+
 tasks.named('compileJava') {
     dependsOn tasks.named('buildLocalCubicChunks')
+}
+
+tasks.named('runClient') {
+    dependsOn syncLocalAngelica
 }
 
 tasks.register('runPreview', JavaExec) {
