@@ -11,11 +11,13 @@ sourceSets {
     }
 }
 
-def localCubicChunksJar = file('../CubicChunks1710/build/rwg/cubicchunks-dev.jar')
-def localAngelicaRoot = file('../Angelica')
-def localAngelicaJar = layout.buildDirectory.file('local-mods/angelica-dev.jar')
-def localCeleritasRoot = file('../Celeritas')
-def localCeleritasJar = localCeleritasRoot.toPath().resolve('common/build/libs/common-2.5.12-GTNH.jar').toFile()
+def localDependencies = layout.projectDirectory.dir('dependencies')
+def localCubicChunksRoot = localDependencies.dir('CubicChunks1710')
+def localCubicChunksJar = localCubicChunksRoot.file('build/rwg/cubicchunks-dev.jar').asFile
+def localAngelicaRoot = localDependencies.dir('Angelica')
+def localAngelicaJar = localAngelicaRoot.file('build/rwg/angelica-dev.jar').asFile
+def localCeleritasRoot = localDependencies.dir('Celeritas')
+def localCeleritasJar = localCeleritasRoot.file('common/build/rwg/celeritas-common.jar').asFile
 
 dependencies {
     api(files(localCubicChunksJar))
@@ -32,45 +34,27 @@ dependencies {
 
 tasks.register('buildLocalCubicChunks', Exec) {
     group = 'build setup'
-    description = 'Builds the sibling CubicChunks development jar used by this checkout'
-    workingDir = file('../CubicChunks1710')
+    description = 'Builds the CubicChunks submodule development jar used by this checkout'
+    workingDir = localCubicChunksRoot.asFile
     commandLine './gradlew', 'syncRwgDevJar', '--quiet', '--no-daemon'
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
 }
 
-def cleanLocalAngelicaDevJars = tasks.register('cleanLocalAngelicaDevJars', Delete) {
-    delete fileTree(localAngelicaRoot.toPath().resolve('build/libs')) {
-        include '*-dev.jar'
-    }
-}
-
 tasks.register('buildLocalAngelica', Exec) {
     group = 'build setup'
-    description = 'Builds the sibling Angelica checkout used by the development client'
-    dependsOn cleanLocalAngelicaDevJars, 'buildLocalCeleritas'
-    workingDir = localAngelicaRoot
-    commandLine './gradlew', 'assemble', '--quiet', '--no-daemon', "-PlocalCeleritasJar=${localCeleritasJar.absolutePath}"
+    description = 'Builds the Angelica submodule development jar used by the client'
+    dependsOn 'buildLocalCeleritas'
+    workingDir = localAngelicaRoot.asFile
+    commandLine './gradlew', 'syncRwgDevJar', '--quiet', '--no-daemon', "-PlocalCeleritasJar=${localCeleritasJar.absolutePath}"
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
 }
 
 tasks.register('buildLocalCeleritas', Exec) {
     group = 'build setup'
-    description = 'Builds the sibling Celeritas common jar embedded by the local Angelica checkout'
-    workingDir = localCeleritasRoot
-    commandLine './gradlew', ':common:jar', '--quiet', '--no-daemon'
+    description = 'Builds the Celeritas submodule common jar embedded by Angelica'
+    workingDir = localCeleritasRoot.asFile
+    commandLine './gradlew', ':common:syncRwgCommonJar', '--quiet', '--no-daemon'
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
-}
-
-def syncLocalAngelica = tasks.register('syncLocalAngelica', Copy) {
-    group = 'build setup'
-    description = 'Copies the sibling Angelica development jar into the local runtime classpath'
-    dependsOn tasks.named('buildLocalAngelica')
-    from(fileTree(localAngelicaRoot.toPath().resolve('build/libs')) {
-        include '*-dev.jar'
-        exclude '*-preshadow.jar'
-    })
-    into(localAngelicaJar.map { it.asFile.parentFile })
-    rename { 'angelica-dev.jar' }
 }
 
 tasks.named('compileJava') {
@@ -78,7 +62,7 @@ tasks.named('compileJava') {
 }
 
 tasks.named('runClient') {
-    dependsOn syncLocalAngelica
+    dependsOn tasks.named('buildLocalAngelica')
 }
 
 tasks.register('runPreview', JavaExec) {

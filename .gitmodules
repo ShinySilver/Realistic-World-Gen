@@ -1,0 +1,9 @@
+[submodule "dependencies/CubicChunks1710"]
+	path = dependencies/CubicChunks1710
+	url = https://github.com/ShinySilver/CubicChunks1710.git
+[submodule "dependencies/Angelica"]
+	path = dependencies/Angelica
+	url = https://github.com/ShinySilver/Angelica.git
+[submodule "dependencies/Celeritas"]
+	path = dependencies/Celeritas
+	url = https://github.com/ShinySilver/Celeritas.git

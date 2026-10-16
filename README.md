@@ -2,6 +2,22 @@
 
 http://www.minecraftforum.net/forums/mapping-and-modding/minecraft-mods/1281910-teds-world-gen-mods-realistic-world-gen-alpha-1-3
 
+## Development
+
+This branch pins its CubicChunks, Angelica, and Celeritas forks as Git submodules. Clone it recursively:
+
+```bash
+git clone --recursive https://github.com/ShinySilver/Realistic-World-Gen.git
+cd Realistic-World-Gen
+./gradlew runClient
+```
+
+For an existing checkout, initialize or update the pinned dependencies with:
+
+```bash
+git submodule update --init --recursive
+```
+
 ## CHANGELOG ##
      
         Version Alpha 1.3 '03-01-2015'
