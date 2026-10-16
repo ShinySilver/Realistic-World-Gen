@@ -20,10 +20,25 @@ public final class RiverCarverVerification {
         ConfigRWG.initPreview(new File(System.getProperty("rwg.previewConfig", "run/client/config/RWG.cfg")));
         BiomeRegistry registry = BiomeRegistryBootstrap.create(false);
         ChunkManager manager = new ChunkManager(0L, true, registry);
+        verifySurfaceHeightLayout(manager);
         verifyFinalHeightCarving(manager);
         verifyRaisedRiverContinuesUnderground(manager);
         verifyUndergroundJunction(manager);
         System.out.println("RWG river carver verification passed");
+    }
+
+    private static void verifySurfaceHeightLayout(ChunkManager manager) {
+        WorldGenerator generator = new WorldGenerator(0L, manager.worldgenSelector());
+        WorldGenerator.ChunkTerrain terrain = generator.sampleChunk(7, -11);
+        WorldGenerator.ChunkBlocks generated = generator.fillBaseChunk(terrain);
+        for (int localX = 0; localX < 16; localX++) {
+            for (int localZ = 0; localZ < 16; localZ++) {
+                int sampleIndex = localX * 16 + localZ;
+                require(
+                        generated.surfaceHeights[sampleIndex] == terrain.heights[sampleIndex],
+                        "surface height array transposed X and Z");
+            }
+        }
     }
 
     private static void verifyRaisedRiverContinuesUnderground(ChunkManager manager) {

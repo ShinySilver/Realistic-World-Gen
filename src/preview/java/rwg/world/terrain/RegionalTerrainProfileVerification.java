@@ -18,9 +18,17 @@ public final class RegionalTerrainProfileVerification {
     public static void main(String[] args) {
         require(RegionalTerrainSampler.mountainEnvelope(0f) == 0f, "mountain foot must start flat");
         require(RegionalTerrainSampler.mountainEnvelope(1f) == 1f, "mountain core must retain its full height");
-        float outerRise = RegionalTerrainSampler.mountainEnvelope(.25f);
-        float innerRise = 1f - RegionalTerrainSampler.mountainEnvelope(.75f);
-        require(outerRise < innerRise, "mountain slope must increase toward the core");
+        float shelfStart = 1f - 325f / MorphologyRules.MOUNTAIN_INFLUENCE_RADIUS;
+        float mountainStart = 1f - MorphologyRules.MOUNTAIN_RADIUS / MorphologyRules.MOUNTAIN_INFLUENCE_RADIUS;
+        require(
+                RegionalTerrainSampler.mountainEnvelope(shelfStart)
+                        == RegionalTerrainSampler.mountainEnvelope(mountainStart),
+                "inner hills must form a flat shelf before the mountain rise");
+        float hillRise = RegionalTerrainSampler.mountainEnvelope(shelfStart)
+                - RegionalTerrainSampler.mountainEnvelope(shelfStart - .05f);
+        float mountainRise = RegionalTerrainSampler.mountainEnvelope(1f)
+                - RegionalTerrainSampler.mountainEnvelope(.95f);
+        require(mountainRise > hillRise, "mountain rise must be steeper than the hill rise");
 
         NoiseGenerator noise = NoiseSelector.createNoiseGenerator(0L);
         CellNoise cell = new CellNoise(0L, (short) 0, true);

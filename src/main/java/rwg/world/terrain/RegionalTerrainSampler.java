@@ -9,6 +9,13 @@ import rwg.world.sample.RegionalSample;
 /** Broad category-owned terrain silhouette, independent from biome-specific detail terrain. */
 public final class RegionalTerrainSampler {
 
+    private static final float HILL_SHELF_OUTER_DISTANCE = 325f;
+    private static final float HILL_SHELF_HEIGHT = .5f;
+    private static final float HILL_SHELF_START_STRENGTH = 1f
+            - HILL_SHELF_OUTER_DISTANCE / MorphologyRules.MOUNTAIN_INFLUENCE_RADIUS;
+    private static final float MOUNTAIN_START_STRENGTH = 1f
+            - MorphologyRules.MOUNTAIN_RADIUS / MorphologyRules.MOUNTAIN_INFLUENCE_RADIUS;
+
     private final NoiseGenerator noise;
 
     public RegionalTerrainSampler(NoiseGenerator noise) {
@@ -86,9 +93,15 @@ public final class RegionalTerrainSampler {
         return base;
     }
 
-    /** Low-gradient outer foot that reaches the same ridge height with increasing slope toward the core. */
+    /** Two quadratic rises separated by a half-height shelf immediately outside the mountain category. */
     static float mountainEnvelope(float strength) {
-        return strength * strength;
+        if (strength < HILL_SHELF_START_STRENGTH) {
+            float hill = strength / HILL_SHELF_START_STRENGTH;
+            return HILL_SHELF_HEIGHT * hill * hill;
+        }
+        if (strength <= MOUNTAIN_START_STRENGTH) return HILL_SHELF_HEIGHT;
+        float mountain = (strength - MOUNTAIN_START_STRENGTH) / (1f - MOUNTAIN_START_STRENGTH);
+        return HILL_SHELF_HEIGHT + (1f - HILL_SHELF_HEIGHT) * mountain * mountain;
     }
 
     private float oceanHeight(int x, int z, float continent) {

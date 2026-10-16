@@ -192,7 +192,7 @@ public final class WorldGenerator {
                 int biomeIndex = localZ * CHUNK_SIZE + localX;
                 int column = sampleIndex * 256;
                 int top = (int) terrain.heights[sampleIndex];
-                surfaceHeights[biomeIndex] = terrain.heights[sampleIndex];
+                surfaceHeights[sampleIndex] = terrain.heights[sampleIndex];
                 BiomeRegistration registration = terrain.registrations[sampleIndex];
                 baseBiomes[biomeIndex] = terrain.riverStrengths[sampleIndex] > 0f ? registration.riverBiome
                         : registration.biome;
