@@ -1,10 +1,17 @@
 package rwg.world;
 
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import net.minecraft.world.biome.WorldChunkManager;
 import net.minecraft.world.chunk.IChunkProvider;
 
-public class WorldType extends net.minecraft.world.WorldType {
+import com.cardinalstar.cubicchunks.api.IntRange;
+import com.cardinalstar.cubicchunks.api.world.ICubicWorldType;
+import com.cardinalstar.cubicchunks.api.worldgen.IWorldGenerator;
+
+public class WorldType extends net.minecraft.world.WorldType implements ICubicWorldType {
+
+    private static final IntRange INITIAL_GENERATION_RANGE = new IntRange(-1024, 2048);
 
     private final boolean continents;
     private final boolean grid;
@@ -25,6 +32,21 @@ public class WorldType extends net.minecraft.world.WorldType {
 
     public IChunkProvider getChunkGenerator(World world, String generatorOptions) {
         return new ChunkGenerator(world, world.getSeed(), continents);
+    }
+
+    @Override
+    public IWorldGenerator createCubeGenerator(WorldServer world, IChunkProvider chunkGenerator) {
+        return new CCRealisticWorldGenerator(world);
+    }
+
+    @Override
+    public IntRange getGenerationRange(World world) {
+        return INITIAL_GENERATION_RANGE;
+    }
+
+    @Override
+    public boolean hasCubicGeneratorForWorld(World world) {
+        return true;
     }
 
     public float getCloudHeight() {

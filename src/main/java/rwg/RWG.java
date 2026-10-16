@@ -20,7 +20,7 @@ import rwg.world.debug.GridBiomeReporter;
         modid = "RWG",
         name = "RealisticWorldGen",
         version = Tags.VERSION,
-        dependencies = "required-after:endlessids",
+        dependencies = "required-after:endlessids;required-after:cubicchunks",
         acceptableRemoteVersions = "*")
 public class RWG {
 
