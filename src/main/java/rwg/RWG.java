@@ -47,7 +47,7 @@ public class RWG {
     @EventHandler
     public void serverStarted(FMLServerStartedEvent event) {
         if (!Boolean.getBoolean("rwg.profileWorldgen")) return;
-        WorldgenProfiler.profileAndStop(MinecraftServer.getServer());
+        WorldgenProfiler.profilePacedAndStop(MinecraftServer.getServer());
     }
 
     public static BiomeRegistry biomeRegistry() {

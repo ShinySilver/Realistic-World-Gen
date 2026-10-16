@@ -12,7 +12,7 @@ sourceSets {
 }
 
 def cubicChunksDependencyCoordinate = project.findProperty('cubicChunksDependency')
-    ?: 'com.github.ShinySilver:CubicChunks1710:ce331aa042:dev'
+    ?: 'com.github.ShinySilver:CubicChunks1710:97cb376343:dev'
 
 dependencies {
     api(cubicChunksDependencyCoordinate)

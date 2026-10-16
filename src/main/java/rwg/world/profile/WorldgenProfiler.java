@@ -18,8 +18,13 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChunkCoordinates;
 import net.minecraft.world.WorldServer;
 
-import com.cardinalstar.cubicchunks.api.CCAPI;
+import com.cardinalstar.cubicchunks.server.CubeProviderServer;
+import com.cardinalstar.cubicchunks.server.CubeProviderServer.EagerCubeLoadRequest;
 import com.cardinalstar.cubicchunks.world.api.ICubeProviderServer.Requirement;
+
+import cpw.mods.fml.common.FMLCommonHandler;
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import cpw.mods.fml.common.gameevent.TickEvent;
 
 /** Real-world CubicChunks benchmark with allocation-light wall-clock sampling. */
 public final class WorldgenProfiler {
@@ -28,51 +33,88 @@ public final class WorldgenProfiler {
 
     private WorldgenProfiler() {}
 
-    public static void profileAndStop(MinecraftServer server) {
-        try {
-            WorldServer world = server.worldServerForDimension(0);
-            if (world == null) throw new IllegalStateException("Profiler overworld is unavailable");
-            long expectedSeed = Long.getLong("rwg.profileSeed", 927692613931855800L);
-            if (world.getSeed() != expectedSeed) throw new IllegalStateException(
-                    "Profiler world seed is " + world.getSeed() + ", expected " + expectedSeed);
-            int radius = Integer.getInteger("rwg.profileRadius", 16);
-            int verticalRadius = Integer.getInteger("rwg.profileVerticalRadius", 16);
-            int centerCubeY = Math.floorDiv(world.getSpawnPoint().posY, 16);
-            int minimumCubeY = Integer.getInteger("rwg.profileMinCubeY", centerCubeY - verticalRadius);
-            int maximumCubeY = Integer.getInteger("rwg.profileMaxCubeY", centerCubeY + verticalRadius);
-            profile(world, radius, minimumCubeY, maximumCubeY);
-        } finally {
-            server.initiateShutdown();
-        }
+    public static void profilePacedAndStop(MinecraftServer server) {
+        WorldServer world = server.worldServerForDimension(0);
+        if (world == null) throw new IllegalStateException("Profiler overworld is unavailable");
+        long expectedSeed = Long.getLong("rwg.profileSeed", 927692613931855800L);
+        if (world.getSeed() != expectedSeed)
+            throw new IllegalStateException("Profiler world seed is " + world.getSeed() + ", expected " + expectedSeed);
+
+        int radius = Integer.getInteger("rwg.profileRadius", 16);
+        int verticalRadius = Integer.getInteger("rwg.profileVerticalRadius", 16);
+        int centerCubeY = Math.floorDiv(world.getSpawnPoint().posY, 16);
+        int minimumCubeY = Integer.getInteger("rwg.profileMinCubeY", centerCubeY - verticalRadius);
+        int maximumCubeY = Integer.getInteger("rwg.profileMaxCubeY", centerCubeY + verticalRadius);
+        PacedProfile profile = new PacedProfile(server, world, radius, minimumCubeY, maximumCubeY);
+        profile.start();
     }
 
-    static Result profile(WorldServer world, int radius, int minimumCubeY, int maximumCubeY) {
-        if (radius < 1 || radius > 128) throw new IllegalArgumentException("profile radius must be 1..128");
-        if (minimumCubeY > maximumCubeY) throw new IllegalArgumentException("minimum cube Y exceeds maximum cube Y");
-        StackSampler sampler = new StackSampler();
-        List<Long> cubeNanos = new ArrayList<Long>();
-        ChunkCoordinates spawn = world.getSpawnPoint();
-        int centerCubeX = Math.floorDiv(spawn.posX, 16);
-        int centerCubeZ = Math.floorDiv(spawn.posZ, 16);
-        List<ColumnPosition> columns = spiral(centerCubeX, centerCubeZ, radius);
+    public static final class PacedProfile {
 
-        long started = System.nanoTime();
-        sampler.start();
-        try {
+        private final MinecraftServer server;
+        private final WorldServer world;
+        private final int radius;
+        private final int minimumCubeY;
+        private final int maximumCubeY;
+        private final List<ColumnPosition> columns;
+        private final List<EagerCubeLoadRequest> requests = new ArrayList<EagerCubeLoadRequest>();
+        private final List<Long> completionNanos = new ArrayList<Long>();
+        private final StackSampler sampler = new StackSampler();
+        private long started;
+
+        PacedProfile(MinecraftServer server, WorldServer world, int radius, int minimumCubeY, int maximumCubeY) {
+            if (radius < 1 || radius > 128) throw new IllegalArgumentException("profile radius must be 1..128");
+            if (minimumCubeY > maximumCubeY)
+                throw new IllegalArgumentException("minimum cube Y exceeds maximum cube Y");
+            this.server = server;
+            this.world = world;
+            this.radius = radius;
+            this.minimumCubeY = minimumCubeY;
+            this.maximumCubeY = maximumCubeY;
+            ChunkCoordinates spawn = world.getSpawnPoint();
+            this.columns = spiral(Math.floorDiv(spawn.posX, 16), Math.floorDiv(spawn.posZ, 16), radius);
+        }
+
+        void start() {
+            CubeProviderServer provider = (CubeProviderServer) world.getChunkProvider();
+            started = System.nanoTime();
+            sampler.start();
             for (ColumnPosition column : columns) {
                 for (int cubeY = minimumCubeY; cubeY <= maximumCubeY; cubeY++) {
-                    long cubeStarted = System.nanoTime();
-                    CCAPI.getCube(world, column.x, cubeY, column.z, Requirement.LIGHT);
-                    cubeNanos.add(System.nanoTime() - cubeStarted);
+                    requests.add(provider.loadCubeEagerly(column.x, cubeY, column.z, Requirement.LIGHT));
                 }
             }
-        } finally {
-            sampler.stop();
+            FMLCommonHandler.instance().bus().register(this);
         }
-        long elapsed = System.nanoTime() - started;
-        Result result = write(world, radius, minimumCubeY, maximumCubeY, columns.size(), cubeNanos, elapsed, sampler);
-        System.out.println("RWG worldgen profile written to " + result.html.getAbsolutePath());
-        return result;
+
+        @SubscribeEvent
+        public void onServerTick(TickEvent.ServerTickEvent event) {
+            if (event.phase != TickEvent.Phase.END) return;
+            long now = System.nanoTime();
+            for (int index = requests.size() - 1; index >= 0; index--) {
+                if (requests.get(index).isCompleted()) {
+                    completionNanos.add(now - started);
+                    requests.remove(index);
+                }
+            }
+            if (!requests.isEmpty()) return;
+
+            FMLCommonHandler.instance().bus().unregister(this);
+            sampler.stop();
+            long elapsed = System.nanoTime() - started;
+            Collections.sort(completionNanos);
+            Result result = write(
+                    world,
+                    radius,
+                    minimumCubeY,
+                    maximumCubeY,
+                    columns.size(),
+                    completionNanos,
+                    elapsed,
+                    sampler);
+            System.out.println("RWG paced worldgen profile written to " + result.html.getAbsolutePath());
+            server.initiateShutdown();
+        }
     }
 
     private static Result write(WorldServer world, int radius, int minimumCubeY, int maximumCubeY, int columns,
@@ -131,7 +173,7 @@ public final class WorldgenProfiler {
             writer.write(
                     String.format(
                             Locale.ROOT,
-                            "{\n  \"seed\": %d,\n  \"radius\": %d,\n  \"columns\": %d,\n  \"minCubeY\": %d,\n  \"maxCubeY\": %d,\n  \"cubes\": %d,\n  \"seconds\": %.6f,\n  \"cubesPerSecond\": %.3f,\n  \"latencyMs\": {\"p50\": %.3f, \"p95\": %.3f, \"p99\": %.3f, \"max\": %.3f},\n  \"stackSamples\": %d\n}\n",
+                            "{\n  \"seed\": %d,\n  \"radius\": %d,\n  \"columns\": %d,\n  \"minCubeY\": %d,\n  \"maxCubeY\": %d,\n  \"cubes\": %d,\n  \"seconds\": %.6f,\n  \"cubesPerSecond\": %.3f,\n  \"completionMs\": {\"p50\": %.3f, \"p95\": %.3f, \"p99\": %.3f, \"max\": %.3f},\n  \"stackSamples\": %d\n}\n",
                             world.getSeed(),
                             radius,
                             columns,
@@ -178,7 +220,7 @@ public final class WorldgenProfiler {
             row(writer, "Throughput", format(timings.size() / seconds) + " cubes/s");
             row(
                     writer,
-                    "Cube latency p50 / p95 / p99 / max",
+                    "Completion time p50 / p95 / p99 / max",
                     format(percentile(timings, .50)) + " / "
                             + format(percentile(timings, .95))
                             + " / "
