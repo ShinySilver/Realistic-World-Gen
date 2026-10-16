@@ -19,6 +19,22 @@ def localAngelicaJar = localAngelicaRoot.file('build/rwg/angelica-dev.jar').asFi
 def localCeleritasRoot = localDependencies.dir('Celeritas')
 def localCeleritasJar = localCeleritasRoot.file('common/build/rwg/celeritas-common.jar').asFile
 
+def registerLocalDependencyUpdate = { String taskName, String displayName, Directory dependencyRoot ->
+    tasks.register(taskName, Exec) {
+        group = 'build setup'
+        description = "Fast-forwards the local ${displayName} checkout from its configured fork"
+        workingDir = dependencyRoot.asFile
+        commandLine 'git', 'pull', '--ff-only'
+    }
+}
+
+def updateLocalCubicChunks = registerLocalDependencyUpdate(
+    'updateLocalCubicChunks', 'CubicChunks', localCubicChunksRoot)
+def updateLocalCeleritas = registerLocalDependencyUpdate(
+    'updateLocalCeleritas', 'Celeritas', localCeleritasRoot)
+def updateLocalAngelica = registerLocalDependencyUpdate(
+    'updateLocalAngelica', 'Angelica', localAngelicaRoot)
+
 dependencies {
     api(files(localCubicChunksJar))
     runtimeOnlyNonPublishable(files(localAngelicaJar))
@@ -35,6 +51,7 @@ dependencies {
 tasks.register('buildLocalCubicChunks', Exec) {
     group = 'build setup'
     description = 'Builds the CubicChunks submodule development jar used by this checkout'
+    dependsOn updateLocalCubicChunks
     workingDir = localCubicChunksRoot.asFile
     commandLine './gradlew', 'syncRwgDevJar', '--quiet', '--no-daemon'
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
@@ -43,18 +60,40 @@ tasks.register('buildLocalCubicChunks', Exec) {
 tasks.register('buildLocalAngelica', Exec) {
     group = 'build setup'
     description = 'Builds the Angelica submodule development jar used by the client'
-    dependsOn 'buildLocalCeleritas'
+    dependsOn updateLocalAngelica, 'stageLocalCeleritas'
     workingDir = localAngelicaRoot.asFile
-    commandLine './gradlew', 'syncRwgDevJar', '--quiet', '--no-daemon', "-PlocalCeleritasJar=${localCeleritasJar.absolutePath}"
+    commandLine './gradlew', 'downgradeJar', '--quiet', '--no-daemon', "-PlocalCeleritasJar=${localCeleritasJar.absolutePath}"
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
+}
+
+tasks.register('stageLocalAngelica', Sync) {
+    dependsOn 'buildLocalAngelica'
+    from(localAngelicaRoot.dir('build/libs')) {
+        include '*-dev.jar'
+        rename { 'angelica-dev.jar' }
+    }
+    into localAngelicaRoot.dir('build/rwg')
 }
 
 tasks.register('buildLocalCeleritas', Exec) {
     group = 'build setup'
     description = 'Builds the Celeritas submodule common jar embedded by Angelica'
+    // Nested Gradle builds share GRADLE_USER_HOME. Keep them sequential so two
+    // Gradle versions cannot write the same artifact cache concurrently.
+    dependsOn updateLocalCeleritas, 'buildLocalCubicChunks'
     workingDir = localCeleritasRoot.asFile
-    commandLine './gradlew', ':common:syncRwgCommonJar', '--quiet', '--no-daemon'
+    commandLine './gradlew', ':common:jar', '--quiet', '--no-daemon'
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
+}
+
+tasks.register('stageLocalCeleritas', Sync) {
+    dependsOn 'buildLocalCeleritas'
+    from(localCeleritasRoot.dir('common/build/libs')) {
+        include 'common-*.jar'
+        exclude '*-sources.jar'
+        rename { 'celeritas-common.jar' }
+    }
+    into localCeleritasRoot.dir('common/build/rwg')
 }
 
 tasks.named('compileJava') {
@@ -62,7 +101,7 @@ tasks.named('compileJava') {
 }
 
 tasks.named('runClient') {
-    dependsOn tasks.named('buildLocalAngelica')
+    dependsOn tasks.named('stageLocalAngelica')
 }
 
 tasks.register('runPreview', JavaExec) {
