@@ -14,6 +14,8 @@ sourceSets {
 def localCubicChunksJar = file('../CubicChunks1710/build/rwg/cubicchunks-dev.jar')
 def localAngelicaRoot = file('../Angelica')
 def localAngelicaJar = layout.buildDirectory.file('local-mods/angelica-dev.jar')
+def localCeleritasRoot = file('../Celeritas')
+def localCeleritasJar = localCeleritasRoot.toPath().resolve('common/build/libs/common-2.5.12-GTNH.jar').toFile()
 
 dependencies {
     api(files(localCubicChunksJar))
@@ -45,9 +47,17 @@ def cleanLocalAngelicaDevJars = tasks.register('cleanLocalAngelicaDevJars', Dele
 tasks.register('buildLocalAngelica', Exec) {
     group = 'build setup'
     description = 'Builds the sibling Angelica checkout used by the development client'
-    dependsOn cleanLocalAngelicaDevJars
+    dependsOn cleanLocalAngelicaDevJars, 'buildLocalCeleritas'
     workingDir = localAngelicaRoot
-    commandLine './gradlew', 'assemble', '--quiet', '--no-daemon'
+    commandLine './gradlew', 'assemble', '--quiet', '--no-daemon', "-PlocalCeleritasJar=${localCeleritasJar.absolutePath}"
+    environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
+}
+
+tasks.register('buildLocalCeleritas', Exec) {
+    group = 'build setup'
+    description = 'Builds the sibling Celeritas common jar embedded by the local Angelica checkout'
+    workingDir = localCeleritasRoot
+    commandLine './gradlew', ':common:jar', '--quiet', '--no-daemon'
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
 }
 
