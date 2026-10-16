@@ -10,7 +10,6 @@ import com.cardinalstar.cubicchunks.world.cube.Cube;
 import com.cardinalstar.cubicchunks.world.cube.blockview.UniformBlockView;
 import com.gtnewhorizon.gtnhlib.util.data.BlockMeta;
 
-import rwg.ConfigRWG;
 import rwg.biomes.surface.SurfaceMaterial;
 import rwg.biomes.surface.SurfaceRule;
 import rwg.util.NoiseGenerator;
@@ -25,12 +24,10 @@ final class CubeTerrainPipeline {
     private static final SurfaceMaterial GRASS_SURFACE = new SurfaceMaterial(Blocks.grass);
     private static final SurfaceMaterial DIRT_SURFACE = new SurfaceMaterial(Blocks.dirt);
 
-    private final World world;
     private final DependencyGraph<TerrainStage> stages = new DependencyGraph<TerrainStage>();
 
     CubeTerrainPipeline(World world) {
         if (world == null) throw new NullPointerException("world");
-        this.world = world;
         stages.addTarget("rwg:base-complete");
         stages.addTarget("rwg:geology-complete", "requires:rwg:base-complete");
         stages.addTarget("rwg:carvers-complete", "requires:rwg:geology-complete");
@@ -46,9 +43,9 @@ final class CubeTerrainPipeline {
                 new UndergroundRiverStage(),
                 "requires:rwg:geology-complete",
                 "required-by:rwg:carvers-complete");
-        if (ConfigRWG.generateCaves) stages.addObject(
+        stages.addObject(
                 "rwg:caves",
-                new CaveStage(),
+                new NativeCaveStage(),
                 "requires:rwg:geology-complete",
                 "required-by:rwg:carvers-complete");
         stages.addObject(
@@ -88,9 +85,7 @@ final class CubeTerrainPipeline {
     }
 
     private static boolean carversMayIntersect(ColumnPlan plan, int cubeY) {
-        return ConfigRWG.generateCaves && RWGCubicCaveGenerator.mayIntersect(cubeY)
-                || UndergroundRiverCarver.mayIntersect(plan, cubeY)
-                || GeologyStage.mayIntersect(cubeY);
+        return UndergroundRiverCarver.mayIntersect(plan, cubeY) || GeologyStage.mayIntersect(cubeY);
     }
 
     static Block baseBlock(int surfaceY, int blockY) {
@@ -178,20 +173,18 @@ final class CubeTerrainPipeline {
         }
     }
 
-    private final class CaveStage implements TerrainStage {
-
-        private final ThreadLocal<RWGCubicCaveGenerator> generators = new ThreadLocal<RWGCubicCaveGenerator>() {
-
-            @Override
-            protected RWGCubicCaveGenerator initialValue() {
-                return new RWGCubicCaveGenerator();
-            }
-        };
+    /**
+     * Stable dependency slot for native caves.
+     *
+     * <p>
+     * Intentionally empty until caves are planned as immutable, bounded features and clipped into intersecting cubes.
+     * Do not restore a per-cube neighborhood scan here: it repeats seed discovery for every requested cube and makes
+     * population's affected-terrain preparation pay the same cost again.
+     */
+    private static final class NativeCaveStage implements TerrainStage {
 
         @Override
-        public void generate(CubeGenerationContext context) {
-            if (RWGCubicCaveGenerator.mayIntersect(context.cubeY)) generators.get().generate(world, context.cube);
-        }
+        public void generate(CubeGenerationContext context) {}
     }
 
     private static final class SimpleSurfaceStage implements TerrainStage {

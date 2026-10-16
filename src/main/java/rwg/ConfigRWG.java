@@ -23,7 +23,6 @@ public class ConfigRWG {
 
     public static boolean generateEmeralds = true;
     public static boolean enableCobblestoneBoulders = true;
-    public static boolean generateCaves = true;
     public static boolean generateMineshafts = true;
     public static boolean generateVillages = true;
     public static boolean generateUndergroundLakes = true;
@@ -98,7 +97,6 @@ public class ConfigRWG {
 
             generateEmeralds = config.getBoolean("Generate Emeralds", "Settings", true, "");
             enableCobblestoneBoulders = config.getBoolean("Enable Cobblestone Boulders", "Settings", true, "");
-            generateCaves = config.getBoolean("Generate Caves", "Settings", true, "");
             generateMineshafts = config.getBoolean("Generate Mineshafts", "Settings", true, "");
             generateVillages = config.getBoolean("Generate Villages", "Settings", true, "");
             generateUndergroundLakes = config.getBoolean("Generate Underground Lakes", "Settings", true, "");
