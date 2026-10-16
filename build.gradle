@@ -223,7 +223,14 @@ tasks.register('debug_profileWorldgen', Exec) {
     description = 'Profiles a fresh 32x32 RWG2 CubicChunks region and writes HTML, JSON, and folded stacks'
     dependsOn tasks.named('prepareWorldgenProfile')
     workingDir = project.projectDir
-    commandLine './gradlew', 'runServer', '-PrwgWorldgenProfileRun', '--no-daemon'
+    commandLine(
+        './gradlew',
+        'runServer',
+        '-PrwgWorldgenProfileRun',
+        "-PrwgProfileRadius=${project.findProperty('rwgProfileRadius') ?: '16'}",
+        "-PrwgProfileMinCubeY=${project.findProperty('rwgProfileMinCubeY') ?: '-16'}",
+        "-PrwgProfileMaxCubeY=${project.findProperty('rwgProfileMaxCubeY') ?: '31'}",
+        '--no-daemon')
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
     doLast {
         println "RWG worldgen profiles: ${worldgenProfileOutput.get().asFile}"
