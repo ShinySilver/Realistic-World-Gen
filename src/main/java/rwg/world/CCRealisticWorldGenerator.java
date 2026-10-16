@@ -16,7 +16,13 @@ import com.cardinalstar.cubicchunks.api.worldgen.IWorldGenerator;
 import com.cardinalstar.cubicchunks.world.core.IColumnInternal;
 import com.cardinalstar.cubicchunks.world.cube.Cube;
 
-/** CubicChunks world-generator entry point. Terrain stages are added in subsequent milestones. */
+/**
+ * CubicChunks world-generator entry point.
+ *
+ * <p>The lifecycle, concurrency invariants, stage order, and migration milestones are specified in
+ * {@code CUBIC_WORLDGEN.md}. Keep this adapter thin: pure planning and bounded in-progress caches belong
+ * behind dedicated abstractions, while cube mutation and world-mutating population remain separate ordered stages.
+ */
 public final class CCRealisticWorldGenerator implements IWorldGenerator {
 
     private final World world;
@@ -30,6 +36,7 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator {
     public GenerationResult<Chunk> provideColumn(World requestedWorld, int columnX, int columnZ) {
         if (requestedWorld != world) throw new IllegalArgumentException("column requested for a different world");
 
+        // Milestone 2 replaces this direct biome query with the shared immutable ColumnPlan. Never generate cubes here.
         Chunk column = new Chunk(world, columnX, columnZ);
         BiomeGenBase[] biomes = world.getWorldChunkManager()
                 .loadBlockGeneratorData(null, columnX * 16, columnZ * 16, 16, 16);
@@ -40,6 +47,8 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator {
 
     @Override
     public GenerationResult<Cube> provideCube(@Nullable Chunk column, int cubeX, int cubeY, int cubeZ) {
+        // Generate only this cube. The future terrain path must share one in-progress plan per X/Z column and retain
+        // empty/solid fast paths instead of materializing a full vertical column as side effects.
         if (column == null) {
             column = provideColumn(world, cubeX, cubeZ).object;
             Cube cube = new Cube(column, cubeY);
@@ -52,6 +61,8 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator {
 
     @Override
     public void populate(Cube cube) {
+        // Population will join an immutable prepopulation plan and run the documented dependency graph. Planning may
+        // run off-thread; block placement must remain here and must not trigger cascading generation.
         cube.markPopulated(Cube.POP_ALL);
     }
 
