@@ -69,11 +69,16 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
         if (column == null) {
             column = createColumn(cubeX, cubeZ, plan);
             Cube cube = terrain.generate(column, cubeY, plan);
-            return new GenerationResult<Cube>(cube, java.util.Collections.singletonList(column), null);
+            return new GenerationResult<Cube>(
+                    cube,
+                    java.util.Collections.singletonList(column),
+                    null,
+                    opacityColumns(cube, plan));
         }
         if (column.xPosition != cubeX || column.zPosition != cubeZ)
             throw new IllegalArgumentException("cube coordinates do not match the supplied column");
-        return new GenerationResult<Cube>(terrain.generate(column, cubeY, plan));
+        Cube cube = terrain.generate(column, cubeY, plan);
+        return new GenerationResult<Cube>(cube, opacityColumns(cube, plan));
     }
 
     @Override
@@ -122,5 +127,25 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
         ChunkBiomeArrayCompat.setBiomes(column, plan.copyBiomes());
         ((IColumnInternal) column).setColumn(true);
         return column;
+    }
+
+    private static short[] opacityColumns(Cube cube, ColumnPlan plan) {
+        short[] columns = new short[Cube.SIZE * Cube.SIZE];
+        CubeTerrainPipeline.GenerationKind kind = CubeTerrainPipeline.classify(plan, cube.getY());
+        if (kind == CubeTerrainPipeline.GenerationKind.EMPTY) return columns;
+        if (kind == CubeTerrainPipeline.GenerationKind.SOLID || kind == CubeTerrainPipeline.GenerationKind.WATER) {
+            java.util.Arrays.fill(columns, (short) 0xffff);
+            return columns;
+        }
+        for (int localX = 0; localX < Cube.SIZE; localX++) {
+            for (int localZ = 0; localZ < Cube.SIZE; localZ++) {
+                int mask = 0;
+                for (int localY = 0; localY < Cube.SIZE; localY++) {
+                    if (cube.getBlock(localX, localY, localZ).getLightOpacity() > 0) mask |= 1 << localY;
+                }
+                columns[localZ * Cube.SIZE + localX] = (short) mask;
+            }
+        }
+        return columns;
     }
 }

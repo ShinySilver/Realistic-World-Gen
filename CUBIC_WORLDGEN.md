@@ -18,9 +18,18 @@ traversal order, and speculative cache misses must not change output. Never retu
 `GenerationResult` side effects. `provideColumn` and `provideCube` remain synchronous consumers: they join the same
 in-progress computation when background precalculation has not finished.
 
+RWG pins the CubicChunks fork at `ShinySilver/CubicChunks1710` commit `ce331aa042` through JitPack. For local fork
+development, publish CC with `../CubicChunks1710/gradlew publishToMavenLocal` and override the complete coordinate with
+`-PcubicChunksDependency=com.cardinalstar.cubicchunks:CubicChunks1710:<local-version>:dev`. The profiler forwards this
+override to its nested server build.
+
 `provideCube` first chooses an empty, solid, surface, or carver-intersecting path. Empty and solid cubes avoid detailed
 block work. Random streams are derived independently from the world seed, stable stage ID, and coordinates; stages do
 not share mutable `Random` instances.
+
+Every generated cube optionally supplies 256 local-Y opacity masks through the fork's `GenerationResult`. CC merges
+their opaque runs into the column segment index and marks the cube tracked before population. Later decorator changes
+therefore use CC's normal incremental height updates, while generators without masks retain the original full-cube scan.
 
 ## Stage order
 

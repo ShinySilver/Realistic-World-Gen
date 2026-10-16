@@ -11,8 +11,11 @@ sourceSets {
     }
 }
 
+def cubicChunksDependencyCoordinate = project.findProperty('cubicChunksDependency')
+    ?: 'com.github.ShinySilver:CubicChunks1710:ce331aa042:dev'
+
 dependencies {
-    api('com.cardinalstar.cubicchunks:CubicChunks1710:v0.1.24-alpha:dev')
+    api(cubicChunksDependencyCoordinate)
     api('com.falsepattern:endlessids-mc1.7.10:1.7.4:dev')
     api('ganymedes01.etfuturum:Et-Futurum-Requiem:2.6.58-GTNH:dev')
     api('com.github.GTNewHorizons:LootGames:2.2.14:dev')
@@ -232,6 +235,7 @@ tasks.register('debug_profileWorldgen', Exec) {
         './gradlew',
         'runServer',
         '-PrwgWorldgenProfileRun',
+        "-PcubicChunksDependency=${cubicChunksDependencyCoordinate}",
         "-PrwgProfileRadius=${project.findProperty('rwgProfileRadius') ?: '16'}",
         "-PrwgProfileVerticalRadius=${project.findProperty('rwgProfileVerticalRadius') ?: '16'}",
         '--no-daemon')
