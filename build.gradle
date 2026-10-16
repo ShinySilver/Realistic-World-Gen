@@ -212,15 +212,20 @@ if (project.hasProperty('rwgWorldgenProfileRun')) {
             '-Drwg.profileWorldgen=true',
             '-Drwg.profileSeed=927692613931855800',
             "-Drwg.profileRadius=${project.findProperty('rwgProfileRadius') ?: '16'}",
-            "-Drwg.profileMinCubeY=${project.findProperty('rwgProfileMinCubeY') ?: '-16'}",
-            "-Drwg.profileMaxCubeY=${project.findProperty('rwgProfileMaxCubeY') ?: '31'}",
+            "-Drwg.profileVerticalRadius=${project.findProperty('rwgProfileVerticalRadius') ?: '16'}",
             "-Drwg.profileDir=${worldgenProfileOutput.get().asFile.absolutePath}")
+        if (project.hasProperty('rwgProfileMinCubeY')) {
+            jvmArgs "-Drwg.profileMinCubeY=${project.property('rwgProfileMinCubeY')}"
+        }
+        if (project.hasProperty('rwgProfileMaxCubeY')) {
+            jvmArgs "-Drwg.profileMaxCubeY=${project.property('rwgProfileMaxCubeY')}"
+        }
     }
 }
 
 tasks.register('debug_profileWorldgen', Exec) {
     group = 'verification'
-    description = 'Profiles a fresh 32x32 RWG2 CubicChunks region and writes HTML, JSON, and folded stacks'
+    description = 'Profiles a fresh client-sized RWG2 CubicChunks view and writes HTML, JSON, and folded stacks'
     dependsOn tasks.named('prepareWorldgenProfile')
     workingDir = project.projectDir
     commandLine(
@@ -228,8 +233,7 @@ tasks.register('debug_profileWorldgen', Exec) {
         'runServer',
         '-PrwgWorldgenProfileRun',
         "-PrwgProfileRadius=${project.findProperty('rwgProfileRadius') ?: '16'}",
-        "-PrwgProfileMinCubeY=${project.findProperty('rwgProfileMinCubeY') ?: '-16'}",
-        "-PrwgProfileMaxCubeY=${project.findProperty('rwgProfileMaxCubeY') ?: '31'}",
+        "-PrwgProfileVerticalRadius=${project.findProperty('rwgProfileVerticalRadius') ?: '16'}",
         '--no-daemon')
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
     doLast {

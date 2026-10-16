@@ -7,9 +7,9 @@ Run the complete profiler without opening Minecraft or preparing a save:
 ```
 
 The task creates and later replaces an isolated server under `build/worldgen-profiler`. It uses RWG2, the preview seed
-`927692613931855800`, disables CubicChunks' automatic spawn preparation, and explicitly populates a 32x32-column spiral
-around spawn from cube Y=-16 through Y=31 (block Y=-256 through Y=511). Startup, mod loading, saving, and shutdown are
-outside the measured interval.
+`927692613931855800`, disables CubicChunks' automatic spawn preparation, and brings the same 33x33x33 cube volume as a
+client with horizontal and vertical view distances of 16 to CubicChunks' `LIGHT` requirement. The volume is centered on
+the spawn cube. Startup, mod loading, saving, and shutdown are outside the measured interval.
 
 Every run writes three timestamped files under `build/profiles`:
 
@@ -24,12 +24,14 @@ planning as well as the server's cube generation and population work without add
 For a quick smoke profile or a focused vertical band, pass Gradle properties:
 
 ```text
-./gradlew debug_profileWorldgen -PrwgProfileRadius=2 -PrwgProfileMinCubeY=-4 -PrwgProfileMaxCubeY=12
+./gradlew debug_profileWorldgen -PrwgProfileRadius=2 -PrwgProfileVerticalRadius=4
 ```
 
-`rwgProfileRadius=16` means 32x32 columns. The profiler always removes its isolated world before a run, so cached disk
-data cannot make later profiles look artificially faster. Do not compare the first run after dependency or JVM changes
-with a warmed run without accounting for JVM compilation; use the JSON output and repeat representative runs.
+`rwgProfileRadius=16` means 33x33 columns and `rwgProfileVerticalRadius=16` means 33 cubes vertically. Explicit
+`rwgProfileMinCubeY` and `rwgProfileMaxCubeY` values override the centered vertical extent for focused runs. The
+profiler always removes its isolated world before a run, so cached disk data cannot make later profiles look
+artificially faster. Do not compare the first run after dependency or JVM changes with a warmed run without accounting
+for JVM compilation; use the JSON output and repeat representative runs.
 
 For correctness checks without launching a server, use:
 

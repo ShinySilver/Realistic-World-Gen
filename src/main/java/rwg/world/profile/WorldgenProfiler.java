@@ -36,8 +36,10 @@ public final class WorldgenProfiler {
             if (world.getSeed() != expectedSeed) throw new IllegalStateException(
                     "Profiler world seed is " + world.getSeed() + ", expected " + expectedSeed);
             int radius = Integer.getInteger("rwg.profileRadius", 16);
-            int minimumCubeY = Integer.getInteger("rwg.profileMinCubeY", -16);
-            int maximumCubeY = Integer.getInteger("rwg.profileMaxCubeY", 31);
+            int verticalRadius = Integer.getInteger("rwg.profileVerticalRadius", 16);
+            int centerCubeY = Math.floorDiv(world.getSpawnPoint().posY, 16);
+            int minimumCubeY = Integer.getInteger("rwg.profileMinCubeY", centerCubeY - verticalRadius);
+            int maximumCubeY = Integer.getInteger("rwg.profileMaxCubeY", centerCubeY + verticalRadius);
             profile(world, radius, minimumCubeY, maximumCubeY);
         } finally {
             server.initiateShutdown();
@@ -60,7 +62,7 @@ public final class WorldgenProfiler {
             for (ColumnPosition column : columns) {
                 for (int cubeY = minimumCubeY; cubeY <= maximumCubeY; cubeY++) {
                     long cubeStarted = System.nanoTime();
-                    CCAPI.getCube(world, column.x, cubeY, column.z, Requirement.POPULATE);
+                    CCAPI.getCube(world, column.x, cubeY, column.z, Requirement.LIGHT);
                     cubeNanos.add(System.nanoTime() - cubeStarted);
                 }
             }
@@ -160,7 +162,7 @@ public final class WorldgenProfiler {
                     "<style>body{font:14px system-ui;margin:2rem;max-width:1200px}table{border-collapse:collapse;width:100%}td,th{padding:.35rem;border-bottom:1px solid #ddd;text-align:left}code{font-size:12px} .n{font-variant-numeric:tabular-nums}</style>");
             writer.write("<h1>RWG CubicChunks worldgen profile</h1><table>");
             row(writer, "Seed", Long.toString(world.getSeed()));
-            row(writer, "Area", (radius * 2) + "×" + (radius * 2) + " columns (" + columns + ")");
+            row(writer, "Area", (radius * 2 + 1) + "×" + (radius * 2 + 1) + " columns (" + columns + ")");
             row(
                     writer,
                     "Vertical range",
@@ -223,8 +225,9 @@ public final class WorldgenProfiler {
     }
 
     private static List<ColumnPosition> spiral(int centerX, int centerZ, int radius) {
-        List<ColumnPosition> result = new ArrayList<ColumnPosition>(radius * radius * 4);
-        for (int ring = 0; ring < radius; ring++) {
+        int diameter = radius * 2 + 1;
+        List<ColumnPosition> result = new ArrayList<ColumnPosition>(diameter * diameter);
+        for (int ring = 0; ring <= radius; ring++) {
             for (int x = -ring; x <= ring; x++) {
                 addIfInside(result, centerX, centerZ, x, -ring, radius);
                 if (ring != 0) addIfInside(result, centerX, centerZ, x, ring, radius);
@@ -234,14 +237,11 @@ public final class WorldgenProfiler {
                 if (ring != 0) addIfInside(result, centerX, centerZ, ring, z, radius);
             }
         }
-        // Include the negative outer edges so radius 16 means exactly 32x32 columns.
-        for (int x = -radius; x < radius; x++) addIfInside(result, centerX, centerZ, x, -radius, radius);
-        for (int z = -radius + 1; z < radius; z++) addIfInside(result, centerX, centerZ, -radius, z, radius);
         return result;
     }
 
     private static void addIfInside(List<ColumnPosition> result, int centerX, int centerZ, int dx, int dz, int radius) {
-        if (dx >= -radius && dx < radius && dz >= -radius && dz < radius)
+        if (dx >= -radius && dx <= radius && dz >= -radius && dz <= radius)
             result.add(new ColumnPosition(centerX + dx, centerZ + dz));
     }
 
