@@ -20,6 +20,9 @@ import net.minecraft.world.WorldServer;
 
 import com.cardinalstar.cubicchunks.server.CubeProviderServer;
 import com.cardinalstar.cubicchunks.server.CubeProviderServer.EagerCubeLoadRequest;
+import com.cardinalstar.cubicchunks.server.CubicPlayerManager;
+import com.cardinalstar.cubicchunks.server.CubicPlayerManager.HeadlessViewStats;
+import com.cardinalstar.cubicchunks.util.CubePos;
 import com.cardinalstar.cubicchunks.world.api.ICubeProviderServer.Requirement;
 
 import cpw.mods.fml.common.FMLCommonHandler;
@@ -60,6 +63,8 @@ public final class WorldgenProfiler {
         private final List<EagerCubeLoadRequest> requests = new ArrayList<EagerCubeLoadRequest>();
         private final List<Long> completionNanos = new ArrayList<Long>();
         private final StackSampler sampler = new StackSampler();
+        private final boolean playerView = Boolean.getBoolean("rwg.profilePlayerView");
+        private CubicPlayerManager playerManager;
         private long started;
 
         PacedProfile(MinecraftServer server, WorldServer world, int radius, int minimumCubeY, int maximumCubeY) {
@@ -79,9 +84,19 @@ public final class WorldgenProfiler {
             CubeProviderServer provider = (CubeProviderServer) world.getChunkProvider();
             started = System.nanoTime();
             sampler.start();
-            for (ColumnPosition column : columns) {
-                for (int cubeY = minimumCubeY; cubeY <= maximumCubeY; cubeY++) {
-                    requests.add(provider.loadCubeEagerly(column.x, cubeY, column.z, Requirement.LIGHT));
+            if (playerView) {
+                ChunkCoordinates spawn = world.getSpawnPoint();
+                int centerY = Math.floorDiv(spawn.posY, 16);
+                playerManager = (CubicPlayerManager) world.getPlayerManager();
+                playerManager.startHeadlessView(
+                        new CubePos(Math.floorDiv(spawn.posX, 16), centerY, Math.floorDiv(spawn.posZ, 16)),
+                        radius,
+                        Math.max(centerY - minimumCubeY, maximumCubeY - centerY));
+            } else {
+                for (ColumnPosition column : columns) {
+                    for (int cubeY = minimumCubeY; cubeY <= maximumCubeY; cubeY++) {
+                        requests.add(provider.loadCubeEagerly(column.x, cubeY, column.z, Requirement.LIGHT));
+                    }
                 }
             }
             FMLCommonHandler.instance().bus().register(this);
@@ -91,6 +106,11 @@ public final class WorldgenProfiler {
         public void onServerTick(TickEvent.ServerTickEvent event) {
             if (event.phase != TickEvent.Phase.END) return;
             long now = System.nanoTime();
+            if (playerView) {
+                if (!playerManager.isHeadlessViewSettled()) return;
+                finishPlayerView(now);
+                return;
+            }
             for (int index = requests.size() - 1; index >= 0; index--) {
                 if (requests.get(index).isCompleted()) {
                     completionNanos.add(now - started);
@@ -115,6 +135,71 @@ public final class WorldgenProfiler {
             System.out.println("RWG paced worldgen profile written to " + result.html.getAbsolutePath());
             server.initiateShutdown();
         }
+
+        private void finishPlayerView(long now) {
+            FMLCommonHandler.instance().bus().unregister(this);
+            sampler.stop();
+            HeadlessViewStats stats = playerManager.getHeadlessViewStats();
+            Result result = writePlayerView(world, radius, minimumCubeY, maximumCubeY, now - started, sampler, stats);
+            System.out.println("RWG player-view profile written to " + result.html.getAbsolutePath());
+            server.initiateShutdown();
+        }
+    }
+
+    private static Result writePlayerView(WorldServer world, int radius, int minimumCubeY, int maximumCubeY,
+            long elapsed, StackSampler sampler, HeadlessViewStats stats) {
+        File directory = new File(System.getProperty("rwg.profileDir", "build/profiles"));
+        if (!directory.isDirectory() && !directory.mkdirs())
+            throw new IllegalStateException("Could not create profile directory " + directory.getAbsolutePath());
+        String timestamp = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(new Date());
+        String stem = "rwg-player-view-" + timestamp;
+        File folded = new File(directory, stem + ".folded");
+        File json = new File(directory, stem + ".json");
+        File html = new File(directory, stem + ".html");
+        double seconds = elapsed / 1.0E9D;
+        try {
+            writeFolded(folded, sampler.samples);
+            BufferedWriter writer = new BufferedWriter(new FileWriter(json));
+            try {
+                writer.write(
+                        String.format(
+                                Locale.ROOT,
+                                "{\n  \"mode\": \"headless-player-view\",\n  \"seed\": %d,\n  \"radius\": %d,\n  \"minCubeY\": %d,\n  \"maxCubeY\": %d,\n  \"seconds\": %.6f,\n  \"visible\": %d,\n  \"virtualAir\": %d,\n  \"sealed\": %d,\n  \"generate\": %d,\n  \"lit\": %d,\n  \"litBelowSeaMinus32\": %d,\n  \"deepTransmissible\": %d,\n  \"deepFullySealed\": %d,\n  \"lowestLitCubeY\": %d,\n  \"transmissible\": %d,\n  \"pending\": %d,\n  \"reachableNotLit\": %d,\n  \"unresolved\": \"%s\",\n  \"stackSamples\": %d\n}\n",
+                                world.getSeed(),
+                                radius,
+                                minimumCubeY,
+                                maximumCubeY,
+                                seconds,
+                                stats.visible,
+                                stats.virtualAir,
+                                stats.sealed,
+                                stats.generate,
+                                stats.lit,
+                                stats.litBelowSeaMinus32,
+                                stats.deepTransmissible,
+                                stats.deepFullySealed,
+                                stats.lowestLitCubeY,
+                                stats.transmissible,
+                                stats.pending,
+                                stats.reachableNotLit,
+                                stats.unresolved,
+                                sampler.count));
+            } finally {
+                writer.close();
+            }
+            BufferedWriter htmlWriter = new BufferedWriter(new FileWriter(html));
+            try {
+                htmlWriter.write("<!doctype html><meta charset=\"utf-8\"><title>RWG player-view profile</title>");
+                htmlWriter.write("<h1>RWG headless player-view profile</h1><pre>");
+                htmlWriter.write("See " + escape(json.getName()) + " and " + escape(folded.getName()));
+                htmlWriter.write("</pre>");
+            } finally {
+                htmlWriter.close();
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not write RWG player-view profile", exception);
+        }
+        return new Result(html, json, folded);
     }
 
     private static Result write(WorldServer world, int radius, int minimumCubeY, int maximumCubeY, int columns,

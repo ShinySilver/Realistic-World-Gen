@@ -244,6 +244,9 @@ if (project.hasProperty('rwgWorldgenProfileRun')) {
         if (project.hasProperty('rwgProfileMaxCubeY')) {
             jvmArgs "-Drwg.profileMaxCubeY=${project.property('rwgProfileMaxCubeY')}"
         }
+        if (project.hasProperty('rwgPlayerViewProfile')) {
+            jvmArgs '-Drwg.profilePlayerView=true'
+        }
     }
 }
 
@@ -278,6 +281,42 @@ tasks.register('debug_profileWorldgen', Exec) {
             ?.findAll { it.name.endsWith('.json') }
             ?.max { it.lastModified() }
         println "RWG worldgen profile: ${newest ?: worldgenProfileOutput.get().asFile}"
+        println "Full server log: ${profileLog}"
+    }
+}
+
+tasks.register('debug_profilePlayerWorldgen', Exec) {
+    group = 'verification'
+    description = 'Profiles the exact CC player-view loading and culling path without a network client'
+    dependsOn tasks.named('prepareWorldgenProfile')
+    workingDir = project.projectDir
+    commandLine(
+        './gradlew',
+        'runServer',
+        '-PrwgWorldgenProfileRun',
+        '-PrwgPlayerViewProfile',
+        "-PrwgProfileRadius=${project.findProperty('rwgProfileRadius') ?: '16'}",
+        "-PrwgProfileVerticalRadius=${project.findProperty('rwgProfileVerticalRadius') ?: '16'}",
+        '--no-daemon')
+    environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
+    File profileLog = worldgenProfileRoot.get().file('player-profile.log').asFile
+    ignoreExitValue = true
+    doFirst {
+        profileLog.parentFile.mkdirs()
+        ext.profileLogStream = new FileOutputStream(profileLog)
+        standardOutput = ext.profileLogStream
+        errorOutput = ext.profileLogStream
+    }
+    doLast {
+        ext.profileLogStream.close()
+        if (executionResult.get().exitValue != 0) {
+            println profileLog.readLines().takeRight(80).join(System.lineSeparator())
+            throw new GradleException("RWG player-view profile failed; full log: ${profileLog}")
+        }
+        File newest = worldgenProfileOutput.get().asFile.listFiles()
+            ?.findAll { it.name.startsWith('rwg-player-view-') && it.name.endsWith('.json') }
+            ?.max { it.lastModified() }
+        println "RWG player-view profile: ${newest ?: worldgenProfileOutput.get().asFile}"
         println "Full server log: ${profileLog}"
     }
 }
