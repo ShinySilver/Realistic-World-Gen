@@ -33,6 +33,34 @@ Structure plans may be computed early, but structure blocks are placed late so o
 them. Stable dependency-graph targets should mark completed carvers, terrain, structures, and population. Compatibility
 with fixed-height third-party generators remains disabled until the native cubic pipeline is correct.
 
+## Cube-generation invariants
+
+Step 4 should add one small `CubeGenerationContext` containing the cube position, absolute Y bounds, immutable
+`ColumnPlan`, and target `Cube`. Every terrain stage receives that context; stages must not fetch the plan again, invent
+their own coordinate convention, or query world blocks.
+
+Build one RWG-owned `StandardWorldDecorator` completely before generation starts; do not use CubicChunks' global
+`BuiltinWorldDecorators.CUBIC_VANILLA`. Establish stable targets for base-complete, carvers-complete, and
+terrain-complete. The graph orders cube mutation; parallel work remains in immutable planning.
+
+Classify each requested cube before allocating storage:
+
+- cubes wholly above both the highest surface and sea level remain storage-free air cubes;
+- deep cubes may use `UniformBlockView` only when no registered later stage can intersect them;
+- mixed cubes allocate once and use local 0..15 coordinates, with absolute Y for every height decision;
+- bedrock is relative to the configured minimum generation Y, never hard-coded to Y=0;
+- sea level is one named setting, never repeated as `62` or `63` literals.
+
+The solid fast path must accept later stage-intersection tests, so adding caves cannot silently leave a uniform cube
+uncarved. `provideCube` obtains its plan exactly once and emits no neighboring cube side effects. When its column is
+null, that column is the sole allowed side effect. Stage RNGs derive from world seed, stable stage ID, and cube
+coordinates, never execution order or shared mutable state.
+
+Step 4 tests should cover a storage-free air cube, a uniform deep cube, a mixed surface cube, sea-level water, negative
+cube Y, bedrock at the configured lower bound, heights above Y=255, request-order determinism, and one plan reused by
+several vertical cubes. Keep the implementation to one context, one ordered graph, and the existing cache until
+profiling demonstrates that another abstraction is needed.
+
 ## Migration
 
 1. Empty CubicChunks world adapter.

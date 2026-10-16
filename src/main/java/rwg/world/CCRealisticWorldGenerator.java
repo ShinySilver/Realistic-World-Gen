@@ -55,18 +55,21 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
 
     @Override
     public GenerationResult<Cube> provideCube(@Nullable Chunk column, int cubeX, int cubeY, int cubeZ) {
-        // Join the same X/Z-only plan used by provideColumn. Milestone 4 will consume it in ordered cube stages.
-        columnPlans.get(cubeX, cubeZ);
-        // Generate only this cube. The future terrain path must share one in-progress plan per X/Z column and retain
-        // empty/solid fast paths instead of materializing a full vertical column as side effects.
+        // Fetch exactly once. Step 4 passes this object through one small context and one RWG-owned ordered graph;
+        // stages must not fetch it again or read blocks through World.
+        ColumnPlan plan = columnPlans.get(cubeX, cubeZ);
         if (column == null) {
             column = provideColumn(world, cubeX, cubeZ).object;
             Cube cube = new Cube(column, cubeY);
+            // TODO Step 4: classify before allocating storage, then run the same pipeline used below. Empty cubes keep
+            // null storage; solid fast paths must remain overridable by later stage-intersection tests.
             return new GenerationResult<Cube>(cube, java.util.Collections.singletonList(column), null);
         }
         if (column.xPosition != cubeX || column.zPosition != cubeZ)
             throw new IllegalArgumentException("cube coordinates do not match the supplied column");
-        return new GenerationResult<Cube>(new Cube(column, cubeY));
+        Cube cube = new Cube(column, cubeY);
+        // TODO Step 4: consume plan here through the shared pipeline; do not duplicate the null-column branch.
+        return new GenerationResult<Cube>(cube);
     }
 
     @Override
