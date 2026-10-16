@@ -131,6 +131,8 @@ final class CubeTerrainPipeline {
 
         private static final int MINIMUM_Y = -64;
         private static final int MAXIMUM_Y = 48;
+        private static final int BROAD_SAMPLE_STEP = 4;
+        private static final int BROAD_SAMPLE_SIZE = Cube.SIZE / BROAD_SAMPLE_STEP + 1;
         private final NoiseGenerator noise;
 
         GeologyStage(long seed) {
@@ -146,22 +148,77 @@ final class CubeTerrainPipeline {
         @Override
         public void generate(CubeGenerationContext context) {
             if (!mayIntersect(context.cubeY)) return;
+            int firstLocalY = Math.max(0, MINIMUM_Y - context.minimumBlockY);
+            int maximumGeologyY = Math.min(MAXIMUM_Y, context.column.maximumSurfaceY() - 8);
+            if (firstLocalY > Math.min(Cube.SIZE - 1, maximumGeologyY - context.minimumBlockY)) return;
+            float[] broadSamples = sampleBroadNoise(context);
             for (int localX = 0; localX < Cube.SIZE; localX++) {
                 int worldX = context.cubeX * Cube.SIZE + localX;
                 for (int localZ = 0; localZ < Cube.SIZE; localZ++) {
                     int worldZ = context.cubeZ * Cube.SIZE + localZ;
                     int surfaceY = (int) Math.floor(context.column.height(localX, localZ));
-                    for (int localY = 0; localY < Cube.SIZE; localY++) {
+                    int lastLocalY = Math.min(Cube.SIZE - 1, Math.min(MAXIMUM_Y, surfaceY - 8) - context.minimumBlockY);
+                    for (int localY = firstLocalY; localY <= lastLocalY; localY++) {
                         int worldY = context.minimumBlockY + localY;
-                        if (worldY < MINIMUM_Y || worldY > MAXIMUM_Y || surfaceY - worldY < 8) continue;
-                        if (context.blocks.getBlock(localX, localY, localZ) != Blocks.stone) continue;
-                        double broad = noise.noise3(worldX / 38f, worldY / 26f, worldZ / 38f);
-                        double detail = noise.noise3(worldX / 11f, worldY / 9f, worldZ / 11f);
-                        if (broad > .68d && detail > .05d)
-                            context.blocks.setBlock(localX, localY, localZ, worldY < 8 ? Blocks.gravel : Blocks.dirt);
+                        if (interpolateBroadNoise(broadSamples, localX, localY, localZ) <= .68f) continue;
+                        if (noise.noise3(worldX / 11f, worldY / 9f, worldZ / 11f) <= .05f) continue;
+                        // Base terrain is columnar and geology runs before carvers, so every block in this depth range
+                        // is known natural stone. Avoid a storage lookup for information already present in the plan.
+                        context.blocks.setBlock(localX, localY, localZ, worldY < 8 ? Blocks.gravel : Blocks.dirt);
                     }
                 }
             }
+        }
+
+        private float[] sampleBroadNoise(CubeGenerationContext context) {
+            float[] samples = new float[BROAD_SAMPLE_SIZE * BROAD_SAMPLE_SIZE * BROAD_SAMPLE_SIZE];
+            int minimumX = context.cubeX * Cube.SIZE;
+            int minimumZ = context.cubeZ * Cube.SIZE;
+            for (int sampleX = 0; sampleX < BROAD_SAMPLE_SIZE; sampleX++) {
+                float x = (minimumX + sampleX * BROAD_SAMPLE_STEP) / 38f;
+                for (int sampleY = 0; sampleY < BROAD_SAMPLE_SIZE; sampleY++) {
+                    float y = (context.minimumBlockY + sampleY * BROAD_SAMPLE_STEP) / 26f;
+                    for (int sampleZ = 0; sampleZ < BROAD_SAMPLE_SIZE; sampleZ++) {
+                        float z = (minimumZ + sampleZ * BROAD_SAMPLE_STEP) / 38f;
+                        samples[broadIndex(sampleX, sampleY, sampleZ)] = noise.noise3(x, y, z);
+                    }
+                }
+            }
+            return samples;
+        }
+
+        private static float interpolateBroadNoise(float[] samples, int localX, int localY, int localZ) {
+            int sampleX = localX / BROAD_SAMPLE_STEP;
+            int sampleY = localY / BROAD_SAMPLE_STEP;
+            int sampleZ = localZ / BROAD_SAMPLE_STEP;
+            float tx = (localX % BROAD_SAMPLE_STEP) / (float) BROAD_SAMPLE_STEP;
+            float ty = (localY % BROAD_SAMPLE_STEP) / (float) BROAD_SAMPLE_STEP;
+            float tz = (localZ % BROAD_SAMPLE_STEP) / (float) BROAD_SAMPLE_STEP;
+            float x00 = lerp(
+                    samples[broadIndex(sampleX, sampleY, sampleZ)],
+                    samples[broadIndex(sampleX + 1, sampleY, sampleZ)],
+                    tx);
+            float x10 = lerp(
+                    samples[broadIndex(sampleX, sampleY + 1, sampleZ)],
+                    samples[broadIndex(sampleX + 1, sampleY + 1, sampleZ)],
+                    tx);
+            float x01 = lerp(
+                    samples[broadIndex(sampleX, sampleY, sampleZ + 1)],
+                    samples[broadIndex(sampleX + 1, sampleY, sampleZ + 1)],
+                    tx);
+            float x11 = lerp(
+                    samples[broadIndex(sampleX, sampleY + 1, sampleZ + 1)],
+                    samples[broadIndex(sampleX + 1, sampleY + 1, sampleZ + 1)],
+                    tx);
+            return lerp(lerp(x00, x10, ty), lerp(x01, x11, ty), tz);
+        }
+
+        private static int broadIndex(int x, int y, int z) {
+            return (x * BROAD_SAMPLE_SIZE + y) * BROAD_SAMPLE_SIZE + z;
+        }
+
+        private static float lerp(float first, float second, float amount) {
+            return first + (second - first) * amount;
         }
     }
 
