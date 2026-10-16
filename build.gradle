@@ -11,9 +11,15 @@ sourceSets {
     }
 }
 
-def localCubicChunks = fileTree('../CubicChunks1710/build/libs') {
-    include '*-dev.jar'
-}
+def localCubicChunks = files(provider {
+    def jars = fileTree('../CubicChunks1710/build/libs') {
+        include '*-dev.jar'
+    }.files
+    if (jars.empty) {
+        throw new GradleException('No sibling CubicChunks development jar was built')
+    }
+    jars.max { it.lastModified() }
+})
 
 dependencies {
     api(localCubicChunks)

@@ -74,12 +74,17 @@ ordinary boundary mutations only clear bits; unknown generators and old saves th
 Cube-local population and worldgen writes use the same invalidation path. A pure 4x4x4 regional primitive propagates
 reachability with six `long` face masks and exports edge seeds to adjacent regions.
 
-The remaining integration must keep selection separate from loading. An off-thread selector consumes immutable region
-snapshots and publishes frontier deltas; only the server thread may apply those deltas to the existing eager-load queue.
-Explicit block access, tickets, spawn requirements, and direct player requirements must never be rejected by this
-optimization. Initially use connectivity only to suppress speculative population/lighting beyond the reachable
-frontier. A cleared face dirties its region and schedules propagation again. Since published face bits only transition
-from sealed to open, a stale snapshot can at worst cause extra work or defer work until that required retry.
+Player-view eager loads are tagged separately from explicit block access, tickets, spawn requirements, and immediate
+player-neighborhood requests. The latter always bypass connectivity. Visible cubes are first generated, then an
+incremental frontier promotes only transmissible cubes and the first opaque blocker around them to population and
+lighting. Generation completion and cleared faces cost at most six neighbor checks, so this event-driven path avoids
+the snapshot publication and stale-result handling of a dedicated selector thread. The 4x4x4 bitwise primitive remains
+available for bulk frontier rebuilds after profiling login and teleport behavior.
+
+A blocker is loaded but does not propagate through its sealed entry face. This one-cube halo keeps opaque walls present
+on the client and lets mining open the next frontier naturally. A cleared face immediately reconsiders its cube.
+Decorator-owned bounds remain explicit generation demands: reachability may defer population and lighting, but it must
+not prevent a tree, rock, structure, or future megatree owner from generating every cube that its immutable plan spans.
 
 Every uncertain case remains open. The only correctness invariant is one-sided error: false positives merely do extra
 work, while a false negative must never hide reachable generation. Incremental bitwise flood propagation should target
