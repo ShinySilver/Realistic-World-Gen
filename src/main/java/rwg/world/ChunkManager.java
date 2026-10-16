@@ -116,6 +116,7 @@ public class ChunkManager extends WorldChunkManager {
                 ConfigRWG.landmassOffsetX,
                 ConfigRWG.landmassOffsetZ,
                 registry);
+        biomesToSpawnIn.add(registry.plains());
         this.continental = continental;
         this.climateWidth = climateWidth;
         wetClimateEnabled = !context.biomes.categories(Climate.WET, TerrainSubcategory.CORE).isEmpty();

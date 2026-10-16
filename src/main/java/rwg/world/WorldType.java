@@ -35,7 +35,9 @@ public class WorldType extends net.minecraft.world.WorldType implements ICubicWo
 
     @Override
     public boolean hasCubicGeneratorForWorld(World world) {
-        return true;
+        // Secondary dimensions inherit the overworld's WorldType. Let their providers (or CubicChunks' vanilla
+        // adapter) supply their own generator and height range.
+        return world.provider.dimensionId == 0 && world.getWorldChunkManager() instanceof ChunkManager;
     }
 
     public float getCloudHeight() {
