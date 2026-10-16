@@ -47,6 +47,23 @@ interface so expensive or large features can later publish more specific candida
 the scheduler. Placement remains on the population thread; planning never reads or mutates world blocks. Vanilla's
 monolithic biome decoration adapter was removed because it mixes ores and surface features and cannot obey this graph.
 
+### Future connectivity culling
+
+If underground population or lighting becomes traversal-bound, test a deliberately lossy cube-connectivity index before
+building a precise graph. During off-thread cube planning, count solid opaque blocks on each of the six faces (or keep
+a few face bitsets packed into `long`s). A completely sealed face may stop propagation; every uncertain case remains
+open. The only correctness invariant is one-sided error: false positives merely do extra work, while a false negative
+must never hide reachable generation. Incremental bitwise flood propagation should target the common sealed-cube case,
+not reconstruct exact interior connectivity. Add this only after profiling representative underground stages.
+
+### Future ores
+
+The `rwg:ores` dependency slot is intentionally a no-op until ores use region-owned large-vein plans. Do not add
+independent vanilla-sized deposits per cube. A vein must be derived once from the world seed and stable region
+coordinates, publish immutable bounds/shape parameters off-thread, and let every intersecting cube reproduce only its
+own clipped portion. This keeps seams and results independent of request order while leaving structures later in the
+graph so ore replacement can never damage them.
+
 ## Cube-generation invariants
 
 Cube generation uses one small `CubeGenerationContext` containing the cube position, absolute Y bounds, immutable
@@ -110,7 +127,7 @@ random mutation. The fixed-height painter API and unsupported compatibility regi
 4. Base terrain, water, bedrock, simple surfaces, and empty/solid fast paths. (complete)
 5. Height-independent surface rules. (complete)
 6. Geology, caves, and underground rivers. (native cube stages complete; gameplay tuning remains)
-7. Planned biome features and population stages. (built-in surface feature recipes complete; ores and final snow/ice
-   stages remain)
+7. Planned biome features and population stages. (built-in surface recipes and native underground lakes complete;
+   large-vein ores and final snow/ice remain)
 8. Late structure placement.
 9. Optional compatibility integrations.

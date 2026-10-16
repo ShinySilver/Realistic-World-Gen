@@ -11,36 +11,42 @@ import rwg.util.CellNoise;
 import rwg.util.NoiseGenerator;
 import rwg.util.NoiseSelector;
 
-/** Ordered placement of already-planned features. */
+/** Ordered cube-local population plus placement of already-planned spanning features. */
 public final class CubePopulationPipeline {
 
     private final World world;
     private final NoiseGenerator noise;
     private final CellNoise cell;
-    private final DependencyGraph<PopulationStage> stages = new DependencyGraph<PopulationStage>();
+    private final DependencyGraph<PopulationStep> stages = new DependencyGraph<PopulationStep>();
 
     public CubePopulationPipeline(World world) {
         if (world == null) throw new NullPointerException("world");
         this.world = world;
         noise = NoiseSelector.createNoiseGenerator(world.getSeed());
         cell = new CellNoise(world.getSeed(), (short) 0, true);
-        stages.addObject("rwg:ores", PopulationStage.ORES);
-        stages.addObject("rwg:underground-decoration", PopulationStage.UNDERGROUND_DECORATION, "after:rwg:ores");
-        stages.addObject("rwg:structures", PopulationStage.STRUCTURES, "after:rwg:underground-decoration");
-        stages.addObject("rwg:surface-features", PopulationStage.SURFACE_FEATURES, "after:rwg:structures");
-        stages.addObject("rwg:snow-and-ice", PopulationStage.SNOW_AND_ICE, "after:rwg:surface-features");
+        stages.addTarget("rwg:ores-complete");
+        stages.addTarget("rwg:underground-decoration-complete", "requires:rwg:ores-complete");
+        stages.addTarget("rwg:structures-complete", "requires:rwg:underground-decoration-complete");
+        stages.addTarget("rwg:surface-features-complete", "requires:rwg:structures-complete");
+        stages.addTarget("rwg:population-complete", "requires:rwg:surface-features-complete");
+        stages.addObject("rwg:ores", new NativeOrePopulationStep(), "required-by:rwg:ores-complete");
+        stages.addObject(
+                "rwg:underground-lakes",
+                new UndergroundLakePopulationStep(),
+                "requires:rwg:ores-complete",
+                "required-by:rwg:underground-decoration-complete");
+        stages.addObject(
+                "rwg:surface-features",
+                new PlannedFeaturePopulationStep(),
+                "requires:rwg:structures-complete",
+                "required-by:rwg:surface-features-complete");
         stages.sorted();
     }
 
     public void populate(Cube cube, PopulationPlan plan) {
         prepareAffectedTerrain(cube, plan);
-        SurfaceHeightLookup surface = plan.surfaceHeights();
-        for (PopulationStage stage : stages.sorted()) {
-            for (PlannedFeature feature : plan.features()) {
-                if (feature.stage() != stage || feature.ownerCubeY() != cube.getY()) continue;
-                feature.feature().place(world, feature, surface, noise, cell, feature.strength(), feature.river());
-            }
-        }
+        CubePopulationContext context = new CubePopulationContext(world, cube, plan, noise, cell);
+        for (PopulationStep stage : stages.sorted()) stage.populate(context);
     }
 
     private void prepareAffectedTerrain(Cube owner, PopulationPlan plan) {
@@ -67,6 +73,25 @@ public final class CubePopulationPipeline {
                     if (cubeX == owner.getX() && cubeY == owner.getY() && cubeZ == owner.getZ()) continue;
                     CCAPI.getCube(world, cubeX, cubeY, cubeZ, Requirement.GENERATE);
                 }
+            }
+        }
+    }
+
+    private static final class PlannedFeaturePopulationStep implements PopulationStep {
+
+        @Override
+        public void populate(CubePopulationContext context) {
+            for (PlannedFeature feature : context.plan.features()) {
+                if (feature.stage() != PopulationStage.SURFACE_FEATURES || feature.ownerCubeY() != context.cubeY)
+                    continue;
+                feature.feature().place(
+                        context.world,
+                        feature,
+                        context.surface,
+                        context.noise,
+                        context.cell,
+                        feature.strength(),
+                        feature.river());
             }
         }
     }
