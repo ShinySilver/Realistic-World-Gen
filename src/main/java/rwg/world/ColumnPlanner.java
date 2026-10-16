@@ -16,8 +16,8 @@ public final class ColumnPlanner {
 
     private static final int BIOME_STEP = 8;
     private static final int KERNEL_RADIUS = 8;
-    private static final int SOURCE_SIZE = 19;
-    private static final int ANCHOR_SIZE = 3;
+    private static final int SOURCE_SIZE = 20;
+    private static final int ANCHOR_SIZE = 4;
     private static final float[][] KERNEL = createKernel();
 
     private final WorldgenSelector selector;
@@ -97,11 +97,14 @@ public final class ColumnPlanner {
         BiomeRegistration[] registrations = new BiomeRegistration[ColumnPlan.COLUMN_COUNT];
         float[] riverStrengths = new float[ColumnPlan.COLUMN_COUNT];
         float[] mountainWeights = new float[ColumnPlan.COLUMN_COUNT];
+        float[] undergroundRiverStrengths = new float[ColumnPlan.COLUMN_COUNT];
+        float[] riverJunctionStrengths = new float[ColumnPlan.COLUMN_COUNT];
+        float[][] heightHalo = new float[ColumnPlan.SIZE + 2][ColumnPlan.SIZE + 2];
         float[] chunkWeights = new float[registrationCount];
-        for (int localX = 0; localX < ColumnPlan.SIZE; localX++) {
+        for (int localX = -1; localX <= ColumnPlan.SIZE; localX++) {
             int ax = localX / BIOME_STEP;
             float tx = (localX % BIOME_STEP) / (float) BIOME_STEP;
-            for (int localZ = 0; localZ < ColumnPlan.SIZE; localZ++) {
+            for (int localZ = -1; localZ <= ColumnPlan.SIZE; localZ++) {
                 int az = localZ / BIOME_STEP;
                 float tz = (localZ % BIOME_STEP) / (float) BIOME_STEP;
                 int worldX = originX + localX;
@@ -116,7 +119,8 @@ public final class ColumnPlanner {
                     int id = activeIds[index];
                     float weight = bilinear(anchors, ax, az, id, tx, tz);
                     if (weight == 0f) continue;
-                    chunkWeights[id] += weight;
+                    if (localX >= 0 && localX < ColumnPlan.SIZE && localZ >= 0 && localZ < ColumnPlan.SIZE)
+                        chunkWeights[id] += weight;
                     BiomeRegistration registration = selector.registration(id);
                     TerrainContext terrainContext = new TerrainContext(
                             0f,
@@ -138,17 +142,42 @@ public final class ColumnPlanner {
                         height,
                         columnSample.regional.erodedMountainDistance,
                         morphology.riverDistance);
+                heightHalo[localX + 1][localZ + 1] = height;
+                if (localX < 0 || localX >= ColumnPlan.SIZE || localZ < 0 || localZ >= ColumnPlan.SIZE) continue;
                 int column = localX * ColumnPlan.SIZE + localZ;
                 heights[column] = height;
                 baseHeights[column] = columnSample.regional.height;
                 registrations[column] = selectedRegistration;
                 riverStrengths[column] = riverStrength;
                 mountainWeights[column] = morphology.mountainStrength;
+                undergroundRiverStrengths[column] = selector.undergroundRiverStrength(worldX, worldZ);
+                riverJunctionStrengths[column] = selector.riverJunctionStrength(worldX, worldZ);
             }
         }
 
         BiomeRegistration[] blendRegistrations = new BiomeRegistration[activeCount];
         float[] blendWeights = new float[activeCount];
+        float[] surfaceSlopes = new float[ColumnPlan.COLUMN_COUNT];
+        float[] surfaceVariations = new float[ColumnPlan.COLUMN_COUNT];
+        float[] broadSurfaceVariations = new float[ColumnPlan.COLUMN_COUNT];
+        for (int localX = 0; localX < ColumnPlan.SIZE; localX++) {
+            for (int localZ = 0; localZ < ColumnPlan.SIZE; localZ++) {
+                float center = heightHalo[localX + 1][localZ + 1];
+                float slope = Math.max(
+                        Math.max(
+                                Math.abs(center - heightHalo[localX][localZ + 1]),
+                                Math.abs(center - heightHalo[localX + 2][localZ + 1])),
+                        Math.max(
+                                Math.abs(center - heightHalo[localX + 1][localZ]),
+                                Math.abs(center - heightHalo[localX + 1][localZ + 2])));
+                surfaceSlopes[localX * ColumnPlan.SIZE + localZ] = slope;
+                int column = localX * ColumnPlan.SIZE + localZ;
+                int worldX = originX + localX;
+                int worldZ = originZ + localZ;
+                surfaceVariations[column] = terrainNoise.noise2(worldX / 12f, worldZ / 12f);
+                broadSurfaceVariations[column] = terrainNoise.noise2(worldX / 50f, worldZ / 50f);
+            }
+        }
         float totalWeight = 0f;
         for (int index = 0; index < activeCount; index++) totalWeight += chunkWeights[activeIds[index]];
         for (int index = 0; index < activeCount; index++) {
@@ -162,6 +191,11 @@ public final class ColumnPlanner {
                 registrations,
                 riverStrengths,
                 mountainWeights,
+                undergroundRiverStrengths,
+                riverJunctionStrengths,
+                surfaceSlopes,
+                surfaceVariations,
+                broadSurfaceVariations,
                 new BiomeBlendSample(blendRegistrations, blendWeights));
     }
 

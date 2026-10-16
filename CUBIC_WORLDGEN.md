@@ -97,7 +97,7 @@ cache.
 3. Remove the fixed-height generator and array APIs. (complete)
 4. Base terrain, water, bedrock, simple surfaces, and empty/solid fast paths. (complete)
 5. Height-independent surface rules. (core contract and cube pipeline complete; specialized rules remain)
-6. Geology, caves, and underground rivers.
+6. Geology, caves, and underground rivers. (native cube stages complete; gameplay tuning remains)
 7. Planned decorators and population stages.
 8. Late structure placement.
 9. Optional compatibility integrations.

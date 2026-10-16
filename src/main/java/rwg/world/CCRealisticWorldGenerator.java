@@ -32,11 +32,12 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
 
     private final World world;
     private final ColumnPlanCache columnPlans;
-    private final CubeTerrainPipeline terrain = new CubeTerrainPipeline();
+    private final CubeTerrainPipeline terrain;
 
     public CCRealisticWorldGenerator(World world) {
         if (world == null) throw new NullPointerException("world");
         this.world = world;
+        terrain = new CubeTerrainPipeline(world);
         if (!(world.getWorldChunkManager() instanceof ChunkManager))
             throw new IllegalStateException("RWG cubic worlds require the RWG chunk manager");
         ChunkManager manager = (ChunkManager) world.getWorldChunkManager();

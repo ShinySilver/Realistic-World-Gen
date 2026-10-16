@@ -1,24 +1,21 @@
 package rwg.biomes.surface;
 
-import java.util.Random;
-
 import net.minecraft.block.Block;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.BiomeGenBase;
-
-import rwg.util.CellNoise;
-import rwg.util.NoiseGenerator;
 
 public class SurfaceBase implements SurfaceRule {
 
     private static final int DEFAULT_MAXIMUM_DEPTH = 3;
 
-    protected Block topBlock;
-    protected Block fillerBlock;
+    protected final Block topBlock;
+    protected final Block fillerBlock;
+    protected final SurfaceMaterial topMaterial;
+    protected final SurfaceMaterial fillerMaterial;
 
     public SurfaceBase(Block top, Block fill) {
         topBlock = top;
         fillerBlock = fill;
+        topMaterial = new SurfaceMaterial(top);
+        fillerMaterial = new SurfaceMaterial(fill);
     }
 
     @Override
@@ -27,11 +24,14 @@ public class SurfaceBase implements SurfaceRule {
     }
 
     @Override
-    public Block blockAt(int worldX, int worldZ, int surfaceY, int depth, float riverStrength,
-            float mountainWeight) {
-        return depth == 0 ? topBlock : fillerBlock;
+    public SurfaceMaterial materialAt(int worldX, int worldZ, int surfaceY, int depth, float riverStrength,
+            float mountainWeight, float slope, float variation, float broadVariation) {
+        return depth == 0 ? topMaterial : fillerMaterial;
     }
 
-    public void paintTerrain(Block[] blocks, byte[] metadata, int i, int j, int x, int y, int depth, World world,
-            Random rand, NoiseGenerator perlin, CellNoise cell, float[] noise, float river, BiomeGenBase[] base) {}
+    /** Migration-only reference implementation; native rules replace and then delete this fixed-height API. */
+    @Deprecated
+    public void paintTerrain(Block[] blocks, byte[] metadata, int i, int j, int x, int y, int depth,
+            net.minecraft.world.World world, java.util.Random rand, rwg.util.NoiseGenerator perlin,
+            rwg.util.CellNoise cell, float[] noise, float river, net.minecraft.world.biome.BiomeGenBase[] base) {}
 }

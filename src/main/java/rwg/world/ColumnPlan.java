@@ -17,32 +17,51 @@ public final class ColumnPlan {
     private final BiomeRegistration[] registrations;
     private final float[] riverStrengths;
     private final float[] mountainWeights;
+    private final float[] undergroundRiverStrengths;
+    private final float[] riverJunctionStrengths;
+    private final float[] surfaceSlopes;
+    private final float[] surfaceVariations;
+    private final float[] broadSurfaceVariations;
     private final BiomeGenBase[] biomes;
     private final SurfaceRule[] surfaceRules;
     private final BiomeBlendSample biomeBlend;
     private final int minimumSurfaceY;
     private final int maximumSurfaceY;
     private final int maximumSurfaceDepth;
+    private final boolean undergroundRiver;
 
     ColumnPlan(float[] heights, float[] baseHeights, BiomeRegistration[] registrations, float[] riverStrengths,
-            float[] mountainWeights, BiomeBlendSample biomeBlend) {
+            float[] mountainWeights, float[] undergroundRiverStrengths, float[] riverJunctionStrengths,
+            float[] surfaceSlopes, float[] surfaceVariations, float[] broadSurfaceVariations,
+            BiomeBlendSample biomeBlend) {
         requireLength(heights, "heights");
         requireLength(baseHeights, "base heights");
         requireLength(registrations, "registrations");
         requireLength(riverStrengths, "river strengths");
         requireLength(mountainWeights, "mountain weights");
+        requireLength(undergroundRiverStrengths, "underground river strengths");
+        requireLength(riverJunctionStrengths, "river junction strengths");
+        requireLength(surfaceSlopes, "surface slopes");
+        requireLength(surfaceVariations, "surface variations");
+        requireLength(broadSurfaceVariations, "broad surface variations");
         if (biomeBlend == null) throw new NullPointerException("biome blend");
         this.heights = heights.clone();
         this.baseHeights = baseHeights.clone();
         this.registrations = registrations.clone();
         this.riverStrengths = riverStrengths.clone();
         this.mountainWeights = mountainWeights.clone();
+        this.undergroundRiverStrengths = undergroundRiverStrengths.clone();
+        this.riverJunctionStrengths = riverJunctionStrengths.clone();
+        this.surfaceSlopes = surfaceSlopes.clone();
+        this.surfaceVariations = surfaceVariations.clone();
+        this.broadSurfaceVariations = broadSurfaceVariations.clone();
         this.biomeBlend = biomeBlend;
         biomes = new BiomeGenBase[COLUMN_COUNT];
         surfaceRules = new SurfaceRule[COLUMN_COUNT];
         int minimum = Integer.MAX_VALUE;
         int maximum = Integer.MIN_VALUE;
         int maximumDepth = 0;
+        boolean hasUndergroundRiver = false;
         for (int localX = 0; localX < SIZE; localX++) {
             for (int localZ = 0; localZ < SIZE; localZ++) {
                 int sampleIndex = index(localX, localZ);
@@ -56,6 +75,8 @@ public final class ColumnPlan {
                     throw new IllegalArgumentException("negative surface depth for registration " + registration.id);
                 surfaceRules[localZ * SIZE + localX] = surfaceRule;
                 maximumDepth = Math.max(maximumDepth, surfaceRule.maximumDepth());
+                hasUndergroundRiver |= this.undergroundRiverStrengths[sampleIndex] > 0f
+                        || this.riverJunctionStrengths[sampleIndex] > 0f;
                 int surfaceY = (int) Math.floor(this.heights[sampleIndex]);
                 minimum = Math.min(minimum, surfaceY);
                 maximum = Math.max(maximum, surfaceY);
@@ -64,6 +85,7 @@ public final class ColumnPlan {
         minimumSurfaceY = minimum;
         maximumSurfaceY = maximum;
         maximumSurfaceDepth = maximumDepth;
+        undergroundRiver = hasUndergroundRiver;
     }
 
     public float height(int localX, int localZ) {
@@ -84,6 +106,30 @@ public final class ColumnPlan {
 
     public float mountainWeight(int localX, int localZ) {
         return mountainWeights[index(localX, localZ)];
+    }
+
+    public float surfaceSlope(int localX, int localZ) {
+        return surfaceSlopes[index(localX, localZ)];
+    }
+
+    public float surfaceVariation(int localX, int localZ) {
+        return surfaceVariations[index(localX, localZ)];
+    }
+
+    public float broadSurfaceVariation(int localX, int localZ) {
+        return broadSurfaceVariations[index(localX, localZ)];
+    }
+
+    public float undergroundRiverStrength(int localX, int localZ) {
+        return undergroundRiverStrengths[index(localX, localZ)];
+    }
+
+    public float riverJunctionStrength(int localX, int localZ) {
+        return riverJunctionStrengths[index(localX, localZ)];
+    }
+
+    public boolean hasUndergroundRiver() {
+        return undergroundRiver;
     }
 
     public BiomeBlendSample biomeBlend() {

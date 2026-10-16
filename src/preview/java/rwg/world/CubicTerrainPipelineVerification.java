@@ -20,11 +20,14 @@ public final class CubicTerrainPipelineVerification {
         ConfigRWG.initPreview(new File(System.getProperty("rwg.previewConfig", "run/client/config/RWG.cfg")));
         BiomeRegistry registry = BiomeRegistryBootstrap.create(false);
         BiomeRegistration registration = registry.registrations().get(0);
-        new CubeTerrainPipeline(); // Construction resolves the graph and rejects missing or cyclic dependencies.
+        // Runtime construction is covered by the in-game smoke test because the pipeline now owns world-bound carvers.
 
         ColumnPlan ordinary = constantPlan(100f, registration);
         require(kind(ordinary, 7) == CubeTerrainPipeline.GenerationKind.EMPTY, "high cube must remain empty");
-        require(kind(ordinary, 0) == CubeTerrainPipeline.GenerationKind.SOLID, "deep cube must use solid path");
+        require(
+                kind(ordinary, 0) == CubeTerrainPipeline.GenerationKind.DETAILED,
+                "potential carver cube bypassed detailed generation");
+        require(kind(ordinary, -20) == CubeTerrainPipeline.GenerationKind.SOLID, "deep safe cube lost solid path");
         require(kind(ordinary, 6) == CubeTerrainPipeline.GenerationKind.DETAILED, "surface cube must be detailed");
 
         ColumnPlan ocean = constantPlan(20f, registration);
@@ -34,7 +37,8 @@ public final class CubicTerrainPipelineVerification {
                 CubeTerrainPipeline.baseBlock(20, CubicWorldSettings.SEA_LEVEL) == Blocks.air,
                 "water exceeded sea level");
         require(
-                registration.surfaceRules[0].blockAt(0, 0, 100, 0, 0f, 0f) == registration.biome.topBlock,
+                registration.surfaceRules[0].materialAt(0, 0, 100, 0, 0f, 0f, 0f, 0f, 0f).block
+                        == registration.biome.topBlock,
                 "resolved surface rule did not provide the biome top block");
         require(
                 ordinary.maximumSurfaceDepth() == registration.surfaceRules[0].maximumDepth(),
@@ -66,6 +70,11 @@ public final class CubicTerrainPipelineVerification {
         float[] baseHeights = new float[ColumnPlan.COLUMN_COUNT];
         float[] rivers = new float[ColumnPlan.COLUMN_COUNT];
         float[] mountains = new float[ColumnPlan.COLUMN_COUNT];
+        float[] slopes = new float[ColumnPlan.COLUMN_COUNT];
+        float[] undergroundRivers = new float[ColumnPlan.COLUMN_COUNT];
+        float[] riverJunctions = new float[ColumnPlan.COLUMN_COUNT];
+        float[] variations = new float[ColumnPlan.COLUMN_COUNT];
+        float[] broadVariations = new float[ColumnPlan.COLUMN_COUNT];
         BiomeRegistration[] registrations = new BiomeRegistration[ColumnPlan.COLUMN_COUNT];
         Arrays.fill(heights, height);
         Arrays.fill(baseHeights, height);
@@ -76,6 +85,11 @@ public final class CubicTerrainPipelineVerification {
                 registrations,
                 rivers,
                 mountains,
+                undergroundRivers,
+                riverJunctions,
+                slopes,
+                variations,
+                broadVariations,
                 new BiomeBlendSample(new BiomeRegistration[] { registration }, new float[] { 1f }));
     }
 
