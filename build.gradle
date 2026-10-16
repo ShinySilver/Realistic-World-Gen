@@ -20,6 +20,7 @@ dependencies {
     api('com.github.GTNewHorizons:twilightforest:2.7.40:dev')
     api(rfg.deobf('curse.maven:witchery-69673:2234410'))
     previewImplementation('tools.profiler:async-profiler:4.5')
+    previewRuntimeOnly('it.unimi.dsi:fastutil:8.5.18')
 }
 
 abstract class DownloadProfilerArchive extends DefaultTask {
@@ -147,6 +148,15 @@ tasks.register('debug_verifyColumnPlannerConcurrency', JavaExec) {
     mainClass = 'rwg.world.ColumnPlannerConcurrencyVerification'
     workingDir = project.projectDir
     maxHeapSize = '1g'
+}
+
+tasks.register('debug_verifyCubicTerrainPipeline', JavaExec) {
+    group = 'verification'
+    description = 'Verifies cubic terrain classification, limits, and milestone-four material rules'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.CubicTerrainPipelineVerification'
+    workingDir = project.projectDir
 }
 
 tasks.register('debug_performanceScore', JavaExec) {

@@ -32,6 +32,7 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
 
     private final World world;
     private final ColumnPlanCache columnPlans;
+    private final CubeTerrainPipeline terrain = new CubeTerrainPipeline();
 
     public CCRealisticWorldGenerator(World world) {
         if (world == null) throw new NullPointerException("world");
@@ -47,29 +48,20 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
         if (requestedWorld != world) throw new IllegalArgumentException("column requested for a different world");
 
         ColumnPlan plan = columnPlans.get(columnX, columnZ);
-        Chunk column = new Chunk(world, columnX, columnZ);
-        ChunkBiomeArrayCompat.setBiomes(column, plan.copyBiomes());
-        ((IColumnInternal) column).setColumn(true);
-        return new GenerationResult<Chunk>(column);
+        return new GenerationResult<Chunk>(createColumn(columnX, columnZ, plan));
     }
 
     @Override
     public GenerationResult<Cube> provideCube(@Nullable Chunk column, int cubeX, int cubeY, int cubeZ) {
-        // Fetch exactly once. Step 4 passes this object through one small context and one RWG-owned ordered graph;
-        // stages must not fetch it again or read blocks through World.
         ColumnPlan plan = columnPlans.get(cubeX, cubeZ);
         if (column == null) {
-            column = provideColumn(world, cubeX, cubeZ).object;
-            Cube cube = new Cube(column, cubeY);
-            // TODO Step 4: classify before allocating storage, then run the same pipeline used below. Empty cubes keep
-            // null storage; solid fast paths must remain overridable by later stage-intersection tests.
+            column = createColumn(cubeX, cubeZ, plan);
+            Cube cube = terrain.generate(column, cubeY, plan);
             return new GenerationResult<Cube>(cube, java.util.Collections.singletonList(column), null);
         }
         if (column.xPosition != cubeX || column.zPosition != cubeZ)
             throw new IllegalArgumentException("cube coordinates do not match the supplied column");
-        Cube cube = new Cube(column, cubeY);
-        // TODO Step 4: consume plan here through the shared pipeline; do not duplicate the null-column branch.
-        return new GenerationResult<Cube>(cube);
+        return new GenerationResult<Cube>(terrain.generate(column, cubeY, plan));
     }
 
     @Override
@@ -110,5 +102,12 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
     @Nullable
     public ChunkPosition getNearestStructure(String name, int x, int y, int z) {
         return null;
+    }
+
+    private Chunk createColumn(int columnX, int columnZ, ColumnPlan plan) {
+        Chunk column = new Chunk(world, columnX, columnZ);
+        ChunkBiomeArrayCompat.setBiomes(column, plan.copyBiomes());
+        ((IColumnInternal) column).setColumn(true);
+        return column;
     }
 }

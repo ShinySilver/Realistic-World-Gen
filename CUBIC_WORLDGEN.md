@@ -39,8 +39,9 @@ Step 4 should add one small `CubeGenerationContext` containing the cube position
 `ColumnPlan`, and target `Cube`. Every terrain stage receives that context; stages must not fetch the plan again, invent
 their own coordinate convention, or query world blocks.
 
-Build one RWG-owned `StandardWorldDecorator` completely before generation starts; do not use CubicChunks' global
-`BuiltinWorldDecorators.CUBIC_VANILLA`. Establish stable targets for base-complete, carvers-complete, and
+Build one RWG-owned CubicChunks `DependencyGraph` completely before generation starts; do not use the global
+`BuiltinWorldDecorators.CUBIC_VANILLA`. RWG stages receive the explicit `CubeGenerationContext`, avoiding hidden
+thread-local state or repeated plan lookups. Establish stable targets for base-complete, carvers-complete, and
 terrain-complete. The graph orders cube mutation; parallel work remains in immutable planning.
 
 Classify each requested cube before allocating storage:
@@ -66,7 +67,7 @@ profiling demonstrates that another abstraction is needed.
 1. Empty CubicChunks world adapter.
 2. Pure `ColumnPlanner`, immutable `ColumnPlan`, bounded deduplicating cache, and parallel determinism tests.
 3. Remove the fixed-height generator and array APIs. (complete)
-4. Base terrain, water, bedrock, simple surfaces, and empty/solid fast paths.
+4. Base terrain, water, bedrock, simple surfaces, and empty/solid fast paths. (complete)
 5. Height-independent surface rules.
 6. Geology, caves, and underground rivers.
 7. Planned decorators and population stages.

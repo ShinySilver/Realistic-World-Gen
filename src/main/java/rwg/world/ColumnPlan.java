@@ -78,6 +78,11 @@ public final class ColumnPlan {
         return biomeBlend;
     }
 
+    public BiomeGenBase biome(int localX, int localZ) {
+        index(localX, localZ);
+        return biomes[localZ * SIZE + localX];
+    }
+
     public int minimumSurfaceY() {
         return minimumSurfaceY;
     }

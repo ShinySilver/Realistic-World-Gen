@@ -11,8 +11,6 @@ import com.cardinalstar.cubicchunks.api.worldgen.IWorldGenerator;
 
 public class WorldType extends net.minecraft.world.WorldType implements ICubicWorldType {
 
-    private static final IntRange INITIAL_GENERATION_RANGE = new IntRange(-1024, 2048);
-
     private final boolean continents;
     private final boolean grid;
 
@@ -41,7 +39,7 @@ public class WorldType extends net.minecraft.world.WorldType implements ICubicWo
 
     @Override
     public IntRange getGenerationRange(World world) {
-        return INITIAL_GENERATION_RANGE;
+        return CubicWorldSettings.GENERATION_RANGE;
     }
 
     @Override
