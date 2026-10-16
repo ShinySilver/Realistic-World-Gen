@@ -69,16 +69,19 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
         if (column == null) {
             column = createColumn(cubeX, cubeZ, plan);
             Cube cube = terrain.generate(column, cubeY, plan);
+            GeneratedCubeMetadata metadata = metadata(cube, plan);
             return new GenerationResult<Cube>(
                     cube,
                     java.util.Collections.singletonList(column),
                     null,
-                    opacityColumns(cube, plan));
+                    metadata.opacityColumns,
+                    metadata.sealedFaces);
         }
         if (column.xPosition != cubeX || column.zPosition != cubeZ)
             throw new IllegalArgumentException("cube coordinates do not match the supplied column");
         Cube cube = terrain.generate(column, cubeY, plan);
-        return new GenerationResult<Cube>(cube, opacityColumns(cube, plan));
+        GeneratedCubeMetadata metadata = metadata(cube, plan);
+        return new GenerationResult<Cube>(cube, metadata.opacityColumns, metadata.sealedFaces);
     }
 
     @Override
@@ -129,23 +132,46 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
         return column;
     }
 
-    private static short[] opacityColumns(Cube cube, ColumnPlan plan) {
+    private static GeneratedCubeMetadata metadata(Cube cube, ColumnPlan plan) {
         short[] columns = new short[Cube.SIZE * Cube.SIZE];
         CubeTerrainPipeline.GenerationKind kind = CubeTerrainPipeline.classify(plan, cube.getY());
-        if (kind == CubeTerrainPipeline.GenerationKind.EMPTY) return columns;
+        if (kind == CubeTerrainPipeline.GenerationKind.EMPTY) return new GeneratedCubeMetadata(columns, (byte) 0);
         if (kind == CubeTerrainPipeline.GenerationKind.SOLID || kind == CubeTerrainPipeline.GenerationKind.WATER) {
             java.util.Arrays.fill(columns, (short) 0xffff);
-            return columns;
+            return new GeneratedCubeMetadata(
+                    columns,
+                    kind == CubeTerrainPipeline.GenerationKind.SOLID ? Cube.ALL_FACES : (byte) 0);
         }
+        int sealedFaces = Cube.ALL_FACES;
         for (int localX = 0; localX < Cube.SIZE; localX++) {
             for (int localZ = 0; localZ < Cube.SIZE; localZ++) {
                 int mask = 0;
                 for (int localY = 0; localY < Cube.SIZE; localY++) {
-                    if (cube.getBlock(localX, localY, localZ).getLightOpacity() > 0) mask |= 1 << localY;
+                    int opacity = cube.getBlock(localX, localY, localZ).getLightOpacity();
+                    if (opacity > 0) mask |= 1 << localY;
+                    if (opacity < 255) {
+                        if (localX == 0) sealedFaces &= ~Cube.FACE_NEG_X;
+                        if (localX == Cube.SIZE - 1) sealedFaces &= ~Cube.FACE_POS_X;
+                        if (localY == 0) sealedFaces &= ~Cube.FACE_NEG_Y;
+                        if (localY == Cube.SIZE - 1) sealedFaces &= ~Cube.FACE_POS_Y;
+                        if (localZ == 0) sealedFaces &= ~Cube.FACE_NEG_Z;
+                        if (localZ == Cube.SIZE - 1) sealedFaces &= ~Cube.FACE_POS_Z;
+                    }
                 }
                 columns[localZ * Cube.SIZE + localX] = (short) mask;
             }
         }
-        return columns;
+        return new GeneratedCubeMetadata(columns, (byte) sealedFaces);
+    }
+
+    private static final class GeneratedCubeMetadata {
+
+        final short[] opacityColumns;
+        final byte sealedFaces;
+
+        GeneratedCubeMetadata(short[] opacityColumns, byte sealedFaces) {
+            this.opacityColumns = opacityColumns;
+            this.sealedFaces = sealedFaces;
+        }
     }
 }

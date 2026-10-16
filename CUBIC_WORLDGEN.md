@@ -69,11 +69,21 @@ future roof-aware snow must remain a clipped, order-independent plan rather than
 
 ### Future connectivity culling
 
-If underground population or lighting becomes traversal-bound, test a deliberately lossy cube-connectivity index before
-building a precise graph. During off-thread cube planning, count solid opaque blocks on each of the six faces (or keep
-a few face bitsets packed into `long`s). A completely sealed face may stop propagation; every uncertain case remains
-open. The only correctness invariant is one-sided error: false positives merely do extra work, while a false negative
-must never hide reachable generation. Incremental bitwise flood propagation should target the common sealed-cube case.
+Generated cubes now publish one conservative sealed bit per face. The six-bit mask is persisted by CubicChunks and
+ordinary boundary mutations only clear bits; unknown generators and old saves therefore default safely to all-open.
+Cube-local population and worldgen writes use the same invalidation path. A pure 4x4x4 regional primitive propagates
+reachability with six `long` face masks and exports edge seeds to adjacent regions.
+
+The remaining integration must keep selection separate from loading. An off-thread selector consumes immutable region
+snapshots and publishes frontier deltas; only the server thread may apply those deltas to the existing eager-load queue.
+Explicit block access, tickets, spawn requirements, and direct player requirements must never be rejected by this
+optimization. Initially use connectivity only to suppress speculative population/lighting beyond the reachable
+frontier. A cleared face dirties its region and schedules propagation again. Since published face bits only transition
+from sealed to open, a stale snapshot can at worst cause extra work or defer work until that required retry.
+
+Every uncertain case remains open. The only correctness invariant is one-sided error: false positives merely do extra
+work, while a false negative must never hide reachable generation. Incremental bitwise flood propagation should target
+the common sealed-cube case.
 Exact interior connectivity is not worth its storage, planning cost, or invalidation complexity; consider a coarse
 interior summary only if profiling shows that face-only rejection leaves substantial work on the table. Add this only
 after profiling representative underground stages.
