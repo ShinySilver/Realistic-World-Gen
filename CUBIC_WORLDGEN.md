@@ -83,13 +83,20 @@ Start with the smallest rule contract that can replace the built-in surfaces. Sp
 only when their visible behavior is still wanted; fixed-height compatibility signatures are deleted rather than
 wrapped.
 
+Implementation handoff: `ColumnPlan` now resolves one `SurfaceRule` per X/Z and records the largest declared depth;
+the cube pipeline consumes only that contract and absolute Y. `SurfaceBase` is temporarily the registration adapter
+and supplies the basic top/filler rule. The next surface pass must replace selected built-in adapters with native
+rules (including any required metadata and planner-derived boundary signals), then delete the unused fixed-height
+`paintTerrain` API and unported painters. Do not call those painters from the cube pipeline or add a second surface
+cache.
+
 ## Migration
 
 1. Empty CubicChunks world adapter.
 2. Pure `ColumnPlanner`, immutable `ColumnPlan`, bounded deduplicating cache, and parallel determinism tests.
 3. Remove the fixed-height generator and array APIs. (complete)
 4. Base terrain, water, bedrock, simple surfaces, and empty/solid fast paths. (complete)
-5. Height-independent surface rules.
+5. Height-independent surface rules. (core contract and cube pipeline complete; specialized rules remain)
 6. Geology, caves, and underground rivers.
 7. Planned decorators and population stages.
 8. Late structure placement.

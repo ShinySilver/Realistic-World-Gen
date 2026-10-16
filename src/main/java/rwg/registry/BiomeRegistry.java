@@ -35,7 +35,7 @@ public final class BiomeRegistry {
         if (builder.variants.isEmpty()) throw new IllegalArgumentException("at least one biome variant is required");
         for (BiomeRegistration.Variant variant : builder.variants) {
             if (variant.terrain == null) throw new IllegalArgumentException("biome variant terrain is required");
-            if (variant.surfaces == null || variant.surfaces.length == 0)
+            if (variant.surfaceRules == null || variant.surfaceRules.length == 0)
                 throw new IllegalArgumentException("at least one biome variant surface is required");
             for (TerrainCategory category : variant.categories) register(category, builder, variant);
         }
@@ -64,7 +64,7 @@ public final class BiomeRegistry {
                         builder.biome,
                         riverBiome,
                         variant.terrain,
-                        variant.surfaces,
+                        variant.surfaceRules,
                         registeredDecorators,
                         builder.climate,
                         category,
@@ -210,7 +210,7 @@ public final class BiomeRegistry {
         for (BiomeRegistration registration : registrations) {
             if (registration.biome == null || registration.riverBiome == null
                     || registration.terrain == null
-                    || registration.surfaces.length == 0
+                    || registration.surfaceRules.length == 0
                     || registration.climate == null
                     || registration.category == null
                     || registration.subcategory == null

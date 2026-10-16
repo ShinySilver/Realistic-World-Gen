@@ -34,8 +34,11 @@ public final class CubicTerrainPipelineVerification {
                 CubeTerrainPipeline.baseBlock(20, CubicWorldSettings.SEA_LEVEL) == Blocks.air,
                 "water exceeded sea level");
         require(
-                CubeTerrainPipeline.surfaceBlock(registration.biome, 20, 0) == Blocks.sand,
-                "submerged top is not sand");
+                registration.surfaceRules[0].blockAt(0, 0, 100, 0, 0f, 0f) == registration.biome.topBlock,
+                "resolved surface rule did not provide the biome top block");
+        require(
+                ordinary.maximumSurfaceDepth() == registration.surfaceRules[0].maximumDepth(),
+                "column plan did not retain the declared surface depth");
 
         ColumnPlan negative = constantPlan(-10f, registration);
         require(kind(negative, -1) == CubeTerrainPipeline.GenerationKind.DETAILED, "negative surface was clipped");

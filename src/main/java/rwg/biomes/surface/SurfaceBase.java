@@ -9,7 +9,9 @@ import net.minecraft.world.biome.BiomeGenBase;
 import rwg.util.CellNoise;
 import rwg.util.NoiseGenerator;
 
-public class SurfaceBase {
+public class SurfaceBase implements SurfaceRule {
+
+    private static final int DEFAULT_MAXIMUM_DEPTH = 3;
 
     protected Block topBlock;
     protected Block fillerBlock;
@@ -17,6 +19,17 @@ public class SurfaceBase {
     public SurfaceBase(Block top, Block fill) {
         topBlock = top;
         fillerBlock = fill;
+    }
+
+    @Override
+    public int maximumDepth() {
+        return DEFAULT_MAXIMUM_DEPTH;
+    }
+
+    @Override
+    public Block blockAt(int worldX, int worldZ, int surfaceY, int depth, float riverStrength,
+            float mountainWeight) {
+        return depth == 0 ? topBlock : fillerBlock;
     }
 
     public void paintTerrain(Block[] blocks, byte[] metadata, int i, int j, int x, int y, int depth, World world,

@@ -44,7 +44,6 @@ import net.minecraft.world.ColorizerGrass;
 
 import one.profiler.AsyncProfiler;
 import rwg.ConfigRWG;
-import rwg.biomes.surface.SurfaceBase;
 import rwg.biomes.surface.SurfaceCanyon;
 import rwg.biomes.surface.SurfaceDesert;
 import rwg.biomes.surface.SurfaceDesertMountain;
@@ -56,6 +55,7 @@ import rwg.biomes.surface.SurfaceMountainStone;
 import rwg.biomes.surface.SurfaceMountainStoneMix1;
 import rwg.biomes.surface.SurfacePolar;
 import rwg.biomes.surface.SurfaceRedDesert;
+import rwg.biomes.surface.SurfaceRule;
 import rwg.registry.BiomeRegistration;
 import rwg.registry.BiomeRegistry;
 import rwg.registry.Climate;
@@ -503,7 +503,7 @@ public final class RWGPreviewTool {
                         + "<br>Terrain base: "
                         + registration.terrain.getClass().getSimpleName()
                         + "<br>Surface: "
-                        + surfaceNames(registration.surfaces)
+                        + surfaceNames(registration.surfaceRules)
                         + "<br>Selection: "
                         + registration.climate
                         + " / "
@@ -523,10 +523,10 @@ public final class RWGPreviewTool {
             setHover(screenX, screenZ, coordinates, value);
         }
 
-        private static String surfaceNames(SurfaceBase[] surfaces) {
-            if (surfaces.length == 0) return "none";
+        private static String surfaceNames(SurfaceRule[] surfaceRules) {
+            if (surfaceRules.length == 0) return "none";
             StringBuilder names = new StringBuilder();
-            for (SurfaceBase surface : surfaces) {
+            for (SurfaceRule surface : surfaceRules) {
                 if (names.length() != 0) names.append(", ");
                 names.append(surface.getClass().getSimpleName());
             }
@@ -986,7 +986,7 @@ public final class RWGPreviewTool {
         for (BiomeRegistration registration : registry.registrations()) {
             int color = registration.biome.getBiomeGrassColor(0, 64, 0) & 0xffffff;
             if (registration.builtin) {
-                for (SurfaceBase surface : registration.surfaces) {
+                for (SurfaceRule surface : registration.surfaceRules) {
                     if (surface instanceof SurfaceRedDesert || surface instanceof SurfaceCanyon
                             || surface instanceof SurfaceMesa) {
                         color = RED_SAND_COLOR;

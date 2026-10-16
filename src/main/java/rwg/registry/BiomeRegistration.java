@@ -7,7 +7,7 @@ import java.util.List;
 import net.minecraft.world.biome.BiomeGenBase;
 
 import rwg.biomes.decorators.BiomeDecorator;
-import rwg.biomes.surface.SurfaceBase;
+import rwg.biomes.surface.SurfaceRule;
 import rwg.biomes.terrain.TerrainBase;
 
 public final class BiomeRegistration {
@@ -16,7 +16,7 @@ public final class BiomeRegistration {
     public final BiomeGenBase biome;
     public final BiomeGenBase riverBiome;
     public final TerrainBase terrain;
-    public final SurfaceBase[] surfaces;
+    public final SurfaceRule[] surfaceRules;
     public final BiomeDecorator[] decorators;
     public final Climate climate;
     public final TerrainCategory category;
@@ -26,11 +26,11 @@ public final class BiomeRegistration {
     public final boolean builtin;
 
     public BiomeRegistration(int id, BiomeGenBase biome, BiomeGenBase riverBiome, TerrainBase terrain,
-            SurfaceBase[] surfaces, BiomeDecorator[] decorators, Climate climate, TerrainCategory category,
+            SurfaceRule[] surfaceRules, BiomeDecorator[] decorators, Climate climate, TerrainCategory category,
             TerrainSubcategory subcategory, int weight, boolean selectable, boolean builtin) {
         if (biome == null || riverBiome == null
                 || terrain == null
-                || surfaces == null
+                || surfaceRules == null
                 || climate == null
                 || category == null
                 || subcategory == null)
@@ -40,7 +40,7 @@ public final class BiomeRegistration {
         this.biome = biome;
         this.riverBiome = riverBiome;
         this.terrain = terrain;
-        this.surfaces = surfaces.clone();
+        this.surfaceRules = surfaceRules.clone();
         this.decorators = decorators == null ? new BiomeDecorator[0] : decorators.clone();
         this.climate = climate;
         this.category = category;
@@ -127,7 +127,7 @@ public final class BiomeRegistration {
 
         final EnumSet<TerrainCategory> categories;
         TerrainBase terrain;
-        SurfaceBase[] surfaces;
+        SurfaceRule[] surfaceRules;
         BiomeDecorator[] decorators;
         TerrainSubcategory subcategory;
         Integer weight;
@@ -144,8 +144,8 @@ public final class BiomeRegistration {
             return this;
         }
 
-        public Variant surfaces(SurfaceBase... surfaces) {
-            this.surfaces = surfaces == null ? null : surfaces.clone();
+        public Variant surfaces(SurfaceRule... surfaceRules) {
+            this.surfaceRules = surfaceRules == null ? null : surfaceRules.clone();
             return this;
         }
 

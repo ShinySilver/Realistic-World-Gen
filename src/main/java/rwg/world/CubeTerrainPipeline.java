@@ -2,7 +2,6 @@ package rwg.world;
 
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
-import net.minecraft.world.biome.BiomeGenBase;
 import net.minecraft.world.chunk.Chunk;
 
 import com.cardinalstar.cubicchunks.util.DependencyGraph;
@@ -10,12 +9,11 @@ import com.cardinalstar.cubicchunks.world.cube.Cube;
 import com.cardinalstar.cubicchunks.world.cube.blockview.UniformBlockView;
 import com.gtnewhorizon.gtnhlib.util.data.BlockMeta;
 
+import rwg.biomes.surface.SurfaceRule;
+
 /** Ordered, cube-local terrain mutation with allocation-free classification before detailed work. */
 final class CubeTerrainPipeline {
 
-    // Milestone 5 replaces this temporary depth with the maximum declared by the frozen surface-rule set. Classification
-    // and painting must share that value so a deeper rule can never be bypassed by the solid fast path.
-    private static final int SURFACE_DEPTH = 3;
     private static final UniformBlockView STONE = new UniformBlockView(new BlockMeta(Blocks.stone, 0));
     private static final UniformBlockView WATER = new UniformBlockView(new BlockMeta(Blocks.water, 0));
 
@@ -55,7 +53,8 @@ final class CubeTerrainPipeline {
             return GenerationKind.EMPTY;
         if (minimumY > plan.maximumSurfaceY() && minimumY >= CubicWorldSettings.SEA_LEVEL) return GenerationKind.EMPTY;
         if (minimumY > plan.maximumSurfaceY() && maximumY < CubicWorldSettings.SEA_LEVEL) return GenerationKind.WATER;
-        if (maximumY < plan.minimumSurfaceY() - SURFACE_DEPTH && minimumY > CubicWorldSettings.MIN_GENERATION_Y)
+        if (maximumY < plan.minimumSurfaceY() - plan.maximumSurfaceDepth()
+                && minimumY > CubicWorldSettings.MIN_GENERATION_Y)
             return GenerationKind.SOLID;
         return GenerationKind.DETAILED;
     }
@@ -63,13 +62,6 @@ final class CubeTerrainPipeline {
     static Block baseBlock(int surfaceY, int blockY) {
         if (blockY <= surfaceY) return Blocks.stone;
         return blockY < CubicWorldSettings.SEA_LEVEL ? Blocks.water : Blocks.air;
-    }
-
-    static Block surfaceBlock(BiomeGenBase biome, int surfaceY, int depth) {
-        if (surfaceY < CubicWorldSettings.SEA_LEVEL - 1) return Blocks.sand;
-        Block block = depth == 0 ? biome.topBlock : biome.fillerBlock;
-        if (block != null) return block;
-        return depth == 0 ? Blocks.grass : Blocks.dirt;
     }
 
     static boolean isBedrockY(int blockY) {
@@ -110,22 +102,34 @@ final class CubeTerrainPipeline {
 
         @Override
         public void generate(CubeGenerationContext context) {
-            if (context.maximumBlockY < context.column.minimumSurfaceY() - SURFACE_DEPTH
+            if (context.maximumBlockY < context.column.minimumSurfaceY() - context.column.maximumSurfaceDepth()
                     || context.minimumBlockY > context.column.maximumSurfaceY())
                 return;
 
             for (int localX = 0; localX < Cube.SIZE; localX++) {
                 for (int localZ = 0; localZ < Cube.SIZE; localZ++) {
                     int surfaceY = (int) Math.floor(context.column.height(localX, localZ));
-                    BiomeGenBase biome = context.column.biome(localX, localZ);
-                    for (int depth = 0; depth <= SURFACE_DEPTH; depth++) {
+                    SurfaceRule rule = context.column.surfaceRule(localX, localZ);
+                    int worldX = context.cubeX * Cube.SIZE + localX;
+                    int worldZ = context.cubeZ * Cube.SIZE + localZ;
+                    for (int depth = 0; depth <= rule.maximumDepth(); depth++) {
                         int blockY = surfaceY - depth;
                         if (blockY < context.minimumBlockY || blockY > context.maximumBlockY) continue;
+                        Block block = surfaceY < CubicWorldSettings.SEA_LEVEL - 1
+                                ? Blocks.sand
+                                : rule.blockAt(
+                                        worldX,
+                                        worldZ,
+                                        surfaceY,
+                                        depth,
+                                        context.column.riverStrength(localX, localZ),
+                                        context.column.mountainWeight(localX, localZ));
+                        if (block == null) block = depth == 0 ? Blocks.grass : Blocks.dirt;
                         context.blocks.setBlock(
                                 localX,
                                 blockY - context.minimumBlockY,
                                 localZ,
-                                CubeTerrainPipeline.surfaceBlock(biome, surfaceY, depth));
+                                block);
                     }
                 }
             }

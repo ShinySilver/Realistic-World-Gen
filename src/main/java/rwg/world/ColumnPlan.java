@@ -2,6 +2,7 @@ package rwg.world;
 
 import net.minecraft.world.biome.BiomeGenBase;
 
+import rwg.biomes.surface.SurfaceRule;
 import rwg.registry.BiomeRegistration;
 import rwg.world.sample.BiomeBlendSample;
 
@@ -17,9 +18,11 @@ public final class ColumnPlan {
     private final float[] riverStrengths;
     private final float[] mountainWeights;
     private final BiomeGenBase[] biomes;
+    private final SurfaceRule[] surfaceRules;
     private final BiomeBlendSample biomeBlend;
     private final int minimumSurfaceY;
     private final int maximumSurfaceY;
+    private final int maximumSurfaceDepth;
 
     ColumnPlan(float[] heights, float[] baseHeights, BiomeRegistration[] registrations, float[] riverStrengths,
             float[] mountainWeights, BiomeBlendSample biomeBlend) {
@@ -36,8 +39,10 @@ public final class ColumnPlan {
         this.mountainWeights = mountainWeights.clone();
         this.biomeBlend = biomeBlend;
         biomes = new BiomeGenBase[COLUMN_COUNT];
+        surfaceRules = new SurfaceRule[COLUMN_COUNT];
         int minimum = Integer.MAX_VALUE;
         int maximum = Integer.MIN_VALUE;
+        int maximumDepth = 0;
         for (int localX = 0; localX < SIZE; localX++) {
             for (int localZ = 0; localZ < SIZE; localZ++) {
                 int sampleIndex = index(localX, localZ);
@@ -45,6 +50,12 @@ public final class ColumnPlan {
                 if (registration == null) throw new NullPointerException("registration at " + sampleIndex);
                 biomes[localZ * SIZE + localX] = this.riverStrengths[sampleIndex] > 0f ? registration.riverBiome
                         : registration.biome;
+                // Resolve once during X/Z planning. Cube generation performs no registry lookup or rule selection.
+                SurfaceRule surfaceRule = registration.surfaceRules[0];
+                if (surfaceRule.maximumDepth() < 0)
+                    throw new IllegalArgumentException("negative surface depth for registration " + registration.id);
+                surfaceRules[localZ * SIZE + localX] = surfaceRule;
+                maximumDepth = Math.max(maximumDepth, surfaceRule.maximumDepth());
                 int surfaceY = (int) Math.floor(this.heights[sampleIndex]);
                 minimum = Math.min(minimum, surfaceY);
                 maximum = Math.max(maximum, surfaceY);
@@ -52,6 +63,7 @@ public final class ColumnPlan {
         }
         minimumSurfaceY = minimum;
         maximumSurfaceY = maximum;
+        maximumSurfaceDepth = maximumDepth;
     }
 
     public float height(int localX, int localZ) {
@@ -83,12 +95,21 @@ public final class ColumnPlan {
         return biomes[localZ * SIZE + localX];
     }
 
+    public SurfaceRule surfaceRule(int localX, int localZ) {
+        index(localX, localZ);
+        return surfaceRules[localZ * SIZE + localX];
+    }
+
     public int minimumSurfaceY() {
         return minimumSurfaceY;
     }
 
     public int maximumSurfaceY() {
         return maximumSurfaceY;
+    }
+
+    public int maximumSurfaceDepth() {
+        return maximumSurfaceDepth;
     }
 
     public BiomeGenBase[] copyBiomes() {
