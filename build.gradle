@@ -11,18 +11,10 @@ sourceSets {
     }
 }
 
-def localCubicChunks = files(provider {
-    def jars = fileTree('../CubicChunks1710/build/libs') {
-        include '*-dev.jar'
-    }.files
-    if (jars.empty) {
-        throw new GradleException('No sibling CubicChunks development jar was built')
-    }
-    jars.max { it.lastModified() }
-})
+def localCubicChunksJar = file('../CubicChunks1710/build/rwg/cubicchunks-dev.jar')
 
 dependencies {
-    api(localCubicChunks)
+    api(files(localCubicChunksJar))
     api('com.github.GTNewHorizons:RegionLib:v0.1.0-GTNH:dev')
     api('com.falsepattern:endlessids-mc1.7.10:1.7.4:dev')
     api('ganymedes01.etfuturum:Et-Futurum-Requiem:2.6.58-GTNH:dev')
@@ -37,7 +29,7 @@ tasks.register('buildLocalCubicChunks', Exec) {
     group = 'build setup'
     description = 'Builds the sibling CubicChunks development jar used by this checkout'
     workingDir = file('../CubicChunks1710')
-    commandLine './gradlew', 'shadowJar', '--quiet', '--no-daemon'
+    commandLine './gradlew', 'syncRwgDevJar', '--quiet', '--no-daemon'
     environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
 }
 
@@ -133,6 +125,15 @@ tasks.register('debug_verifyColumnPlannerConcurrency', JavaExec) {
     mainClass = 'rwg.world.ColumnPlannerConcurrencyVerification'
     workingDir = project.projectDir
     maxHeapSize = '1g'
+}
+
+tasks.register('debug_estimateCubeCulling', JavaExec) {
+    group = 'verification'
+    description = 'Estimates virtual-air and sealed-solid culling for the default profiler volume'
+    dependsOn previewClasses
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'rwg.world.CubeCullingEstimate'
+    workingDir = project.projectDir
 }
 
 tasks.register('debug_verifyCubicTerrainPipeline', JavaExec) {

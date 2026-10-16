@@ -11,7 +11,9 @@ import com.google.common.cache.CacheBuilder;
 /** Bounded completed-plan cache plus an unbounded-only-while-running map that deduplicates concurrent computation. */
 public final class ColumnPlanCache {
 
-    private static final int DEFAULT_MAXIMUM_SIZE = 1024;
+    // A default 32-chunk client view covers 33x33 = 1089 columns. Keep one complete view resident so speculative
+    // classification cannot evict a column before its vertically adjacent cube requests consume the same plan.
+    private static final int DEFAULT_MAXIMUM_SIZE = 2048;
 
     private final ColumnPlanner planner;
     private final Cache<Long, ColumnPlan> completed;

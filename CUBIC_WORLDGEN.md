@@ -76,7 +76,9 @@ Cube-local population and worldgen writes use the same invalidation path.
 Player-view eager loads are tagged separately from explicit block access, tickets, spawn requirements, and immediate
 player-neighborhood requests. The latter always bypass connectivity. Visible cubes are first generated, then an
 incremental frontier promotes only transmissible cubes and the first opaque blocker around them to population and
-lighting. Generation completion and cleared faces cost at most six neighbor checks, so this event-driven path avoids
+lighting. RWG now classifies speculative requests from its preloaded immutable column plans before cube construction:
+known air remains virtual, known solid waits for the blocker halo, and water or detailed terrain is generated only when
+the frontier reaches it. Generation completion and cleared faces cost at most six neighbor checks, so this path avoids
 the snapshot publication and stale-result handling of a dedicated selector thread. Do not add a regional bitset index
 unless profiling demonstrates that incremental frontier selection itself is material.
 

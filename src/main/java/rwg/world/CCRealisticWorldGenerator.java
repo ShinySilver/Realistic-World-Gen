@@ -13,6 +13,8 @@ import net.minecraft.world.chunk.Chunk;
 
 import com.cardinalstar.cubicchunks.api.ICube;
 import com.cardinalstar.cubicchunks.api.worldgen.GenerationResult;
+import com.cardinalstar.cubicchunks.api.worldgen.ISpeculativeCubeGenerator;
+import com.cardinalstar.cubicchunks.api.worldgen.ISpeculativeCubeGenerator.SpeculativeCubeHint;
 import com.cardinalstar.cubicchunks.api.worldgen.IWorldGenerator;
 import com.cardinalstar.cubicchunks.server.chunkio.CubeInitLevel;
 import com.cardinalstar.cubicchunks.server.chunkio.IPreloadFailureDelegate;
@@ -33,7 +35,8 @@ import rwg.world.population.StructureLocator;
  * {@code CUBIC_WORLDGEN.md}. Keep this adapter thin: pure planning and bounded in-progress caches belong behind
  * dedicated abstractions, while cube mutation and world-mutating population remain separate ordered stages.
  */
-public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloadFailureDelegate {
+public final class CCRealisticWorldGenerator
+        implements IWorldGenerator, IPreloadFailureDelegate, ISpeculativeCubeGenerator {
 
     private final World world;
     private final ColumnPlanCache columnPlans;
@@ -97,6 +100,14 @@ public final class CCRealisticWorldGenerator implements IWorldGenerator, IPreloa
         if (actual.ordinal() < CubeInitLevel.Populated.ordinal()
                 && wanted.ordinal() >= CubeInitLevel.Populated.ordinal())
             populationPlans.precalculate(pos.getX(), pos.getZ());
+    }
+
+    @Override
+    public SpeculativeCubeHint classifyCube(int cubeX, int cubeY, int cubeZ) {
+        CubeTerrainPipeline.GenerationKind kind = CubeTerrainPipeline.classify(columnPlans.get(cubeX, cubeZ), cubeY);
+        if (kind == CubeTerrainPipeline.GenerationKind.EMPTY) return SpeculativeCubeHint.VIRTUAL_AIR;
+        if (kind == CubeTerrainPipeline.GenerationKind.SOLID) return SpeculativeCubeHint.SEALED;
+        return SpeculativeCubeHint.GENERATE;
     }
 
     @Override
