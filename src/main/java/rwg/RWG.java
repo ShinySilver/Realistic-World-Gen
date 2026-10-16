@@ -1,5 +1,6 @@
 package rwg;
 
+import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.MinecraftForge;
 
 import cpw.mods.fml.common.Mod;
@@ -7,11 +8,13 @@ import cpw.mods.fml.common.Mod.EventHandler;
 import cpw.mods.fml.common.Mod.Instance;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import cpw.mods.fml.common.event.FMLServerStartedEvent;
 import rwg.biomes.villages.VillageMaterials;
 import rwg.registry.BiomeRegistry;
 import rwg.registry.BiomeRegistryBootstrap;
 import rwg.support.RailcraftWorldgenFilter;
 import rwg.world.WorldType;
+import rwg.world.profile.WorldgenProfiler;
 
 @Mod(
         modid = "RWG",
@@ -40,6 +43,12 @@ public class RWG {
 
     @EventHandler
     public void Init(FMLInitializationEvent event) {}
+
+    @EventHandler
+    public void serverStarted(FMLServerStartedEvent event) {
+        if (!Boolean.getBoolean("rwg.profileWorldgen")) return;
+        WorldgenProfiler.profileAndStop(MinecraftServer.getServer());
+    }
 
     public static BiomeRegistry biomeRegistry() {
         if (biomeRegistry == null) throw new IllegalStateException("RWG biome registry has not been initialized");

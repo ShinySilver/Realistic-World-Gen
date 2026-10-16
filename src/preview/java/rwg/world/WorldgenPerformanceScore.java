@@ -3,7 +3,6 @@ package rwg.world;
 import java.io.File;
 import java.util.Arrays;
 
-import one.profiler.AsyncProfiler;
 import rwg.ConfigRWG;
 import rwg.registry.BiomeRegistry;
 
@@ -19,9 +18,7 @@ public final class WorldgenPerformanceScore {
     public static void main(String[] arguments) {
         ConfigRWG.initPreview(new File(System.getProperty("rwg.previewConfig", "run/client/config/RWG.cfg")));
         BiomeRegistry registry = PreviewBiomeRegistry.create();
-        boolean profileChunks = Arrays.asList(arguments).contains("--profile-chunks");
-        if (profileChunks) profileChunks(registry);
-        else score(registry);
+        score(registry);
     }
 
     private static void score(BiomeRegistry registry) {
@@ -51,25 +48,6 @@ public final class WorldgenPerformanceScore {
         System.out.println(
                 "column_plans includes biome blending and terrain heights; cube filling and population are "
                         + "intentionally measured by the cubic pipeline");
-    }
-
-    private static void profileChunks(BiomeRegistry registry) {
-        runPlans(registry, 64, SEED ^ 0xC4A11L);
-        String output = System.getProperty("rwg.asyncProfilerOutput");
-        if (output == null) throw new IllegalStateException("Missing async-profiler output path");
-        try {
-            AsyncProfiler.getInstance().execute("stop");
-            AsyncProfiler.getInstance().execute("start,event=cpu,interval=1ms");
-            TimedResult result = runPlans(registry, 256, SEED);
-            AsyncProfiler.getInstance().execute("stop,file=" + output + ",title=RWG base chunk generation");
-            System.out.println(
-                    String.format(
-                            "Profiled 256 column plans at %.2f plans/s; checksum=0x%016X",
-                            perSecond(256, result.nanoseconds),
-                            result.checksum));
-        } catch (Exception exception) {
-            throw new RuntimeException("Could not profile base chunk generation", exception);
-        }
     }
 
     private static TimedResult runPreviewPoints(BiomeRegistry registry, int count, long seed) {

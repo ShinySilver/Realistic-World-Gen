@@ -17,7 +17,6 @@ import java.awt.image.DataBufferInt;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,7 +41,6 @@ import javax.swing.Timer;
 
 import net.minecraft.world.ColorizerGrass;
 
-import one.profiler.AsyncProfiler;
 import rwg.ConfigRWG;
 import rwg.biomes.surface.SurfaceCanyon;
 import rwg.biomes.surface.SurfaceDesert;
@@ -101,8 +99,7 @@ public final class RWGPreviewTool {
                 return;
             }
         }
-        if (Arrays.asList(args).contains("--instrument")) profile(registry);
-        else open(registry);
+        open(registry);
     }
 
     private static File previewConfig(String[] args) {
@@ -843,42 +840,6 @@ public final class RWGPreviewTool {
         return label;
     }
 
-    private static void profile(BiomeRegistry registry) {
-        profilePass(registry, DEFAULT_SEED ^ 0x5DEECE66DL, 1400, 900);
-        profilePass(registry, DEFAULT_SEED ^ 0xC0FFEE1234L, 1400, 900);
-        try {
-            Thread.sleep(1000L);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while waiting for profiling warm-up", exception);
-        }
-        restartProfiler();
-        long started = System.nanoTime();
-        profilePass(registry, DEFAULT_SEED, 1400, 900);
-        System.out
-                .println(String.format("Measured preview generation: %.3f s", (System.nanoTime() - started) / 1.0E9D));
-        stopProfiler();
-    }
-
-    private static void profilePass(BiomeRegistry registry, long seed, int width, int height) {
-        RenderedCanvas canvas = new RenderedCanvas(width, height, -width * 8d, -height * 8d, 16d, seed);
-        PreviewPanel panel = new PreviewPanel(registry);
-        panel.canvas = canvas;
-        int request = panel.generation.incrementAndGet();
-        panel.generate(request, canvas, true);
-        panel.close();
-    }
-
-    private static void restartProfiler() {
-        try {
-            AsyncProfiler profiler = AsyncProfiler.getInstance();
-            profiler.execute("stop");
-            profiler.execute("start,event=cpu,interval=1ms");
-        } catch (Exception exception) {
-            throw new RuntimeException("Could not restart async-profiler after warm-up", exception);
-        }
-    }
-
     private static void debugProbe(BiomeRegistry registry, String coordinates) {
         String[] parts = coordinates.split(",");
         if (parts.length != 2) throw new IllegalArgumentException("Chunk coordinates must be x,z");
@@ -960,16 +921,6 @@ public final class RWGPreviewTool {
                         + column.height);
         System.out.println(
                 "biome=" + sample.biome.registration.biome.biomeName + " registryId=" + sample.biome.registration.id);
-    }
-
-    private static void stopProfiler() {
-        try {
-            String output = System.getProperty("rwg.asyncProfilerOutput");
-            if (output == null) throw new IllegalStateException("Missing async-profiler output path");
-            AsyncProfiler.getInstance().execute("stop,file=" + output + ",title=RWG preview world generation");
-        } catch (Exception exception) {
-            throw new RuntimeException("Could not stop async-profiler", exception);
-        }
     }
 
     private static int biomeColor(int registrationId, float height) {

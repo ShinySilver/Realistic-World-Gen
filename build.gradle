@@ -19,35 +19,7 @@ dependencies {
     api('com.github.GTNewHorizons:Natura:2.8.24:dev')
     api('com.github.GTNewHorizons:twilightforest:2.7.40:dev')
     api(rfg.deobf('curse.maven:witchery-69673:2234410'))
-    previewImplementation('tools.profiler:async-profiler:4.5')
     previewRuntimeOnly('it.unimi.dsi:fastutil:8.5.18')
-}
-
-abstract class DownloadProfilerArchive extends DefaultTask {
-
-    @Input
-    abstract Property<String> getSourceUrl()
-
-    @OutputFile
-    abstract RegularFileProperty getDestination()
-
-    @TaskAction
-    void download() {
-        File output = destination.get().asFile
-        output.parentFile.mkdirs()
-        File temporary = new File(output.parentFile, output.name + '.part')
-        try {
-            new URL(sourceUrl.get()).withInputStream { input ->
-                temporary.withOutputStream { stream -> stream << input }
-            }
-            java.nio.file.Files.move(
-                temporary.toPath(),
-                output.toPath(),
-                java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-        } finally {
-            temporary.delete()
-        }
-    }
 }
 
 tasks.register('runPreview', JavaExec) {
@@ -99,16 +71,6 @@ tasks.register('debug_verifyBiomeRegistry', JavaExec) {
     classpath = sourceSets.preview.runtimeClasspath
     mainClass = 'rwg.registry.BuiltinBiomeRegistrationVerification'
     workingDir = project.projectDir
-}
-
-tasks.register('debug_verifyValleys', JavaExec) {
-    group = 'verification'
-    description = 'Verifies junction-valley terrain fields and category resolution'
-    dependsOn previewClasses
-    classpath = sourceSets.preview.runtimeClasspath
-    mainClass = 'rwg.world.ValleyMorphologyVerification'
-    workingDir = project.projectDir
-    maxHeapSize = '1g'
 }
 
 tasks.register('debug_verifyCanyons', JavaExec) {
@@ -189,109 +151,95 @@ tasks.register('debug_calibrateOceanCoverage', JavaExec) {
     systemProperties System.properties.findAll { key, value -> key.toString().startsWith('rwg.') }
 }
 
-def asyncProfilerVersion = '4.5'
-def hostOs = System.getProperty('os.name').toLowerCase(Locale.ROOT)
-def hostArch = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
-def asyncProfilerPlatform = hostOs.contains('linux')
-    ? (hostArch.contains('aarch64') || hostArch.contains('arm64') ? 'linux-arm64' : 'linux-x64')
-    : hostOs.contains('mac') ? 'macos' : null
-def asyncProfilerExtension = hostOs.contains('mac') ? 'zip' : 'tar.gz'
-def asyncProfilerArchive = layout.buildDirectory.file(
-    "downloads/async-profiler-${asyncProfilerVersion}-${asyncProfilerPlatform}.${asyncProfilerExtension}")
-def asyncProfilerTools = layout.buildDirectory.dir('tools')
-def asyncProfilerDirectory = layout.buildDirectory.dir(
-    "tools/async-profiler-${asyncProfilerVersion}-${asyncProfilerPlatform}")
+def worldgenProfileRoot = layout.buildDirectory.dir('worldgen-profiler')
+def worldgenProfileServer = worldgenProfileRoot.map { it.dir('server') }
+def worldgenProfileOutput = layout.buildDirectory.dir('profiles')
 
-def downloadAsyncProfiler = tasks.register('debug_downloadAsyncProfiler', DownloadProfilerArchive) {
-    group = 'verification'
-    description = 'Downloads the async-profiler native distribution archive'
-    if (asyncProfilerPlatform == null) {
-        throw new GradleException('async-profiler provides official builds for Linux and macOS; use WSL on Windows.')
-    }
-    sourceUrl = "https://github.com/async-profiler/async-profiler/releases/download/v${asyncProfilerVersion}/async-profiler-${asyncProfilerVersion}-${asyncProfilerPlatform}.${asyncProfilerExtension}"
-    destination = asyncProfilerArchive
+def cleanWorldgenProfileServer = tasks.register('cleanWorldgenProfileServer', Delete) {
+    delete worldgenProfileServer
 }
 
-def installAsyncProfiler = tasks.register('debug_installAsyncProfiler', Sync) {
+tasks.register('prepareWorldgenProfile') {
     group = 'verification'
-    description = 'Extracts the async-profiler native distribution used by debug_profilePreview'
-    dependsOn downloadAsyncProfiler
-    from(hostOs.contains('mac') ? zipTree(asyncProfilerArchive) : tarTree(resources.gzip(asyncProfilerArchive)))
-    into(asyncProfilerTools)
-}
-
-tasks.register('debug_profilePreview', JavaExec) {
-    group = 'verification'
-    description = 'Profiles preview world generation and opens an async-profiler flame graph'
-    dependsOn previewClasses, installAsyncProfiler
-    classpath = sourceSets.preview.runtimeClasspath
-    workingDir = project.projectDir
-    mainClass = 'rwg.world.RWGPreviewTool'
-    maxHeapSize = '1g'
-    args '--instrument'
-
-    def profileTimestamp = new java.text.SimpleDateFormat("dd.MM.yyyy_HH'h'mm").format(new Date())
-    def flameGraph = layout.buildDirectory.file("profiles/rwg-preview_${profileTimestamp}.html")
-    doFirst {
-        def profile = flameGraph.get().asFile
-        profile.parentFile.mkdirs()
-        if (profile.exists() && !profile.delete()) {
-            throw new GradleException("Could not replace old flame graph at ${profile}")
-        }
-        def libraryName = hostOs.contains('mac') ? 'libasyncProfiler.dylib' : 'libasyncProfiler.so'
-        def library = new File(asyncProfilerDirectory.get().asFile, "lib/${libraryName}")
-        if (!library.isFile()) throw new GradleException("async-profiler library not found at ${library}")
-        systemProperty 'rwg.asyncProfilerOutput', profile.absolutePath
-        jvmArgs "-agentpath:${library}=start,event=cpu,interval=1ms"
-    }
+    description = 'Creates the isolated deterministic server used by debug_profileWorldgen'
+    dependsOn cleanWorldgenProfileServer
+    outputs.dir(worldgenProfileServer)
+    outputs.upToDateWhen { false }
     doLast {
-        def profile = flameGraph.get().asFile
-        if (!profile.isFile() || profile.length() == 0) {
-            throw new GradleException("async-profiler did not create the flame graph at ${profile}")
-        }
-        println "async-profiler flame graph: ${profile}"
-        try {
-            if (java.awt.Desktop.isDesktopSupported()
-                && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
-                java.awt.Desktop.getDesktop().browse(profile.toURI())
-            } else {
-                println 'Desktop browsing is unavailable; open the flame graph manually.'
-            }
-        } catch (Exception exception) {
-            println 'Desktop browsing is unavailable; open the flame graph manually.'
-        }
+        File serverDir = worldgenProfileServer.get().asFile
+        File configDir = new File(serverDir, 'config')
+        configDir.mkdirs()
+        new File(serverDir, 'eula.txt').text = 'eula=true\n'
+        new File(serverDir, 'server.properties').text = '''\
+allow-flight=true
+enable-query=false
+enable-rcon=false
+generator-settings=
+level-name=rwg-profile
+level-seed=927692613931855800
+level-type=RWG2
+max-tick-time=-1
+online-mode=false
+server-ip=127.0.0.1
+server-port=0
+spawn-animals=false
+spawn-monsters=false
+spawn-npcs=false
+view-distance=2
+'''
+        new File(configDir, 'cubicchunks.cfg').text = '''\
+general {
+    I:spawnGenerateDistanceXZ=-1
+    I:spawnGenerateDistanceY=-1
+    I:spawnLoadDistanceXZ=-1
+    I:spawnLoadDistanceY=-1
+    I:defaultMinHeight=-1024
+    I:defaultMaxHeight=2048
+    S:dimensional_height_overrides <
+        0:bottom:-1024
+        0:top:2048
+    >
+}
+'''
     }
 }
 
-tasks.register('debug_profileChunkGeneration', JavaExec) {
-    group = 'verification'
-    description = 'Profiles headless cubic column planning and opens an async-profiler flame graph'
-    dependsOn previewClasses, installAsyncProfiler
-    classpath = sourceSets.preview.runtimeClasspath
-    workingDir = project.projectDir
-    mainClass = 'rwg.world.WorldgenPerformanceScore'
-    maxHeapSize = '1g'
-    args '--profile-chunks'
+if (project.hasProperty('rwgWorldgenProfileRun')) {
+    tasks.named('runServer') {
+        dependsOn tasks.named('prepareWorldgenProfile')
+        workingDir = worldgenProfileServer.get().asFile
+        jvmArgs(
+            '-Drwg.profileWorldgen=true',
+            '-Drwg.profileSeed=927692613931855800',
+            "-Drwg.profileRadius=${project.findProperty('rwgProfileRadius') ?: '16'}",
+            "-Drwg.profileMinCubeY=${project.findProperty('rwgProfileMinCubeY') ?: '-16'}",
+            "-Drwg.profileMaxCubeY=${project.findProperty('rwgProfileMaxCubeY') ?: '31'}",
+            "-Drwg.profileDir=${worldgenProfileOutput.get().asFile.absolutePath}")
+    }
+}
 
-    def profileTimestamp = new java.text.SimpleDateFormat("dd.MM.yyyy_HH'h'mm").format(new Date())
-    def flameGraph = layout.buildDirectory.file("profiles/rwg-chunks_${profileTimestamp}.html")
-    doFirst {
-        def profile = flameGraph.get().asFile
-        profile.parentFile.mkdirs()
-        if (profile.exists() && !profile.delete()) {
-            throw new GradleException("Could not replace old flame graph at ${profile}")
-        }
-        def libraryName = hostOs.contains('mac') ? 'libasyncProfiler.dylib' : 'libasyncProfiler.so'
-        def library = new File(asyncProfilerDirectory.get().asFile, "lib/${libraryName}")
-        if (!library.isFile()) throw new GradleException("async-profiler library not found at ${library}")
-        systemProperty 'rwg.asyncProfilerOutput', profile.absolutePath
-        jvmArgs "-agentpath:${library}=start,event=cpu,interval=1ms"
-    }
+tasks.register('debug_profileWorldgen', Exec) {
+    group = 'verification'
+    description = 'Profiles a fresh 32x32 RWG2 CubicChunks region and writes HTML, JSON, and folded stacks'
+    dependsOn tasks.named('prepareWorldgenProfile')
+    workingDir = project.projectDir
+    commandLine './gradlew', 'runServer', '-PrwgWorldgenProfileRun', '--no-daemon'
+    environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
     doLast {
-        def profile = flameGraph.get().asFile
-        if (!profile.isFile() || profile.length() == 0) {
-            throw new GradleException("async-profiler did not create the flame graph at ${profile}")
-        }
-        println "async-profiler flame graph: ${profile}"
+        println "RWG worldgen profiles: ${worldgenProfileOutput.get().asFile}"
     }
+}
+
+tasks.register('debug_verifyWorldgen') {
+    group = 'verification'
+    description = 'Runs all deterministic RWG architecture and generation checks'
+    dependsOn(
+        'debug_verifyNoiseDeterminism',
+        'debug_verifyBiomeRegistry',
+        'debug_verifyCanyons',
+        'debug_verifyHills',
+        'debug_verifyTerrainProfiles',
+        'debug_verifyColumnPlannerConcurrency',
+        'debug_verifyCubicTerrainPipeline',
+        'debug_verifyStructurePlanning')
 }
